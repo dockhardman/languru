@@ -20,9 +20,14 @@ openai = ["openai"]
 server = ["fastapi"]
 
 [tool.poetry.group.dev.dependencies]
+black = "^24.1.1"
+isort = "^5.13.2"
 poetry-plugin-export = "^1.6.0"
 pytest = "^8"
 pytest-asyncio = "*"
+
+[tool.isort]
+profile = "black"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
