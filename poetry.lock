@@ -2218,9 +2218,10 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 
 [extras]
 all = ["fastapi", "openai"]
-server = ["fastapi", "openai"]
+openai = ["openai"]
+server = ["fastapi"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "a8cd3bba12d947a47dc9087c509c86019bc1fc1b3e97341030405037f5124155"
+content-hash = "9389ce8f93ad21ea9c6e8346ff19c05456c624a1bc798c7189febc94ff138c62"

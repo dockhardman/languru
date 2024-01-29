@@ -16,7 +16,8 @@ typing-extensions = "^4.9.0"
 
 [tool.poetry.extras]
 all = ["fastapi", "openai"]
-server = ["fastapi", "openai"]
+openai = ["openai"]
+server = ["fastapi"]
 
 [tool.poetry.group.dev.dependencies]
 poetry-plugin-export = "^1.6.0"
