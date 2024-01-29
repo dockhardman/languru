@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     is_development: bool = True
     is_testing: bool = False
     debug: bool = is_development
+    HOST: Text = "0.0.0.0"
+    PORT: int = 8680
+    WORKERS: int = 1
+    RELOAD: bool = True
+    LOG_LEVEL: Text = "debug"
+    USE_COLORS: bool = True
+    RELOAD_DELAY: float = 5.0
 
 
 settings = Settings()
