@@ -1,0 +1,27 @@
+[tool.poetry]
+authors = ["Allen Chou <f1470891079@gmail.com>"]
+description = "The general purpose LLM app stacks."
+license = "Apache-2.0 license"
+name = "general-llm-stack"
+readme = "README.md"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+fastapi = { extras = ["all"], version = "^0.109.0", optional = true }
+pydantic = "^2"
+pydantic-settings = "^2"
+python = ">=3.10,<4.0"
+typing-extensions = "^4.9.0"
+
+[tool.poetry.extras]
+all = ["fastapi"]
+server = ["fastapi"]
+
+[tool.poetry.group.dev.dependencies]
+poetry-plugin-export = "^1.6.0"
+pytest = "^8"
+pytest-asyncio = "*"
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]
