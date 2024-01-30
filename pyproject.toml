@@ -2,7 +2,7 @@
 authors = ["Allen Chou <f1470891079@gmail.com>"]
 description = "The general purpose LLM app stacks."
 license = "Apache-2.0 license"
-name = "general-llm-stack"
+name = "languru"
 readme = "README.md"
 version = "0.1.0"
 
@@ -14,6 +14,10 @@ pydantic = "^2"
 pydantic-settings = "^2"
 python = ">=3.10,<4.0"
 typing-extensions = "^4.9.0"
+
+# script
+[tool.poetry.scripts]
+languru = "languru.cli.main:app"
 
 [tool.poetry.extras]
 all = ["fastapi", "openai"]

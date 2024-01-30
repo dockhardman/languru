@@ -2,14 +2,14 @@ from typing import Text
 
 from pydantic_settings import BaseSettings
 
-from general_llm_stack.version import VERSION
+from languru.version import VERSION
 
 
 class Settings(BaseSettings):
     """Settings for the server."""
 
     # Server
-    APP_NAME: Text = "general_llm_stack_server"
+    APP_NAME: Text = "languru-server"
     SERVICE_NAME: Text = APP_NAME
     APP_VERSION: Text = VERSION
     is_production: bool = False

@@ -1,6 +1,6 @@
 # Server
 run-server:
-	uvicorn general_llm_stack.server.app:app \
+	uvicorn languru.server.app:app \
         --host=0.0.0.0 \
         --port=8680 \
         --workers=1 \

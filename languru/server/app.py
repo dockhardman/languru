@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from general_llm_stack.server.config import settings
+from languru.server.config import settings
 
 
 def create_app():
@@ -18,7 +18,7 @@ app = create_app()
 def run_app():
     import uvicorn
 
-    app_str = "general_llm_stack.server.app:app"
+    app_str = "languru.server.app:app"
 
     if settings.is_development or settings.is_testing:
         uvicorn.run(
