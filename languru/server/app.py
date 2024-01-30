@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from languru.server.config import settings
+from languru.server.config import logger, settings
 
 
 def create_app():
@@ -21,6 +21,7 @@ def run_app():
     app_str = "languru.server.app:app"
 
     if settings.is_development or settings.is_testing:
+        logger.info("Running server in development mode")
         uvicorn.run(
             app_str,
             host=settings.HOST,
@@ -32,8 +33,9 @@ def run_app():
             reload_delay=settings.RELOAD_DELAY,
         )
     else:
+        logger.info("Running server in production mode")
         uvicorn.run(
-            app_str, host=settings.HOST, port=settings.PORT, workers=settings.WORKERS
+            app, host=settings.HOST, port=settings.PORT, workers=settings.WORKERS
         )
 
 

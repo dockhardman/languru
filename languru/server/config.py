@@ -1,3 +1,4 @@
+import logging
 from typing import Text
 
 from pydantic_settings import BaseSettings
@@ -26,3 +27,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+logger = logging.getLogger(settings.SERVICE_NAME)
