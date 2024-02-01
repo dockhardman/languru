@@ -9,6 +9,10 @@ def create_app():
         debug=settings.debug,
         version=settings.APP_VERSION,
     )
+
+    from languru.server.api.v1 import router as api_v1_router
+
+    app.include_router(router=api_v1_router, prefix="/api/v1")
     return app
 
 
