@@ -1,10 +1,15 @@
 import sqlalchemy as sa
-from openai.types import Model
+from openai.types import Model as OpenaiModel
+from pydantic import ConfigDict
 from sqlalchemy.orm import declarative_base
 
 tb_name = "models"
 
 Base = declarative_base()
+
+
+class Model(OpenaiModel):
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ModelOrm(Base):
