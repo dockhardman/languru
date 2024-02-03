@@ -1,6 +1,19 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from languru.server.config import logger, settings
+
+
+@asynccontextmanager
+async def maybe_openai_available(app: FastAPI):
+    if settings.openai_available:
+        from openai import OpenAI
+
+        openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        # openai_models = openai_client.models.list()  # TODO:
+        yield
 
 
 def create_app():
@@ -8,6 +21,7 @@ def create_app():
         title=settings.APP_NAME,
         debug=settings.debug,
         version=settings.APP_VERSION,
+        lifespan=maybe_openai_available,
     )
 
     from languru.server.api.v1 import router as api_v1_router
