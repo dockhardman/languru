@@ -8,7 +8,7 @@ from languru.types.chat.completions import ChatCompletionCreate
 router = APIRouter()
 
 
-@router.post("/completions")
+@router.post("/chat/completions")
 async def chat_completions(
     request: Request,
     chat_completions_create: ChatCompletionCreate = Body(
