@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     USE_COLORS: bool = True
     RELOAD_DELAY: float = 5.0
 
+    # Model discovery configuration
+    model_discovery_url: Text = "sqlite:///./data/languru_model_discovery.db"
+
 
 settings = Settings()
 
