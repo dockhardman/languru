@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Text
 
 from pydantic_settings import BaseSettings
@@ -27,6 +28,9 @@ class Settings(BaseSettings):
 
     # Model discovery configuration
     model_discovery_url: Text = "sqlite:///./data/languru_model_discovery.db"
+
+    # Resources configuration
+    openai_available: bool = True if os.environ.get("OPENAI_API_KEY") else False
 
 
 settings = Settings()
