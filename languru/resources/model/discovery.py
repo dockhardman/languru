@@ -6,10 +6,15 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 from yarl import URL
 
+from languru.types.model.orm import Base as SQL_Base
 from languru.types.model.orm import Model, ModelOrm
 
 
 class ModelDiscorvery:
+
+    def touch(self) -> bool:
+        raise NotImplementedError
+
     def register(self, model: Model) -> Model:
         raise NotImplementedError
 
@@ -19,12 +24,15 @@ class ModelDiscorvery:
 
 class SqlModelDiscorvery(ModelDiscorvery):
     def __init__(self, url: Text | URL):
-        self.url = URL(url)
-        self._engine = sa.create_engine(str(self.url))
+        self.url: Text = str(url)
+        self._engine = sa.create_engine(self.url)
 
     @property
     def sql_engine(self):
         return self._engine
+
+    def touch(self) -> bool:
+        return SQL_Base.metadata.create_all(self.sql_engine)
 
     def register(self, model: Model, created: int | None = None) -> Model:
         if not isinstance(model, Model):

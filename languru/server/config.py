@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import Text
 
 from pydantic_settings import BaseSettings
@@ -25,9 +26,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: Text = "debug"
     USE_COLORS: bool = True
     RELOAD_DELAY: float = 5.0
+    DATA_DIR: Text = str(Path("./data").absolute())
 
     # Model discovery configuration
-    model_discovery_url: Text = "sqlite:///./data/languru_model_discovery.db"
+    url_model_discovery: Text = f"sqlite:///{DATA_DIR}/languru_model_discovery.db"
 
     # Resources configuration
     openai_available: bool = True if os.environ.get("OPENAI_API_KEY") else False
