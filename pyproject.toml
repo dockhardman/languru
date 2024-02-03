@@ -19,6 +19,7 @@ pytz = "^2024.1"
 rich = "^13.7.0"
 sqlalchemy = "^2.0.25"
 typing-extensions = "^4.9.0"
+aiohttp = "^3.9.3"
 
 [tool.poetry.scripts]
 languru = "languru.cli.main:app"
