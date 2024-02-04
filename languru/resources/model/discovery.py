@@ -25,7 +25,10 @@ class ModelDiscorvery:
 class SqlModelDiscorvery(ModelDiscorvery):
     def __init__(self, url: Text | URL):
         self.url: Text = str(url)
-        self._engine = sa.create_engine(self.url)
+        connect_kwargs = {}
+        if self.url.startswith("sqlite"):
+            connect_kwargs["check_same_thread"] = False
+        self._engine = sa.create_engine(self.url, connect_args=connect_kwargs)
 
     @property
     def sql_engine(self):
