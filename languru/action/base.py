@@ -12,10 +12,14 @@ ModelDeploy = NamedTuple(
 
 
 class ActionBase:
-    model_deploys: Optional[Tuple[ModelDeploy]] = None
+    model_deploys: Optional[Tuple[ModelDeploy, ...]] = None
 
-    def __init__(self, model_deploys: Tuple[ModelDeploy], *args, **kwargs):
-        self._model_deploys = model_deploys
+    def __init__(
+        self, *args, model_deploys: Optional[Tuple[ModelDeploy]] = None, **kwargs
+    ):
+        self._model_deploys = (
+            self.model_deploys if model_deploys is None else model_deploys
+        )
 
     def name(self) -> Text:
         raise NotImplementedError
