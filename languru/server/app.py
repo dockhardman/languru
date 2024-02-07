@@ -32,7 +32,7 @@ def create_app():
 
     from languru.server.api.v1 import router as api_v1_router
 
-    app.include_router(router=api_v1_router, prefix="/api/v1")
+    app.include_router(router=api_v1_router, prefix="/v1")
     return app
 
 

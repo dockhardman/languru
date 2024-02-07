@@ -17,7 +17,7 @@ async def register_model_periodically(model: Model, period: int, agent_base_url:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{agent_base_url}/api/v1/models/register",
+                    f"{agent_base_url}/v1/models/register",
                     json=model.model_dump(),
                 )
                 response.raise_for_status()
