@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import TYPE_CHECKING, List, NamedTuple, Optional, Text, Tuple
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Sequence, Text
 
 if TYPE_CHECKING:
     from openai.types import Completion, CreateEmbeddingResponse
@@ -12,14 +12,14 @@ ModelDeploy = NamedTuple(
 
 
 class ActionBase:
-    model_deploys: Optional[Tuple[ModelDeploy, ...]] = None
+    model_deploys: Optional[Sequence[ModelDeploy]] = None
 
     def __init__(
-        self, *args, model_deploys: Optional[Tuple[ModelDeploy]] = None, **kwargs
+        self, *args, model_deploys: Optional[Sequence[ModelDeploy]] = None, **kwargs
     ):
         self._model_deploys = (
             self.model_deploys if model_deploys is None else model_deploys
-        )
+        ) or ()
 
     def name(self) -> Text:
         raise NotImplementedError
