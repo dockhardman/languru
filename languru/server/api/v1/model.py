@@ -1,13 +1,14 @@
+import math
 import time
-from typing import TYPE_CHECKING, Text
+from typing import TYPE_CHECKING, Annotated, Text
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi import Path as PathParam
-from fastapi import Request
+from fastapi import Query, Request
 from openai.pagination import SyncPage
 from openai.types import ModelDeleted
 
-from languru.config import logger
+from languru.server.config import logger, settings
 from languru.types.model import Model
 
 if TYPE_CHECKING:
@@ -17,41 +18,33 @@ router = APIRouter()
 
 
 @router.get("/models", summary="List models")
-async def get_models(request: Request) -> SyncPage[Model]:
-    return {
-        "object": "list",
-        "data": [
-            {
-                "id": "model-id-0",
-                "object": "model",
-                "created": int(time.time()),
-                "owned_by": "organization-owner",
-            },
-            {
-                "id": "model-id-1",
-                "object": "model",
-                "created": int(time.time()),
-                "owned_by": "organization-owner",
-            },
-            {
-                "id": "model-id-2",
-                "object": "model",
-                "created": int(time.time()),
-                "owned_by": "openai",
-            },
-        ],
-        "object": "list",
-    }
+async def get_models(
+    request: Request,
+    id: Annotated[Text | None, "Model ID"] = Query(None),
+    owned_by: Annotated[Text | None, "Model owned by"] = Query(None),
+    created_from: Annotated[int | None, "Model created from timestamp"] = Query(None),
+    created_to: Annotated[int | None, "Model created to timestamp"] = Query(None),
+) -> SyncPage[Model]:
+    if created_from is None and created_to is not None:
+        created_from = math.floor(time.time() - float(settings.MODEL_REGISTER_PERIOD))
+    if getattr(request.app.state, "model_discovery", None) is None:
+        raise ValueError("Model discovery is not initialized")
+    model_discovery: "ModelDiscovery" = request.app.state.model_discovery
+    retrieved_models = model_discovery.list(
+        id=id, owned_by=owned_by, created_from=created_from, created_to=created_to
+    )
+    return SyncPage(data=retrieved_models, object="list")
 
 
 @router.get("/models/{model}", summary="Retrieve model")
 async def get_model(request: Request, model: Text = PathParam(...)) -> Model:
-    return {
-        "id": "gpt-3.5-turbo-instruct",
-        "object": "model",
-        "created": int(time.time()),
-        "owned_by": "openai",
-    }
+    if getattr(request.app.state, "model_discovery", None) is None:
+        raise ValueError("Model discovery is not initialized")
+    model_discovery: "ModelDiscovery" = request.app.state.model_discovery
+    retrieved_model = model_discovery.retrieve(id=model)
+    if retrieved_model is None:
+        raise HTTPException(status_code=404, detail="Model not found")
+    return retrieved_model
 
 
 @router.delete("/models/{model}", summary="Delete a fine-tuned model")
@@ -62,7 +55,6 @@ async def delete_model(request: Request, model: Text = PathParam(...)) -> ModelD
 
 @router.post("/models/register", summary="Register models")
 async def register_models(request: Request, model: Model):
-    print(model)
     if getattr(request.app.state, "model_discovery", None) is None:
         raise ValueError("Model discovery is not initialized")
     model_discovery: "ModelDiscovery" = request.app.state.model_discovery
