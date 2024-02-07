@@ -1,8 +1,14 @@
+import math
+import random
 import time
 
+import httpx
 from fastapi import APIRouter, Body, Request
 from openai.types.chat.chat_completion import ChatCompletion
+from yarl import URL
 
+from languru.resources.model.discovery import ModelDiscovery
+from languru.server.config import settings
 from languru.types.chat.completions import ChatCompletionRequest
 
 router = APIRouter()
@@ -11,7 +17,7 @@ router = APIRouter()
 @router.post("/chat/completions")
 async def chat_completions(
     request: Request,
-    chat_completions_create: ChatCompletionRequest = Body(
+    chat_completions_request: ChatCompletionRequest = Body(
         ...,
         example={
             "model": "gpt-3.5-turbo",
@@ -22,23 +28,21 @@ async def chat_completions(
         },
     ),
 ) -> ChatCompletion:
-    print(chat_completions_create)
-    return {
-        "id": "chatcmpl-123",
-        "object": "chat.completion",
-        "created": int(time.time()),
-        "model": "gpt-3.5-turbo-0613",
-        "system_fingerprint": "fp_44709d6fcb",
-        "choices": [
-            {
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": "\n\nHello there, how may I assist you today?",
-                },
-                "logprobs": None,
-                "finish_reason": "stop",
-            }
-        ],
-        "usage": {"prompt_tokens": 9, "completion_tokens": 12, "total_tokens": 21},
-    }
+    if getattr(request.app.state, "model_discovery", None) is None:
+        raise ValueError("Model discovery is not initialized")
+    model_discovery: "ModelDiscovery" = request.app.state.model_discovery
+    models = model_discovery.list(
+        id=chat_completions_request.model,
+        created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
+    )
+    if len(models) == 0:
+        raise ValueError(f"Model '{chat_completions_request.model}' not found")
+
+    model = random.choice(models)
+    url = URL(model.owned_by).with_path("/chat/completions")
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            str(url), json=chat_completions_request, headers=request.headers
+        )
+        response.raise_for_status()
+        return ChatCompletion(**response.json())
