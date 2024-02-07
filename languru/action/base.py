@@ -28,7 +28,7 @@ class ActionBase:
         raise NotImplementedError
 
     def chat(
-        self, message: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
+        self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> "ChatCompletion":
         raise NotImplementedError
 
