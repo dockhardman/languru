@@ -42,7 +42,7 @@ async def chat_completions(
     url = URL(model.owned_by).with_path("/chat/completions")
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            str(url), json=chat_completions_request, headers=request.headers
+            str(url), json=chat_completions_request.model_dump(exclude_none=True)
         )
         response.raise_for_status()
         return ChatCompletion(**response.json())

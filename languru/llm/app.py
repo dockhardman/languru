@@ -5,11 +5,13 @@ from contextlib import asynccontextmanager
 from typing import Text, Type
 
 import httpx
-from fastapi import FastAPI
+from fastapi import Body, FastAPI, Request
 from openai.types import Model
+from openai.types.chat import ChatCompletion
 
 from languru.action.base import ActionBase
 from languru.llm.config import logger, settings
+from languru.types.chat.completions import ChatCompletionRequest
 
 
 async def register_model_periodically(model: Model, period: int, agent_base_url: Text):
@@ -68,6 +70,19 @@ def create_app():
         version=settings.APP_VERSION,
         lifespan=app_lifespan,
     )
+
+    @app.post("/chat/completions")
+    async def chat_completions(
+        request: Request, chat_completion_request: ChatCompletionRequest = Body(...)
+    ) -> ChatCompletion:
+        if getattr(request.app.state, "action", None) is None:
+            raise ValueError("Action is not initialized")
+        action: "ActionBase" = request.app.state.action
+        chat_completion_request.model = action.get_model_name(
+            chat_completion_request.model
+        )
+        chat_completion = action.chat(**chat_completion_request.model_dump())
+        return chat_completion
 
     return app
 
