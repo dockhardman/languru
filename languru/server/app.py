@@ -15,10 +15,10 @@ async def maybe_openai_available(app: FastAPI):
         data_dir.mkdir(parents=True, exist_ok=True, mode=0o770)
 
     # Touch database
-    from languru.resources.model.discovery import SqlModelDiscorvery
+    from languru.resources.model.discovery import SqlModelDiscovery
     from languru.types.model.orm import Model
 
-    model_discover = SqlModelDiscorvery(url=settings.url_model_discovery)
+    model_discover = SqlModelDiscovery(url=settings.url_model_discovery)
     model_discover.touch()
 
     # Register OpenAI models if available

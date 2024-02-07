@@ -10,7 +10,7 @@ from languru.types.model.orm import Base as SQL_Base
 from languru.types.model.orm import Model, ModelOrm
 
 
-class ModelDiscorvery:
+class ModelDiscovery:
     def touch(self) -> bool:
         raise NotImplementedError
 
@@ -21,7 +21,7 @@ class ModelDiscorvery:
         raise NotImplementedError
 
 
-class SqlModelDiscorvery(ModelDiscorvery):
+class SqlModelDiscovery(ModelDiscovery):
     def __init__(self, url: Text | URL):
         self.url: Text = str(url)
         connect_kwargs = {}
