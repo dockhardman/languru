@@ -6,11 +6,27 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 from yarl import URL
 
+from languru.config import logger
 from languru.types.model.orm import Base as SQL_Base
 from languru.types.model.orm import Model, ModelOrm
 
 
 class ModelDiscovery:
+
+    @classmethod
+    def from_url(cls, url: Text | URL):
+        url_str: Text = str(url).strip()
+        if (
+            url_str.startswith("sqlite")
+            or url_str.startswith("postgresql")
+            or url_str.startswith("postgres")
+            or url_str.startswith("mysql")
+        ):
+            return SqlModelDiscovery(url)
+        else:
+            logger.error(f"Unsupported discovery url: {url_str}")
+            raise ValueError(f"Unsupported discovery url: {url_str}")
+
     def touch(self) -> bool:
         raise NotImplementedError
 
