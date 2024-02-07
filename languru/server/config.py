@@ -30,6 +30,7 @@ class Settings(BaseSettings):
 
     # Model discovery configuration
     url_model_discovery: Text = f"sqlite:///{DATA_DIR}/languru_model_discovery.db"
+    MODEL_REGISTER_PERIOD: int = 10
 
     # Resources configuration
     openai_available: bool = True if os.environ.get("OPENAI_API_KEY") else False

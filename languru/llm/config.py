@@ -29,8 +29,7 @@ class Settings(BaseSettings):
     DATA_DIR: Text = str(Path("./data").absolute())
     ACTION_BASE_URL: Text = "http://localhost:8682"
     AGENT_BASE_URL: Text = "http://localhost:8680"
-    # time period to register model
-    MODEL_REGISTER_PERIOD: int = 5
+    MODEL_REGISTER_PERIOD: int = 10
     MODEL_REGISTER_FAIL_PERIOD: int = 60
 
     # Model discovery configuration
