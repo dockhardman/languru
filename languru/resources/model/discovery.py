@@ -64,7 +64,11 @@ class SqlModelDiscovery(ModelDiscovery):
             # update or create
             try:
                 model_orm = (
-                    session.query(ModelOrm).filter(ModelOrm.id == model.id).one()
+                    session.query(ModelOrm)
+                    .filter(
+                        ModelOrm.id == model.id, ModelOrm.owned_by == model.owned_by
+                    )
+                    .one()
                 )
                 model_orm.created = created
             except NoResultFound:
