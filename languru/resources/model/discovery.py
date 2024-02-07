@@ -43,6 +43,7 @@ class ModelDiscovery:
         owned_by: Optional[Text] = None,
         created_from: Optional[int] = None,
         created_to: Optional[int] = None,
+        limit: int = 20,
     ) -> list[Model]:
         raise NotImplementedError
 
@@ -112,6 +113,7 @@ class SqlModelDiscovery(ModelDiscovery):
         owned_by: Optional[Text] = None,
         created_from: Optional[int] = None,
         created_to: Optional[int] = None,
+        limit: int = 20,
     ) -> list[Model]:
         with Session(self.sql_engine) as session:
             query = session.query(ModelOrm)
@@ -123,5 +125,6 @@ class SqlModelDiscovery(ModelDiscovery):
                 query = query.filter(ModelOrm.created >= created_from)
             if created_to:
                 query = query.filter(ModelOrm.created <= created_to)
+            query = query.order_by(ModelOrm.created.desc()).limit(limit)
             model_records = query.all()
             return [Model.model_validate(model_orm) for model_orm in model_records]
