@@ -7,6 +7,7 @@ from fastapi import Request
 from openai.pagination import SyncPage
 from openai.types import ModelDeleted
 
+from languru.config import logger
 from languru.types.model import Model
 
 if TYPE_CHECKING:
@@ -65,5 +66,6 @@ async def register_models(request: Request, model: Model):
     if getattr(request.app.state, "model_discovery", None) is None:
         raise ValueError("Model discovery is not initialized")
     model_discovery: "ModelDiscovery" = request.app.state.model_discovery
-    print(model_discovery.register(model))
+    registered_model = model_discovery.register(model)
+    logger.debug(f"Registered model: {registered_model}")
     return {"acknowledge": True}
