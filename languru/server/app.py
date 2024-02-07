@@ -1,9 +1,9 @@
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 
+from languru.resources.model.discovery import ModelDiscovery
 from languru.server.config import logger, settings
 
 
@@ -15,20 +15,9 @@ async def maybe_openai_available(app: FastAPI):
         data_dir.mkdir(parents=True, exist_ok=True, mode=0o770)
 
     # Touch database
-    from languru.resources.model.discovery import SqlModelDiscovery
-    from languru.types.model.orm import Model
-
-    model_discover = SqlModelDiscovery(url=settings.url_model_discovery)
+    model_discover = ModelDiscovery.from_url(settings.url_model_discovery)
     model_discover.touch()
-
-    # Register OpenAI models if available
-    if settings.openai_available:
-        from openai import OpenAI
-
-        openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        # openai_models_result = openai_client.models.list()  # TODO: Not decided yet
-        # for _model in openai_models_result.data:
-        #     model_discover.register(Model.model_validate(_model))
+    app.state.model_discover = model_discover
 
     yield
 
