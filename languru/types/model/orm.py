@@ -1,6 +1,4 @@
 import sqlalchemy as sa
-from openai.types import Model as OpenaiModel
-from pydantic import ConfigDict
 from sqlalchemy.orm import declarative_base
 
 tb_name = "models"
@@ -8,17 +6,13 @@ tb_name = "models"
 Base = declarative_base()
 
 
-class Model(OpenaiModel):
-    model_config = ConfigDict(from_attributes=True)
-
-
 class ModelOrm(Base):
     __tablename__ = tb_name
 
     id = sa.Column(sa.String, primary_key=True)
-    created = sa.Column(sa.Integer)
+    created = sa.Column(sa.Integer, index=True)
     object = sa.Column(sa.String, default="model")
-    owned_by = sa.Column(sa.String)
+    owned_by = sa.Column(sa.String, index=True)
 
 
-__all__ = ["Model", "ModelOrm"]
+__all__ = ["ModelOrm"]

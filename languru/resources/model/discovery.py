@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 from yarl import URL
 
 from languru.config import logger
+from languru.types.model import Model
 from languru.types.model.orm import Base as SQL_Base
-from languru.types.model.orm import Model, ModelOrm
+from languru.types.model.orm import ModelOrm
 
 
 class ModelDiscovery:
