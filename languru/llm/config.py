@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     DATA_DIR: Text = str(Path("./data").absolute())
 
     # Model discovery configuration
+    action: Text = "languru.action.openai.OpenaiAction"
 
     # Resources configuration
     openai_available: bool = True if os.environ.get("OPENAI_API_KEY") else False

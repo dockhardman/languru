@@ -1,12 +1,27 @@
+import importlib
 from contextlib import asynccontextmanager
+from typing import Type
 
 from fastapi import FastAPI
 
+from languru.action.base import ActionBase
 from languru.llm.config import logger, settings
 
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
+    # Load action class
+    action_module_path, action_class_name = settings.action.rsplit(".", 1)
+    action_cls: Type["ActionBase"] = getattr(
+        importlib.import_module(action_module_path), action_class_name
+    )
+    if issubclass(action_cls, ActionBase) is False:
+        raise ValueError(
+            f"Action class '{settings.action}' is not a subclass of ActionBase"
+        )
+    action = action_cls()
+    app.state.action = action
+
     yield
 
 
