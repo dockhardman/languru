@@ -87,7 +87,12 @@ class SqlModelDiscovery(ModelDiscovery):
 
     def retrieve(self, id: Text) -> Model | None:
         with Session(self.sql_engine) as session:
-            model_orm = session.query(ModelOrm).filter(ModelOrm.id == id).one_or_none()
+            model_orm = (
+                session.query(ModelOrm)
+                .filter(ModelOrm.id == id)
+                .order_by(ModelOrm.created.desc())
+                .one_or_none()
+            )
             if model_orm is None:
                 return None
             return Model.model_validate(model_orm)
