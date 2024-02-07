@@ -5,6 +5,7 @@ import time
 import httpx
 from fastapi import APIRouter, Body, Request
 from openai.types.chat.chat_completion import ChatCompletion
+from pyassorted.asyncio.executor import run_func
 from yarl import URL
 
 from languru.resources.model.discovery import ModelDiscovery
@@ -31,7 +32,8 @@ async def chat_completions(
     if getattr(request.app.state, "model_discovery", None) is None:
         raise ValueError("Model discovery is not initialized")
     model_discovery: "ModelDiscovery" = request.app.state.model_discovery
-    models = model_discovery.list(
+    models = await run_func(
+        model_discovery.list,
         id=chat_completions_request.model,
         created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
     )

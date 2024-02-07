@@ -7,6 +7,7 @@ from fastapi import Path as PathParam
 from fastapi import Query, Request
 from openai.pagination import SyncPage
 from openai.types import ModelDeleted
+from pyassorted.asyncio.executor import run_func
 
 from languru.server.config import logger, settings
 from languru.types.model import Model
@@ -30,8 +31,12 @@ async def get_models(
     if getattr(request.app.state, "model_discovery", None) is None:
         raise ValueError("Model discovery is not initialized")
     model_discovery: "ModelDiscovery" = request.app.state.model_discovery
-    retrieved_models = model_discovery.list(
-        id=id, owned_by=owned_by, created_from=created_from, created_to=created_to
+    retrieved_models = await run_func(
+        model_discovery.list,
+        id=id,
+        owned_by=owned_by,
+        created_from=created_from,
+        created_to=created_to,
     )
     return SyncPage(data=retrieved_models, object="list")
 
@@ -41,7 +46,7 @@ async def get_model(request: Request, model: Text = PathParam(...)) -> Model:
     if getattr(request.app.state, "model_discovery", None) is None:
         raise ValueError("Model discovery is not initialized")
     model_discovery: "ModelDiscovery" = request.app.state.model_discovery
-    retrieved_model = model_discovery.retrieve(id=model)
+    retrieved_model = await run_func(model_discovery.retrieve, id=model)
     if retrieved_model is None:
         raise HTTPException(status_code=404, detail="Model not found")
     return retrieved_model
@@ -58,6 +63,6 @@ async def register_models(request: Request, model: Model):
     if getattr(request.app.state, "model_discovery", None) is None:
         raise ValueError("Model discovery is not initialized")
     model_discovery: "ModelDiscovery" = request.app.state.model_discovery
-    registered_model = model_discovery.register(model)
+    registered_model = await run_func(model_discovery.register, model)
     logger.debug(f"Registered model: {registered_model}")
     return {"acknowledge": True}

@@ -8,6 +8,7 @@ import httpx
 from fastapi import Body, FastAPI, Request
 from openai.types import Model
 from openai.types.chat import ChatCompletion
+from pyassorted.asyncio.executor import run_func
 
 from languru.action.base import ActionBase
 from languru.llm.config import logger, settings
@@ -81,7 +82,9 @@ def create_app():
         chat_completion_request.model = action.get_model_name(
             chat_completion_request.model
         )
-        chat_completion = action.chat(**chat_completion_request.model_dump())
+        chat_completion = await run_func(
+            action.chat, **chat_completion_request.model_dump()
+        )
         return chat_completion
 
     return app
