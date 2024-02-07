@@ -1,112 +1,77 @@
-from typing import Dict, List, Literal, Optional, Text, Union
+from typing import Dict, List, Optional, Text, Union
 
-import httpx
-from openai._types import NOT_GIVEN, Body, Headers, NotGiven, Query
-from openai.types.chat import (
-    ChatCompletionMessageParam,
-    ChatCompletionToolChoiceOptionParam,
-    ChatCompletionToolParam,
-    completion_create_params,
-)
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
-class ChatCompletionCreate(BaseModel):
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True, extra="allow", str_strip_whitespace=True
-    )
+class LogitBias(BaseModel):
+    # Assuming token ID as integer and bias value as float, adjust types if needed
+    token_id: int = Field(..., description="Token ID")
+    bias: float = Field(..., ge=-100, le=100, description="Bias value from -100 to 100")
 
-    messages: List[ChatCompletionMessageParam] = Field(
+
+class ResponseFormat(BaseModel):
+    type: Text = Field(
         ...,
-        description="The messages that the model will use to generate a response.",
+        description='Type of response format, e.g., "json_object" for JSON mode',
     )
-    model: (
-        Literal[
-            "gpt-4-0125-preview",
-            "gpt-4-turbo-preview",
-            "gpt-4-1106-preview",
-            "gpt-4-vision-preview",
-            "gpt-4",
-            "gpt-4-0314",
-            "gpt-4-0613",
-            "gpt-4-32k",
-            "gpt-4-32k-0314",
-            "gpt-4-32k-0613",
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-16k",
-            "gpt-3.5-turbo-0301",
-            "gpt-3.5-turbo-0613",
-            "gpt-3.5-turbo-1106",
-            "gpt-3.5-turbo-16k-0613",
-        ]
-        | Text
-    ) = Field(...)
-    frequency_penalty: Optional[float] | NotGiven = Field(
-        NOT_GIVEN,
-        description=(
-            "The frequency penalty to apply to the model's output. "
-            + "Higher values will decrease the likelihood of the model repeating the same response."
-        ),
+
+
+class FunctionChoice(BaseModel):
+    type: Text = Field(..., description="Specifies the type, e.g., 'function'")
+    function: Optional[Dict[Text, Text]] = None
+
+
+class Message(BaseModel):
+    role: Text
+    content: Text
+
+
+class ChatCompletionRequest(BaseModel):
+    messages: List[Message] = Field(
+        ..., description="A list of messages comprising the conversation so far"
     )
-    function_call: completion_create_params.FunctionCall | NotGiven = Field(
-        NOT_GIVEN, description="The function to call."
+    model: Text = Field(..., description="ID of the model to use")
+    frequency_penalty: Optional[float] = Field(
+        0, description="Penalize frequencies of new tokens"
     )
-    functions: List[completion_create_params.Function] | NotGiven = Field(
-        NOT_GIVEN, description="The functions to call."
+    logit_bias: Optional[Dict[int, float]] = Field(
+        None, description="Modify the likelihood of specified tokens"
     )
-    logit_bias: Optional[Dict[Text, int]] | NotGiven = Field(
-        NOT_GIVEN, description="The logit bias to apply to the model's output."
+    logprobs: Optional[bool] = Field(
+        False, description="Whether to return log probabilities or not"
     )
-    logprobs: Optional[bool] | NotGiven = Field(
-        NOT_GIVEN,
-        description="Whether to return the log probabilities of the generated tokens.",
+    top_logprobs: Optional[int] = Field(
+        None, ge=0, le=5, description="Number of most likely tokens to return"
     )
-    max_tokens: Optional[int] | NotGiven = Field(
-        NOT_GIVEN, description="The maximum number of tokens to generate."
+    max_tokens: Optional[int] = Field(
+        None, description="Maximum number of tokens that can be generated"
     )
-    n: Optional[int] | NotGiven = Field(
-        NOT_GIVEN, description="The number of completions to generate."
+    n: Optional[int] = Field(
+        1, description="Number of chat completion choices to generate"
     )
-    presence_penalty: Optional[float] | NotGiven = Field(
-        NOT_GIVEN,
-        description=(
-            "The presence penalty to apply to the model's output. "
-            + "Higher values will decrease the likelihood of the model repeating the same response."
-        ),
+    presence_penalty: Optional[float] = Field(
+        0, description="Penalize new tokens based on their presence"
     )
-    response_format: completion_create_params.ResponseFormat | NotGiven = Field(
-        NOT_GIVEN, description="The format of the response."
+    response_format: Optional[ResponseFormat] = None
+    seed: Optional[int] = Field(None, description="Seed for deterministic sampling")
+    stop: Optional[Union[Text, List[Text]]] = Field(
+        None, description="Sequences where the API will stop generating tokens"
     )
-    seed: Optional[int] | NotGiven = Field(
-        NOT_GIVEN,
-        description="The seed to use for the model's random number generator.",
+    stream: Optional[bool] = Field(
+        False, description="If true, partial message deltas will be sent"
     )
-    stop: Union[Optional[Text], List[Text]] | NotGiven = Field(
-        NOT_GIVEN, description="The tokens at which to stop the generation."
+    temperature: Optional[float] = Field(
+        1, ge=0, le=2, description="Sampling temperature"
     )
-    stream: Optional[Literal[False]] | Literal[True] | NotGiven = Field(
-        NOT_GIVEN, description="Whether to stream the response."
+    top_p: Optional[float] = Field(
+        1, description="Top p probability mass for nucleus sampling"
     )
-    temperature: Optional[float] | NotGiven = Field(
-        NOT_GIVEN,
-        description="The temperature to use for the model's random number generator.",
+    tools: Optional[List[Text]] = Field(
+        None, description="List of tools the model may call"
     )
-    tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven = Field(
-        NOT_GIVEN, description="The tool choice to use."
+    tool_choice: Optional[Union[Text, FunctionChoice]] = Field(
+        None, description="Controls which function is called by the model"
     )
-    tools: List[ChatCompletionToolParam] | NotGiven = Field(
-        NOT_GIVEN, description="The tools to use."
-    )
-    top_logprobs: Optional[int] | NotGiven = Field(
-        NOT_GIVEN, description="The number of log probabilities to return."
-    )
-    top_p: Optional[float] | NotGiven = Field(
-        NOT_GIVEN, description="The nucleus sampling probability."
-    )
-    user: Text | NotGiven = Field(NOT_GIVEN, description="The user to use.")
-    extra_headers: Headers | None = Field(None, description="The extra headers to use.")
-    extra_query: Query | None = Field(None, description="The extra query to use.")
-    extra_body: Body | None = Field(None, description="The extra body to use.")
-    timeout: float | httpx.Timeout | None | NotGiven = Field(
-        NOT_GIVEN, description="The timeout to use."
+    user: Optional[Text] = Field(
+        None, description="A unique identifier representing your end-user"
     )

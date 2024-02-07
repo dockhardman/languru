@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter, Body, Request
 from openai.types.chat.chat_completion import ChatCompletion
 
-from languru.types.chat.completions import ChatCompletionCreate
+from languru.types.chat.completions import ChatCompletionRequest
 
 router = APIRouter()
 
@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("/chat/completions")
 async def chat_completions(
     request: Request,
-    chat_completions_create: ChatCompletionCreate = Body(
+    chat_completions_create: ChatCompletionRequest = Body(
         ...,
         example={
             "model": "gpt-3.5-turbo",
