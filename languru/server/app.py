@@ -8,7 +8,7 @@ from languru.server.config import logger, settings
 
 
 @asynccontextmanager
-async def maybe_openai_available(app: FastAPI):
+async def app_lifespan(app: FastAPI):
     # Initialize server
     data_dir = Path(settings.DATA_DIR)
     if data_dir.is_dir() is False:
@@ -27,7 +27,7 @@ def create_app():
         title=settings.APP_NAME,
         debug=settings.debug,
         version=settings.APP_VERSION,
-        lifespan=maybe_openai_available,
+        lifespan=app_lifespan,
     )
 
     from languru.server.api.v1 import router as api_v1_router
