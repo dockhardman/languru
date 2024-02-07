@@ -15,9 +15,9 @@ async def maybe_openai_available(app: FastAPI):
         data_dir.mkdir(parents=True, exist_ok=True, mode=0o770)
 
     # Touch database
-    model_discover = ModelDiscovery.from_url(settings.url_model_discovery)
-    model_discover.touch()
-    app.state.model_discover = model_discover
+    model_discovery = ModelDiscovery.from_url(settings.url_model_discovery)
+    model_discovery.touch()
+    app.state.model_discovery = model_discovery
 
     yield
 
