@@ -11,7 +11,6 @@ from languru.types.model.orm import Model, ModelOrm
 
 
 class ModelDiscorvery:
-
     def touch(self) -> bool:
         raise NotImplementedError
 
