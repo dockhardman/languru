@@ -1,11 +1,16 @@
 import time
-from typing import Text
+from typing import TYPE_CHECKING, Text
 
 from fastapi import APIRouter
 from fastapi import Path as PathParam
 from fastapi import Request
 from openai.pagination import SyncPage
-from openai.types import Model, ModelDeleted
+from openai.types import ModelDeleted
+
+from languru.types.model import Model
+
+if TYPE_CHECKING:
+    from languru.resources.model.discovery import ModelDiscovery
 
 router = APIRouter()
 
@@ -50,8 +55,15 @@ async def get_model(request: Request, model: Text = PathParam(...)) -> Model:
 
 @router.delete("/models/{model}", summary="Delete a fine-tuned model")
 async def delete_model(request: Request, model: Text = PathParam(...)) -> ModelDeleted:
-    return {
-        "id": "ft:gpt-3.5-turbo:acemeco:suffix:abc123",
-        "object": "model",
-        "deleted": True,
-    }
+    # Not implemented
+    return ModelDeleted(id=model, deleted=True, object="model")
+
+
+@router.post("/models/register", summary="Register models")
+async def register_models(request: Request, model: Model):
+    print(model)
+    if getattr(request.app.state, "model_discovery", None) is None:
+        raise ValueError("Model discovery is not initialized")
+    model_discovery: "ModelDiscovery" = request.app.state.model_discovery
+    print(model_discovery.register(model))
+    return {"acknowledge": True}
