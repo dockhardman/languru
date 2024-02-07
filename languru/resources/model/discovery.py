@@ -1,5 +1,5 @@
 import time
-from typing import Text
+from typing import Optional, Text
 
 import sqlalchemy as sa
 from sqlalchemy.exc import NoResultFound
@@ -34,7 +34,16 @@ class ModelDiscovery:
     def register(self, model: Model) -> Model:
         raise NotImplementedError
 
-    def retrieve(self, id: Text) -> Model:
+    def retrieve(self, id: Text) -> Model | None:
+        raise NotImplementedError
+
+    def list(
+        self,
+        id: Optional[Text] = None,
+        owned_by: Optional[Text] = None,
+        created_from: Optional[int] = None,
+        created_to: Optional[int] = None,
+    ) -> list[Model]:
         raise NotImplementedError
 
 
@@ -96,3 +105,23 @@ class SqlModelDiscovery(ModelDiscovery):
             if model_orm is None:
                 return None
             return Model.model_validate(model_orm)
+
+    def list(
+        self,
+        id: Optional[Text] = None,
+        owned_by: Optional[Text] = None,
+        created_from: Optional[int] = None,
+        created_to: Optional[int] = None,
+    ) -> list[Model]:
+        with Session(self.sql_engine) as session:
+            query = session.query(ModelOrm)
+            if id:
+                query = query.filter(ModelOrm.id == id)
+            if owned_by:
+                query = query.filter(ModelOrm.owned_by == owned_by)
+            if created_from:
+                query = query.filter(ModelOrm.created >= created_from)
+            if created_to:
+                query = query.filter(ModelOrm.created <= created_to)
+            model_records = query.all()
+            return [Model.model_validate(model_orm) for model_orm in model_records]
