@@ -28,14 +28,18 @@ class ActionBase:
         raise NotImplementedError
 
     def chat(
-        self, message: List["ChatCompletionMessageParam"], **kwargs
+        self, message: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> "ChatCompletion":
         raise NotImplementedError
 
-    def text_completion(self, prompt: Text, **kwargs) -> "Completion":
+    def text_completion(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> "Completion":
         raise NotImplementedError
 
-    def embeddings(self, input: Text, **kwargs) -> "CreateEmbeddingResponse":
+    def embeddings(
+        self, input: Text, *args, model: Text, **kwargs
+    ) -> "CreateEmbeddingResponse":
         raise NotImplementedError
 
     @lru_cache
