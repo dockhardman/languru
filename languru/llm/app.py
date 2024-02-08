@@ -2,6 +2,7 @@ import asyncio
 import importlib
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Text, Type
 
 import httpx
@@ -11,7 +12,7 @@ from openai.types.chat import ChatCompletion
 from pyassorted.asyncio.executor import run_func
 
 from languru.action.base import ActionBase
-from languru.llm.config import logger, settings
+from languru.llm.config import init_logger_config, logger, settings
 from languru.types.chat.completions import ChatCompletionRequest
 
 
@@ -32,6 +33,16 @@ async def register_model_periodically(model: Model, period: int, agent_base_url:
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
+    # Initialize server
+    # Check if logs directory exists, if not create it
+    if Path(settings.logs_dir).is_dir() is False:
+        Path(settings.logs_dir).mkdir(parents=True, exist_ok=True, mode=0o770)
+    # Check if data directory exists, if not create it
+    if Path(settings.DATA_DIR).is_dir() is False:
+        Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True, mode=0o770)
+    # Initialize logger
+    init_logger_config()
+
     # Load action class
     action_module_path, action_class_name = settings.action.rsplit(".", 1)
     action_cls: Type["ActionBase"] = getattr(

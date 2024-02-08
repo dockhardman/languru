@@ -4,15 +4,20 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from languru.resources.model.discovery import ModelDiscovery
-from languru.server.config import logger, settings
+from languru.server.config import init_logger_config, logger, settings
 
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     # Initialize server
-    data_dir = Path(settings.DATA_DIR)
-    if data_dir.is_dir() is False:
-        data_dir.mkdir(parents=True, exist_ok=True, mode=0o770)
+    # Check if logs directory exists, if not create it
+    if Path(settings.logs_dir).is_dir() is False:
+        Path(settings.logs_dir).mkdir(parents=True, exist_ok=True, mode=0o770)
+    # Check if data directory exists, if not create it
+    if Path(settings.DATA_DIR).is_dir() is False:
+        Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True, mode=0o770)
+    # Initialize logger
+    init_logger_config()
 
     # Touch database
     model_discovery = ModelDiscovery.from_url(settings.url_model_discovery)
@@ -29,6 +34,11 @@ def create_app():
         version=settings.APP_VERSION,
         lifespan=app_lifespan,
     )
+
+    @app.get("/health")
+    async def health():
+        logger.debug("Health check")
+        return {"status": "ok"}
 
     from languru.server.api.v1 import router as api_v1_router
 
