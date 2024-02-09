@@ -7,7 +7,7 @@ from typing import Text, Type
 
 import httpx
 from fastapi import Body, FastAPI, Request
-from openai.types import Completion, Model
+from openai.types import Completion, CreateEmbeddingResponse, Model
 from openai.types.chat import ChatCompletion
 from pyassorted.asyncio.executor import run_func
 
@@ -15,6 +15,7 @@ from languru.action.base import ActionBase
 from languru.llm.config import init_logger_config, logger, settings
 from languru.types.chat.completions import ChatCompletionRequest
 from languru.types.completions import CompletionRequest
+from languru.types.embeddings import EmbeddingRequest
 
 
 async def register_model_periodically(model: Model, period: int, agent_base_url: Text):
@@ -111,6 +112,19 @@ def create_app():
             action.text_completion, **completion_request.model_dump(exclude_none=True)
         )
         return completion
+
+    @app.post("/embeddings")
+    async def embeddings(
+        request: Request, embedding_request: EmbeddingRequest = Body(...)
+    ) -> CreateEmbeddingResponse:
+        if getattr(request.app.state, "action", None) is None:
+            raise ValueError("Action is not initialized")
+        action: "ActionBase" = request.app.state.action
+        embedding_request.model = action.get_model_name(embedding_request.model)
+        embedding = await run_func(
+            action.embeddings, **embedding_request.model_dump(exclude_none=True)
+        )
+        return embedding
 
     return app
 
