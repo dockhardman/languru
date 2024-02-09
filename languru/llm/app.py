@@ -7,13 +7,14 @@ from typing import Text, Type
 
 import httpx
 from fastapi import Body, FastAPI, Request
-from openai.types import Model
+from openai.types import Completion, Model
 from openai.types.chat import ChatCompletion
 from pyassorted.asyncio.executor import run_func
 
 from languru.action.base import ActionBase
 from languru.llm.config import init_logger_config, logger, settings
 from languru.types.chat.completions import ChatCompletionRequest
+from languru.types.completions import CompletionRequest
 
 
 async def register_model_periodically(model: Model, period: int, agent_base_url: Text):
@@ -97,6 +98,19 @@ def create_app():
             action.chat, **chat_completion_request.model_dump()
         )
         return chat_completion
+
+    @app.post("/completions")
+    async def completions(
+        request: Request, completion_request: CompletionRequest = Body(...)
+    ) -> Completion:
+        if getattr(request.app.state, "action", None) is None:
+            raise ValueError("Action is not initialized")
+        action: "ActionBase" = request.app.state.action
+        completion_request.model = action.get_model_name(completion_request.model)
+        completion = await run_func(
+            action.text_completion, **completion_request.model_dump()
+        )
+        return completion
 
     return app
 
