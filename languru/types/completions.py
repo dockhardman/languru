@@ -68,13 +68,3 @@ class CompletionRequest(BaseModel):
     user: Optional[Text] = Field(
         default=None, description="A unique identifier representing your end-user."
     )
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "model": "gpt-3.5-turbo-instruct",
-                "prompt": "Say this is a test",
-                "max_tokens": 7,
-                "temperature": 0,
-            }
-        }
