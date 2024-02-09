@@ -95,7 +95,7 @@ def create_app():
             chat_completion_request.model
         )
         chat_completion = await run_func(
-            action.chat, **chat_completion_request.model_dump()
+            action.chat, **chat_completion_request.model_dump(exclude_none=True)
         )
         return chat_completion
 
@@ -108,7 +108,7 @@ def create_app():
         action: "ActionBase" = request.app.state.action
         completion_request.model = action.get_model_name(completion_request.model)
         completion = await run_func(
-            action.text_completion, **completion_request.model_dump()
+            action.text_completion, **completion_request.model_dump(exclude_none=True)
         )
         return completion
 
