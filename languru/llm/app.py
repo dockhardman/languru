@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Text, Type
 
 import httpx
-from fastapi import Body, FastAPI, Request
+from fastapi import Body, FastAPI, HTTPException, Request
 from openai.types import (
     Completion,
     CreateEmbeddingResponse,
@@ -17,6 +17,7 @@ from openai.types.chat import ChatCompletion
 from pyassorted.asyncio.executor import run_func
 
 from languru.action.base import ActionBase
+from languru.exceptions import ModelNotFound
 from languru.llm.config import init_logger_config, logger, settings
 from languru.types.chat.completions import ChatCompletionRequest
 from languru.types.completions import CompletionRequest
@@ -98,9 +99,13 @@ def create_app():
         if getattr(request.app.state, "action", None) is None:
             raise ValueError("Action is not initialized")
         action: "ActionBase" = request.app.state.action
-        chat_completion_request.model = action.get_model_name(
-            chat_completion_request.model
-        )
+        try:
+            chat_completion_request.model = action.get_model_name(
+                chat_completion_request.model
+            )
+        except ModelNotFound as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
         chat_completion = await run_func(
             action.chat, **chat_completion_request.model_dump(exclude_none=True)
         )
@@ -113,7 +118,11 @@ def create_app():
         if getattr(request.app.state, "action", None) is None:
             raise ValueError("Action is not initialized")
         action: "ActionBase" = request.app.state.action
-        completion_request.model = action.get_model_name(completion_request.model)
+        try:
+            completion_request.model = action.get_model_name(completion_request.model)
+        except ModelNotFound as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
         completion = await run_func(
             action.text_completion, **completion_request.model_dump(exclude_none=True)
         )
@@ -126,7 +135,11 @@ def create_app():
         if getattr(request.app.state, "action", None) is None:
             raise ValueError("Action is not initialized")
         action: "ActionBase" = request.app.state.action
-        embedding_request.model = action.get_model_name(embedding_request.model)
+        try:
+            embedding_request.model = action.get_model_name(embedding_request.model)
+        except ModelNotFound as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
         embedding = await run_func(
             action.embeddings, **embedding_request.model_dump(exclude_none=True)
         )
@@ -139,7 +152,10 @@ def create_app():
         if getattr(request.app.state, "action", None) is None:
             raise ValueError("Action is not initialized")
         action: "ActionBase" = request.app.state.action
-        moderation_request.model = action.get_model_name(moderation_request.model)
+        try:
+            moderation_request.model = action.get_model_name(moderation_request.model)
+        except ModelNotFound as e:
+            raise HTTPException(status_code=404, detail=str(e))
         moderation = await run_func(
             action.moderations, **moderation_request.model_dump(exclude_none=True)
         )

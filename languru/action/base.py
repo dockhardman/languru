@@ -1,6 +1,8 @@
 from functools import lru_cache
 from typing import TYPE_CHECKING, List, NamedTuple, Optional, Sequence, Text
 
+from languru.exceptions import ModelNotFound
+
 if TYPE_CHECKING:
     from openai.types import (
         Completion,
@@ -56,4 +58,4 @@ class ActionBase:
         for model_deploy in self._model_deploys:
             if model_deploy.model_deploy_name == model_deploy_name:
                 return model_deploy.model_name
-        raise ValueError(f"Model deploy {model_deploy_name} not found")
+        raise ModelNotFound(f"Model deploy {model_deploy_name} not found")
