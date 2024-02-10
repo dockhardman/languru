@@ -2,7 +2,11 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, List, NamedTuple, Optional, Sequence, Text
 
 if TYPE_CHECKING:
-    from openai.types import Completion, CreateEmbeddingResponse
+    from openai.types import (
+        Completion,
+        CreateEmbeddingResponse,
+        ModerationCreateResponse,
+    )
     from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 
 
@@ -40,6 +44,11 @@ class ActionBase:
     def embeddings(
         self, input: Text, *args, model: Text, **kwargs
     ) -> "CreateEmbeddingResponse":
+        raise NotImplementedError
+
+    def moderations(
+        self, input: Text, *args, model: Text, **kwargs
+    ) -> "ModerationCreateResponse":
         raise NotImplementedError
 
     @lru_cache

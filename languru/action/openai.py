@@ -6,7 +6,11 @@ from languru.action.base import ActionBase, ModelDeploy
 from languru.llm.config import logger
 
 if TYPE_CHECKING:
-    from openai.types import Completion, CreateEmbeddingResponse
+    from openai.types import (
+        Completion,
+        CreateEmbeddingResponse,
+        ModerationCreateResponse,
+    )
     from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 
 
@@ -34,6 +38,8 @@ class OpenaiAction(ActionBase):
         ModelDeploy("text-embedding-3-large", "text-embedding-3-large"),
         ModelDeploy("text-embedding-3-small", "text-embedding-3-small"),
         ModelDeploy("text-embedding-ada-002", "text-embedding-ada-002"),
+        ModelDeploy("text-moderation-latest", "text-moderation-latest"),
+        ModelDeploy("text-moderation-stable", "text-moderation-stable"),
         ModelDeploy("tts-1", "tts-1"),
         ModelDeploy("tts-1-1106", "tts-1-1106"),
         ModelDeploy("tts-1-hd", "tts-1-hd"),
@@ -83,3 +89,9 @@ class OpenaiAction(ActionBase):
     ) -> "CreateEmbeddingResponse":
         embeddings = self._client.embeddings.create(input=input, model=model, **kwargs)
         return embeddings
+
+    def moderations(
+        self, input: Text, *args, model: Text, **kwargs
+    ) -> "ModerationCreateResponse":
+        moderation = self._client.moderations.create(input=input, model=model, **kwargs)
+        return moderation
