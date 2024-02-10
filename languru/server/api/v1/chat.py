@@ -3,7 +3,7 @@ import random
 import time
 
 import httpx
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Body, HTTPException, Request
 from openai.types.chat.chat_completion import ChatCompletion
 from pyassorted.asyncio.executor import run_func
 from yarl import URL
@@ -38,7 +38,10 @@ async def chat_completions(
         created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
     )
     if len(models) == 0:
-        raise ValueError(f"Model '{chat_completions_request.model}' not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model '{chat_completions_request.model}' not found",
+        )
 
     model = random.choice(models)
     url = URL(model.owned_by).with_path("/chat/completions")
