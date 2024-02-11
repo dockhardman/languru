@@ -7,7 +7,7 @@ The general-purpose LLM app stacks deploy AI services quickly and (stupidly) sim
 Install Languru:
 
 ```shell
-pip install languru
+pip install languru[all]
 ```
 
 Run agent server:
