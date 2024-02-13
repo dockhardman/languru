@@ -15,7 +15,7 @@ from transformers import (
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
-from languru.utils.common import should_str_or_none
+from languru.utils.common import must_list, should_str_or_none
 from languru.utils.hf import StopAtWordsStoppingCriteria
 
 
@@ -78,12 +78,15 @@ class TransformersAction(ActionBase):
         kwargs.pop("frequency_penalty", None)  # TODO: Implement frequency_penalty
         kwargs.pop("presence_penalty", None)  # TODO: Implement presence_penalty
         kwargs.pop("stream", None)  # TODO: Implement stream
+        total_stop_words = must_list(self.stop_words) + must_list(
+            kwargs.pop("stop", ())
+        )
 
         # Stopping criteria
         stop_criteria: Optional["StoppingCriteria"] = None
-        if len(self.stop_words) > 0:
+        if len(total_stop_words) > 0:
             stop_criteria = StopAtWordsStoppingCriteria.from_stop_words(
-                self.stop_words, self.tokenizer
+                total_stop_words, self.tokenizer
             )
             kwargs["stopping_criteria"] = StoppingCriteriaList([stop_criteria])
 
