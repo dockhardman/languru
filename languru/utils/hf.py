@@ -13,7 +13,7 @@ class StopAtWordsStoppingCriteria(StoppingCriteria):
         Parameters
         ----------
         stop_words_ids: Sequence["torch.LongTensor"]
-            A sequence of token ids to stop at. e.g.: [tensor(50256, device='mps:0'), tensor([  58,   47, 2885,   60])]
+            A sequence of token ids to stop at. e.g.: [tensor(50256), tensor([  58,   47, 2885,   60])]
         """
 
         super().__init__()
