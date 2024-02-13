@@ -27,7 +27,7 @@ def validate_device(device: Optional[Text]) -> Text:
             return "cpu"
         return device
     # Validate mps device
-    if device.strip() == "mps":
+    if device.strip().startswith("mps"):
         if not torch.backends.mps.is_available():
             logger.warning("MPS is not available. The device will be CPU.")
             return "cpu"
