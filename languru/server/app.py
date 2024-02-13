@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from languru.resources.model.discovery import ModelDiscovery
 from languru.server.config import init_logger_config, logger, settings
+from languru.utils.socket import check_port, get_available_port
 
 
 @asynccontextmanager
@@ -53,13 +54,20 @@ def run_app():
     import uvicorn
 
     app_str = "languru.server.app:app"
+    # Determine port
+    if settings.PORT is None:
+        port = get_available_port(settings.DEFAULT_PORT)
+    else:
+        if check_port(settings.PORT) is False:
+            raise ValueError(f"The port '{settings.PORT}' is already in use")
+        port = settings.PORT
 
     if settings.is_development or settings.is_testing:
         logger.info("Running server in development mode")
         uvicorn.run(
             app_str,
             host=settings.HOST,
-            port=settings.PORT,
+            port=port,
             workers=settings.WORKERS,
             reload=settings.RELOAD,
             log_level=settings.LOG_LEVEL,
@@ -68,9 +76,7 @@ def run_app():
         )
     else:
         logger.info("Running server in production mode")
-        uvicorn.run(
-            app, host=settings.HOST, port=settings.PORT, workers=settings.WORKERS
-        )
+        uvicorn.run(app, host=settings.HOST, port=port, workers=settings.WORKERS)
 
 
 if __name__ == "__main__":

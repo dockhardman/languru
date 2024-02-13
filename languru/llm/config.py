@@ -26,7 +26,8 @@ class Settings(BaseSettings):
     logging_level: Text = "DEBUG"
     logs_dir: Text = "logs"
     HOST: Text = "0.0.0.0"
-    PORT: int = 8682
+    DEFAULT_PORT: int = 8682
+    PORT: Optional[int] = None
     WORKERS: int = 1
     RELOAD: bool = True
     LOG_LEVEL: Text = "debug"
