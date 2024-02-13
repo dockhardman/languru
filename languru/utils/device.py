@@ -3,7 +3,7 @@ from typing import Optional, Text
 from languru.config import logger
 
 
-def validate_device(device: Optional[Text]) -> Text:
+def validate_device(device: Optional[Text] = None) -> Text:
     try:
         import torch
     except ImportError:
