@@ -28,6 +28,9 @@ class StopAtWordsStoppingCriteria(StoppingCriteria):
                 return True
         return False
 
+    def get_stop_reason(self) -> Optional[Literal["stop", "length", "content_filter"]]:
+        return self.stop_reason
+
     @classmethod
     def from_stop_words(
         cls,
