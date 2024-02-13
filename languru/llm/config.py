@@ -3,7 +3,7 @@ import logging.config
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Text
+from typing import Optional, Text
 
 import pytz
 from colorama import Fore, Style, init
@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     AGENT_BASE_URL: Text = "http://localhost:8680"
     MODEL_REGISTER_PERIOD: int = 10
     MODEL_REGISTER_FAIL_PERIOD: int = 60
+
+    # Hardware device configuration
+    device: Optional[Text] = None
 
     # Model discovery configuration
     url_model_discovery: Text = f"sqlite:///{DATA_DIR}/languru_model_discovery.db"
