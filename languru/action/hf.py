@@ -15,6 +15,7 @@ from transformers import (
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
+from languru.utils.common import should_str_or_none
 from languru.utils.hf import StopAtWordsStoppingCriteria
 
 
@@ -30,7 +31,9 @@ class TransformersAction(ActionBase):
         super().__init__(*args, **kwargs)
 
         # Model name
-        self.model_name = kwargs.get("model_name") or self.MODEL_NAME or ""
+        self.model_name = (
+            should_str_or_none(kwargs.get("model_name")) or self.MODEL_NAME
+        )
         if not self.model_name:
             raise ValueError("The `model_name` cannot be empty")
         # Model and tokenizer
