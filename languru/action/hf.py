@@ -8,6 +8,7 @@ from openai.types import Completion, CompletionChoice, CompletionUsage
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
+    GenerationConfig,
     PreTrainedModel,
     StoppingCriteria,
     StoppingCriteriaList,
@@ -71,6 +72,13 @@ class TransformersAction(ActionBase):
         max_length = kwargs.get("max_tokens") or kwargs.get("max_length") or None
         if max_length is not None:
             kwargs["max_length"] = int(max_length)
+        kwargs.pop("max_tokens", None)
+        kwargs.pop("best_of", None)  # TODO: Implement best_of
+        kwargs.pop("echo", None)  # TODO: Implement echo
+        kwargs.pop("n", None)  # TODO: Implement n
+        kwargs.pop("frequency_penalty", None)  # TODO: Implement frequency_penalty
+        kwargs.pop("presence_penalty", None)  # TODO: Implement presence_penalty
+        kwargs.pop("stream", None)  # TODO: Implement stream
 
         # Stopping criteria
         stop_criteria: Optional["StoppingCriteria"] = None
@@ -88,7 +96,7 @@ class TransformersAction(ActionBase):
         inputs_tokens_length = int(input_ids.shape[1])
 
         # Generate text completion
-        outputs: "torch.Tensor" = self.model.generate(**inputs, **kwargs)
+        outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)
         outputs_tokens_length = outputs.shape[1]
         completed_text = self.tokenizer.batch_decode(outputs)[0]
 
@@ -107,6 +115,7 @@ class TransformersAction(ActionBase):
             prompt_tokens=inputs_tokens_length,
             completion_tokens=outputs_tokens_length - inputs_tokens_length,
         )
+        completion_res.created = int(time.time())
         return completion_res
 
 
