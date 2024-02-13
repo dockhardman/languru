@@ -20,13 +20,15 @@ def should_str(value: Text | Any) -> Text:
     return value
 
 
-def must_list_or_none(value: List[T] | Any) -> Optional[List[T]]:
+def must_list_or_none(
+    value: List[T] | Any, return_none_if_empty: bool = False
+) -> Optional[List[T]]:
     if isinstance(value, List):
-        if len(value) == 0:
+        if return_none_if_empty and len(value) == 0:
             return None
         return value
     elif isinstance(value, Tuple):
-        if len(value) == 0:
+        if return_none_if_empty and len(value) == 0:
             return None
         return list(value)
     elif value is None:
@@ -36,6 +38,7 @@ def must_list_or_none(value: List[T] | Any) -> Optional[List[T]]:
 
 
 def must_list(value: List[T] | Any) -> List[T]:
-    if must_list_or_none(value) is None:
+    to_items = must_list_or_none(value)
+    if to_items is None:
         raise ValueError(f"Could not convert {value} to a list")
-    return value
+    return to_items
