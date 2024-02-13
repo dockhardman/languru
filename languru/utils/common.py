@@ -1,6 +1,8 @@
-from typing import Any, Optional, Text
+from typing import Any, Optional, Text, TypeVar, List, Tuple
 
 from languru.config import logger
+
+T = TypeVar("T")
 
 
 def should_str_or_none(value: Text | Any) -> Optional[Text]:
@@ -16,3 +18,14 @@ def should_str(value: Text | Any) -> Text:
     if should_str_or_none(value) is None:
         raise ValueError(f"Value {value} is not a string")
     return value
+
+
+def must_list_or_none(value: List[T] | Any) -> Optional[List[T]]:
+    if isinstance(value, List):
+        return value
+    elif isinstance(value, Tuple):
+        return list(value)
+    elif value is None:
+        return None
+    else:
+        return [value]
