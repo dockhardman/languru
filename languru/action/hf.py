@@ -8,7 +8,6 @@ from openai.types import Completion, CompletionChoice, CompletionUsage
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    GenerationConfig,
     PreTrainedModel,
     StoppingCriteria,
     StoppingCriteriaList,
