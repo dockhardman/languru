@@ -120,6 +120,13 @@ class TransformersAction(ActionBase):
         input_ids: "torch.Tensor" = inputs["input_ids"]
         input_ids = input_ids.to(self.device)
         inputs_tokens_length = int(input_ids.shape[1])
+        if max_length is not None and inputs_tokens_length >= max_length:
+            logger.warning(
+                "The input tokens length is already greater than max_length, "
+                + f"{inputs_tokens_length} >= {max_length}, "
+                + f"resetting max_length to {inputs_tokens_length + 20}"
+            )
+            kwargs["max_length"] = inputs_tokens_length + 20
 
         # Generate text completion
         outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)
