@@ -4,6 +4,8 @@ from languru.config import logger
 
 
 def validate_device(device: Optional[Text] = None) -> Text:
+    if device is not None and device.strip().lower() == "cpu":
+        return "cpu"
     try:
         import torch
     except ImportError:
