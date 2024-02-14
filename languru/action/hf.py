@@ -15,8 +15,27 @@ from transformers import (
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
+from languru.llm.config import settings as llm_settings
 from languru.utils.common import must_list, should_str_or_none
+from languru.utils.device import validate_device
 from languru.utils.hf import StopAtWordsStoppingCriteria
+
+# Device config
+DEVICE: Text = validate_device(device=llm_settings.device)
+llm_settings.device = DEVICE
+DTYPE = torch.float32
+if llm_settings.dtype is not None:
+    _torch_dtype = getattr(torch, llm_settings.dtype, None)
+    if _torch_dtype is not None:
+        DTYPE = _torch_dtype
+    else:
+        logger.warning(
+            f"Unknown dtype: {llm_settings.dtype}. The dtype setting will be ignored."
+        )
+elif DEVICE != "cpu":
+    DTYPE = torch.float16
+logger.info(f"Using device: {DEVICE}")
+torch.set_default_device(DEVICE)
 
 
 class TransformersAction(ActionBase):
@@ -30,6 +49,9 @@ class TransformersAction(ActionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.dtype = DTYPE
+        self.device = DEVICE
+
         # Model name
         self.model_name = (
             should_str_or_none(kwargs.get("model_name")) or self.MODEL_NAME
@@ -38,8 +60,9 @@ class TransformersAction(ActionBase):
             raise ValueError("The `model_name` cannot be empty")
         # Model and tokenizer
         self.model: "PreTrainedModel" = AutoModelForCausalLM.from_pretrained(
-            self.model_name, torch_dtype=torch.float16, trust_remote_code=True
+            self.model_name, torch_dtype=self.dtype, trust_remote_code=True
         )
+        self.model = self.model.to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name, trust_remote_code=True
         )
@@ -95,6 +118,7 @@ class TransformersAction(ActionBase):
             prompt, return_tensors="pt", return_attention_mask=False
         )
         input_ids: "torch.Tensor" = inputs["input_ids"]
+        input_ids = input_ids.to(self.device)
         inputs_tokens_length = int(input_ids.shape[1])
 
         # Generate text completion
