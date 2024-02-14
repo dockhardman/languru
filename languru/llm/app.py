@@ -54,6 +54,7 @@ async def app_lifespan(app: FastAPI):
     init_logger_config()
 
     # Load action class
+    logger.info(f"Loading action class '{settings.action}'")
     action_module_path, action_class_name = settings.action.rsplit(".", 1)
     action_cls: Type["ActionBase"] = getattr(
         importlib.import_module(action_module_path), action_class_name
