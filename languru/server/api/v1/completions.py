@@ -43,7 +43,7 @@ async def text_completions(
 
     model = random.choice(models)
     url = URL(model.owned_by).with_path("/completions")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
             str(url), json=completions_request.model_dump(exclude_none=True)
         )
