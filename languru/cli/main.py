@@ -1,3 +1,6 @@
+import os
+from typing import Optional, Text
+
 import click
 
 
@@ -25,7 +28,11 @@ def server_run():
 
 
 @click.command("run")
-def llm_run():
+@click.option("--action", default=None, help="Action to run")
+def llm_run(action: Optional[Text]):
+    if action is not None and action.strip() != "":
+        os.environ["ACTION"] = action.strip()
+
     from languru.llm.app import run_app
 
     click.echo("Running llm server")
