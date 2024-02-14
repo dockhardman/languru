@@ -41,6 +41,7 @@ class Settings(BaseSettings):
 
     # Hardware device configuration
     device: Optional[Text] = None
+    dtype: Optional[Text] = None
 
     # Model discovery configuration
     url_model_discovery: Text = f"sqlite:///{DATA_DIR}/languru_model_discovery.db"
