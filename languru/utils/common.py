@@ -56,7 +56,12 @@ def debug_print(
     *values: Any,
     title: Text = "Debug Print",
     box: box.Box | None = box.HEAVY_HEAD,
-    colors: List[StyleType] = ["on black", "on bright_black"],
+    colors: List[StyleType] = [
+        "bright_blue",
+        "bright_cyan",
+        "bright_green",
+        "bright_magenta",
+    ],
 ) -> None:
     if not values:
         return
