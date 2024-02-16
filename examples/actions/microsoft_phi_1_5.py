@@ -53,5 +53,6 @@ class MicrosoftPhi2Action(TransformersAction):
 if __name__ == "__main__":
 
     action = MicrosoftPhi2Action()
+    print(f"Health: {action.health()}")
 
     run_action_text_completion(action)

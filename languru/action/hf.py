@@ -1,7 +1,7 @@
 import os
 import time
 import uuid
-from typing import Optional, Sequence, Text
+from typing import TYPE_CHECKING, List, Optional, Sequence, Text
 
 import torch
 from openai.types import Completion, CompletionChoice, CompletionUsage
@@ -19,6 +19,9 @@ from languru.llm.config import settings as llm_settings
 from languru.utils.common import must_list, should_str_or_none
 from languru.utils.device import validate_device
 from languru.utils.hf import StopAtWordsStoppingCriteria
+
+if TYPE_CHECKING:
+    from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 
 # Device config
 DEVICE: Text = validate_device(device=llm_settings.device)
@@ -69,6 +72,17 @@ class TransformersAction(ActionBase):
 
     def name(self):
         return "transformers_action"
+
+    def health(self) -> bool:
+        param_count = sum(p.numel() for p in self.model.parameters())
+        if param_count <= 0:
+            return False
+        return True
+
+    def chat(
+        self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
+    ) -> "ChatCompletion":
+        raise NotImplementedError
 
     def text_completion(
         self, prompt: Text, *args, model: Text, **kwargs
