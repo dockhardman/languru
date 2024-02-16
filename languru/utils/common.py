@@ -75,3 +75,7 @@ def debug_print(
         else:
             tb.add_row(str(value), style=style)
     rich_print(tb)
+
+
+def replace_right(source_str: Text, old: Text, new: Text, occurrence: int = -1) -> Text:
+    return source_str[::-1].replace(old[::-1], new[::-1], occurrence)[::-1]
