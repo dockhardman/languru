@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, List, Optional, Sequence, Text
 
 import torch
 from openai.types import Completion, CompletionChoice, CompletionUsage
+from openai.types.chat import ChatCompletion
+from openai.types.chat.chat_completion import Choice as ChatChoice
+from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -21,7 +24,7 @@ from languru.utils.device import validate_device
 from languru.utils.hf import StopAtWordsStoppingCriteria
 
 if TYPE_CHECKING:
-    from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+    from openai.types.chat import ChatCompletionMessageParam
 
 # Device config
 DEVICE: Text = validate_device(device=llm_settings.device)
@@ -82,7 +85,60 @@ class TransformersAction(ActionBase):
     def chat(
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> "ChatCompletion":
-        raise NotImplementedError
+        if len(messages) == 0:
+            raise ValueError("The `messages` cannot be empty")
+
+        # Prepare prompt
+        prompt = ""
+        for m in messages:
+            if "content" in m and m["content"] is not None:
+                prompt += f"\n\n{m['role']}:\n{m['content']}"
+            prompt = prompt.strip()
+        prompt = prompt.strip()
+        if len(prompt) == 0:
+            raise ValueError("The `prompt` cannot be empty, no content in messages")
+        prompt += "\n\nassistant:\n"
+
+        # Prepare stop words
+        roles = set(
+            [message["role"] for message in messages]
+            + ["assistant", "bot", "user", "system"]
+        )
+        stop = kwargs.pop("stop", [])
+        if isinstance(stop, Text):
+            stop = [stop]
+        elif isinstance(stop, Sequence):
+            stop = [str(w) for w in list(stop)]
+        else:
+            logger.warning(f"Invalid stop words parameters: {stop}")
+            stop = []
+        stop.extend([f"\n{role}:" for role in roles])
+
+        # Chat completion request
+        completion_res = self.text_completion(
+            prompt=prompt, model=model, stop=stop, **kwargs
+        )
+        # Parse completion response to chat completion
+        chat_completion = ChatCompletion(
+            id=completion_res.id,
+            choices=[
+                ChatChoice(
+                    finish_reason=c.finish_reason,
+                    index=c.index,
+                    message=ChatCompletionMessage(
+                        role="assistant",
+                        content=c.text,
+                    ),
+                )
+                for c in completion_res.choices
+            ],
+            created=completion_res.created,
+            model=completion_res.model,
+            object="chat.completion",
+            system_fingerprint=completion_res.system_fingerprint,
+            usage=completion_res.usage,
+        )
+        return chat_completion
 
     def text_completion(
         self, prompt: Text, *args, model: Text, **kwargs
@@ -115,6 +171,7 @@ class TransformersAction(ActionBase):
         kwargs.pop("frequency_penalty", None)  # TODO: Implement frequency_penalty
         kwargs.pop("presence_penalty", None)  # TODO: Implement presence_penalty
         kwargs.pop("stream", None)  # TODO: Implement stream
+        kwargs.pop("logprobs", None)  # TODO: Implement logprobs
         total_stop_words = must_list(self.stop_words) + must_list(
             kwargs.pop("stop", ())
         )
