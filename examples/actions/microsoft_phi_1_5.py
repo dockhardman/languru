@@ -5,6 +5,7 @@ from rich import print
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.action.hf import TransformersAction
+from languru.types.chat.completions import ChatCompletionRequest, Message
 from languru.types.completions import CompletionRequest
 from languru.utils.common import debug_print
 from languru.utils.device import validate_device
@@ -40,6 +41,28 @@ def run_action_text_completion(action: "ActionBase"):
     )
 
 
+def run_action_chat(action: "ActionBase"):
+    chat_params = ChatCompletionRequest.model_validate(
+        {
+            "model": "microsoft/phi-1_5",
+            "messages": [
+                Message(role="system", content="You are a helpful assistant."),
+                Message(
+                    role="user", content="What is the capital of the United States?"
+                ),
+            ],
+            "max_tokens": 200,
+        }
+    )
+    chat_res = action.chat(**chat_params.model_dump(exclude_none=True))
+    print()
+    debug_print(
+        chat_params.model_dump(exclude_none=True),
+        chat_res.model_dump(exclude_none=True),
+        title=f"Model {chat_params.model} Chat Completion",
+    )
+
+
 class MicrosoftPhi2Action(TransformersAction):
     # Model configuration
     MODEL_NAME = "microsoft/phi-1_5"
@@ -56,3 +79,4 @@ if __name__ == "__main__":
     print(f"Health: {action.health()}")
 
     run_action_text_completion(action)
+    run_action_chat(action)
