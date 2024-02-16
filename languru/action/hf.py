@@ -19,7 +19,7 @@ from transformers import (
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
 from languru.llm.config import settings as llm_settings
-from languru.utils.common import must_list, should_str_or_none
+from languru.utils.common import must_list, replace_right, should_str_or_none
 from languru.utils.device import validate_device
 from languru.utils.hf import StopAtWordsStoppingCriteria
 
@@ -112,6 +112,7 @@ class TransformersAction(ActionBase):
         else:
             logger.warning(f"Invalid stop words parameters: {stop}")
             stop = []
+        stop = [s for s in stop if s]
         stop.extend([f"\n{role}:" for role in roles])
 
         # Chat completion request
@@ -121,23 +122,33 @@ class TransformersAction(ActionBase):
         # Parse completion response to chat completion
         chat_completion = ChatCompletion(
             id=completion_res.id,
-            choices=[
-                ChatChoice(
-                    finish_reason=c.finish_reason,
-                    index=c.index,
-                    message=ChatCompletionMessage(
-                        role="assistant",
-                        content=c.text,
-                    ),
-                )
-                for c in completion_res.choices
-            ],
+            choices=[],
             created=completion_res.created,
             model=completion_res.model,
             object="chat.completion",
             system_fingerprint=completion_res.system_fingerprint,
             usage=completion_res.usage,
         )
+        # Modify completion response to chat completion
+        for c in completion_res.choices:
+            message_text = c.text
+            for stop_word in stop:
+                modified_message_text = replace_right(
+                    message_text, old=stop_word, new="", occurrence=1
+                )
+                if modified_message_text != message_text:
+                    message_text = modified_message_text
+                    break
+            chat_completion.choices.append(
+                ChatChoice(
+                    finish_reason=c.finish_reason,
+                    index=c.index,
+                    message=ChatCompletionMessage(
+                        role="assistant",
+                        content=message_text,
+                    ),
+                )
+            )
         return chat_completion
 
     def text_completion(
