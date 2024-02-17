@@ -232,8 +232,3 @@ class TransformersAction(ActionBase):
         )
         completion_res.created = int(time.time())
         return completion_res
-
-
-class HuggingFaceAction(TransformersAction):
-    def name(self):
-        return "hugging_face_action"
