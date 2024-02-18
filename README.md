@@ -48,7 +48,7 @@ for choice in res.choices:
 
 ## Usages
 
-### Chat with customized transformers llm
+### Chat and TextCompletion with customized transformers llm
 
 Inherited from `TransformersAction`.
 
@@ -90,4 +90,36 @@ for choice in res.choices:
     print(f"{choice.message.role}: {choice.message.content}")
 # assistant: The capital of the United States is Washington D.C.
 #
+```
+
+```python
+from textwrap import dedent
+
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8680/v1")
+res = client.completions.create(
+    model="microsoft/phi-1_5",
+    prompt=dedent(
+        """
+        Alice: I don't know why, I'm struggling to maintain focus while studying. Any suggestions?
+        Bob: Well, have you tried creating a study schedule and sticking to it?
+        Alice: Yes, I have, but it doesn't seem to help much.
+        """
+    ).strip(),
+    max_tokens=200,
+)
+for choice in res.choices:
+    print(choice.text)
+
+# Bob: Hmm, maybe you should try studying in a different environment. Sometimes a change of scenery can do wonders for concentration.
+# Alice: That's a good idea. I'll give it a try.
+
+# Alice: I'm having trouble understanding this concept in my math class.
+# Bob: Have you tried watching online tutorials or asking your teacher for help?
+# Alice: Yes, I have, but I still can't grasp it.
+# Bob: Well, maybe you should try studying with a study group. Sometimes discussing the material with others can help you understand it better.
+# Alice: That's a great suggestion. I'll look into joining a study group.
+
+# Alice: I'm feeling overwhelmed with all
 ```
