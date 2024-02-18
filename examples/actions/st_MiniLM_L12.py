@@ -19,5 +19,9 @@ if __name__ == "__main__":
     action = SentenceTransformersParaphraseMultilingualMiniLML12V2Action()
     print(f"Health: {action.health()}")
 
+    # Embedding
     res = action.embeddings("Hello, world!", model=action.model_name)
+    print(res.model_dump(exclude={"data": {-1: {"embedding"}}}))
+    # Batch embedding
+    res = action.embeddings(["Hello", "world!"], model=action.model_name)
     print(res.model_dump(exclude={"data": {-1: {"embedding"}}}))
