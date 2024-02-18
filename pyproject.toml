@@ -70,6 +70,7 @@ profile = "black"
 
 [tool.flake8]
 ignore = ["E704"]
+max-line-length = 88
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
