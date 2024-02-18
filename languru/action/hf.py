@@ -187,6 +187,8 @@ class TransformersAction(ActionBase):
         max_length = kwargs.get("max_tokens") or kwargs.get("max_length") or None
         if max_length is not None:
             kwargs["max_length"] = int(max_length)
+        else:
+            kwargs["max_length"] = max_length = self.default_max_tokens
         kwargs.pop("max_tokens", None)
         kwargs.pop("best_of", None)  # TODO: Implement best_of
         kwargs.pop("echo", None)  # TODO: Implement echo
@@ -220,7 +222,7 @@ class TransformersAction(ActionBase):
                 + f"{inputs_tokens_length} >= {max_length}, "
                 + f"resetting max_length to {inputs_tokens_length + 20}"
             )
-            kwargs["max_length"] = inputs_tokens_length + 20
+            kwargs["max_length"] = max_length = inputs_tokens_length + 20
 
         # Generate text completion
         outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)

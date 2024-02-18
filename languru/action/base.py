@@ -20,6 +20,8 @@ ModelDeploy = NamedTuple(
 class ActionBase:
     model_deploys: Optional[Sequence[ModelDeploy]] = None
 
+    default_max_tokens: int = 800
+
     def __init__(
         self, *args, model_deploys: Optional[Sequence[ModelDeploy]] = None, **kwargs
     ):
