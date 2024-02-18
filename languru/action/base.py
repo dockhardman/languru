@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import TYPE_CHECKING, List, NamedTuple, Optional, Sequence, Text
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Sequence, Text, Union
 
 from languru.exceptions import ModelNotFound
 
@@ -44,7 +44,11 @@ class ActionBase:
         raise NotImplementedError
 
     def embeddings(
-        self, input: Text, *args, model: Text, **kwargs
+        self,
+        input: Union[Text, List[Union[Text, List[Text]]]],
+        *args,
+        model: Text,
+        **kwargs,
     ) -> "CreateEmbeddingResponse":
         raise NotImplementedError
 
