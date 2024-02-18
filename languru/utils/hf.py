@@ -22,8 +22,11 @@ class StopAtWordsStoppingCriteria(StoppingCriteria):
         self.stop_reason: Optional[Literal["stop", "length", "content_filter"]] = None
 
     def __call__(self, input_ids: "torch.LongTensor", scores: "torch.FloatTensor"):
+        input_ids_cpu = input_ids.cpu().long()
         for stop_words_id in self.stop_words_ids:
-            if torch.all((stop_words_id == input_ids[0][-len(stop_words_id) :])).item():
+            if torch.all(
+                (stop_words_id == input_ids_cpu[0][-len(stop_words_id) :])
+            ).item():
                 self.stop_reason = "stop"
                 return True
         return False
