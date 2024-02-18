@@ -1,10 +1,15 @@
 import os
 import time
 import uuid
-from typing import TYPE_CHECKING, List, Optional, Sequence, Text
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Text, Union
 
 import torch
-from openai.types import Completion, CompletionChoice, CompletionUsage
+from openai.types import (
+    Completion,
+    CompletionChoice,
+    CompletionUsage,
+    CreateEmbeddingResponse,
+)
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion import Choice as ChatChoice
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
@@ -20,12 +25,12 @@ from transformers import (
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
 from languru.llm.config import settings as llm_settings
+from languru.utils.calculation import mean_pooling, tensor_to_np
 from languru.utils.common import must_list, replace_right, should_str_or_none
 from languru.utils.device import validate_device
 from languru.utils.hf import StopAtWordsStoppingCriteria
 
 if TYPE_CHECKING:
-    from openai.types import CreateEmbeddingResponse
     from openai.types.chat import ChatCompletionMessageParam
 
 # Device config
@@ -239,3 +244,55 @@ class TransformersAction(ActionBase):
         )
         completion_res.created = int(time.time())
         return completion_res
+
+    def embeddings(
+        self,
+        input: Union[Text, List[Union[Text, List[Text]]]],
+        *args,
+        model: Text,
+        **kwargs,
+    ) -> "CreateEmbeddingResponse":
+        # Tokenize prompt
+        inputs = self.tokenizer(
+            input, return_tensors="pt", padding=True, truncation=True
+        )
+        print(inputs.keys())
+        input_ids = self.ensure_tensor(inputs["input_ids"])
+        input_ids = input_ids.to(self.device)
+        inputs_tokens_length = int(input_ids.shape[1])
+
+        with torch.no_grad():  # No need to compute gradients
+            output = self.model(**inputs, **kwargs)
+            hidden_states = output.last_hidden_state
+
+        # Perform pooling.
+        embeddings = mean_pooling(
+            tensor_to_np(tensor=self.ensure_tensor(hidden_states)),
+            tensor_to_np(self.ensure_tensor(inputs["attention_mask"])),
+        )
+        print(embeddings.shape)  # (1, 384)
+        return CreateEmbeddingResponse.model_validate(
+            {
+                "data": [
+                    {
+                        "embedding": emb,
+                        "index": idx,
+                        "object": "embedding",
+                    }
+                    for idx, emb in enumerate(embeddings.tolist())
+                ],
+                "model": self.model_name,
+                "object": "list",
+                "usage": {
+                    "total_tokens": inputs_tokens_length,
+                    "prompt_tokens": inputs_tokens_length,
+                },
+            }
+        )
+
+    def ensure_tensor(self, input: Any) -> "torch.Tensor":
+        if isinstance(input, torch.Tensor) is False:
+            logger.warning(
+                f"Input is not a tensor, converting to tensor: {type(input)}"
+            )
+        return input
