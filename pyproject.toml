@@ -69,7 +69,7 @@ setuptools = "^69"
 profile = "black"
 
 [tool.flake8]
-ignore = ["E704"]
+ignore = ["E203", "E704", "W503"]
 max-line-length = 88
 
 [build-system]

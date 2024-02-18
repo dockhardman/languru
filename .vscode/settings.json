@@ -49,7 +49,7 @@
   "evenBetterToml.formatter.arrayAutoCollapse": true,
   "evenBetterToml.formatter.arrayAutoExpand": false,
   "flake8.args": [
-    "--ignore=E704",
+    "--ignore=E203,E704,W503",
     "--max-line-length=88",
   ],
 }
