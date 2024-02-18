@@ -254,13 +254,15 @@ class TransformersAction(ActionBase):
         model: Text,
         **kwargs,
     ) -> "CreateEmbeddingResponse":
+        # Validate parameters
+        kwargs.pop("encoding_format", None)  # TODO: Implement encoding_format
+
         # Tokenize prompt
         inputs = self.tokenizer(
             input, return_tensors="pt", padding=True, truncation=True
         )
-        print(inputs.keys())
+        inputs = inputs.to(self.device)
         input_ids = self.ensure_tensor(inputs["input_ids"])
-        input_ids = input_ids.to(self.device)
         inputs_tokens_length = int(input_ids.shape[1])
 
         with torch.no_grad():  # No need to compute gradients
