@@ -9,6 +9,7 @@ from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion import Choice as ChatChoice
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from transformers import (
+    AutoModel,
     AutoModelForCausalLM,
     AutoTokenizer,
     PreTrainedModel,
@@ -24,6 +25,7 @@ from languru.utils.device import validate_device
 from languru.utils.hf import StopAtWordsStoppingCriteria
 
 if TYPE_CHECKING:
+    from openai.types import CreateEmbeddingResponse
     from openai.types.chat import ChatCompletionMessageParam
 
 # Device config
@@ -65,9 +67,14 @@ class TransformersAction(ActionBase):
         if not self.model_name:
             raise ValueError("The `model_name` cannot be empty")
         # Model and tokenizer
-        self.model: "PreTrainedModel" = AutoModelForCausalLM.from_pretrained(
-            self.model_name, torch_dtype=self.dtype, trust_remote_code=True
-        )
+        try:
+            self.model: "PreTrainedModel" = AutoModel.from_pretrained(
+                self.model_name, torch_dtype=self.dtype, trust_remote_code=True
+            )
+        except ValueError:
+            self.model: "PreTrainedModel" = AutoModelForCausalLM.from_pretrained(
+                self.model_name, torch_dtype=self.dtype, trust_remote_code=True
+            )
         self.model = self.model.to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name, trust_remote_code=True
