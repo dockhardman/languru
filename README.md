@@ -73,7 +73,7 @@ languru server run
 languru llm run --action module_path.MicrosoftPhiAction
 ```
 
-Query services.
+Query llm chat.
 
 ```python
 from openai import OpenAI
@@ -91,6 +91,8 @@ for choice in res.choices:
 # assistant: The capital of the United States is Washington D.C.
 #
 ```
+
+Query llm text completion.
 
 ```python
 from textwrap import dedent
@@ -122,4 +124,50 @@ for choice in res.choices:
 # Alice: That's a great suggestion. I'll look into joining a study group.
 
 # Alice: I'm feeling overwhelmed with all
+```
+
+### Embeddings with customized transformers model
+
+Inherited from `TransformersAction`.
+
+```python
+# module_path.py
+from languru.action.base import ModelDeploy
+from languru.action.hf import TransformersAction
+
+
+class STMiniLML12V2Action(TransformersAction):
+    MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+    model_deploys = (
+        ModelDeploy(MODEL_NAME, MODEL_NAME),
+        ModelDeploy(model_deploy_name="MiniLM-L12-v2", model_name=MODEL_NAME),
+    )
+```
+
+Run agent server and llm action server.
+
+```shell
+languru server run
+languru llm run --action module_path.STMiniLML12V2Action
+```
+
+Query text embeddings:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8680/v1")
+res = client.embeddings.create(
+    input=[
+        "What is your return policy for online purchases?",
+        "How long does it usually take for an order to be delivered?",
+        "Do you offer international shipping, and what are the rates?",
+    ],
+    model="MiniLM-L12-v2",
+)
+print(f"There are {len(res.data)} embeddings.")
+print(f"The embeddings length is {len(res.data[0].embedding)}.")
+# There are 3 embeddings.
+# The embeddings length is 384.
 ```
