@@ -23,7 +23,6 @@ from languru.types.chat.completions import ChatCompletionRequest
 from languru.types.completions import CompletionRequest
 from languru.types.embeddings import EmbeddingRequest
 from languru.types.moderations import ModerationRequest
-from languru.utils.socket import check_port, get_available_port
 
 
 async def register_model_periodically(model: Model, period: int, agent_base_url: Text):
@@ -174,12 +173,7 @@ def run_app():
 
     app_str = "languru.llm.app:app"
     # Determine port
-    if settings.PORT is None:
-        port = get_available_port(settings.DEFAULT_PORT)
-    else:
-        if check_port(settings.PORT) is False:
-            raise ValueError(f"The port '{settings.PORT}' is already in use")
-        port = settings.PORT
+    port = settings.PORT or settings.DEFAULT_PORT
 
     if settings.is_development or settings.is_testing:
         logger.info("Running server in development mode")
@@ -195,7 +189,12 @@ def run_app():
         )
     else:
         logger.info("Running server in production mode")
-        uvicorn.run(app, host=settings.HOST, port=port, workers=settings.WORKERS)
+        uvicorn.run(
+            app,
+            host=settings.HOST,
+            port=port,
+            workers=settings.WORKERS,
+        )
 
 
 if __name__ == "__main__":
