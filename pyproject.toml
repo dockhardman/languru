@@ -12,6 +12,7 @@ click = "^8.1.7"
 colorama = "^0.4.6"
 einops = { version = "^0.7.0", optional = true }
 fastapi = { extras = ["all"], version = "^0.109.0", optional = true }
+google-cloud-aiplatform = { version = "^1.38", optional = true }
 ninja = { version = "^1.11.1.1", optional = true }
 nvgpu = { version = "^0.10.0", optional = true }
 openai = { version = "^1.10.0", optional = true }
@@ -33,7 +34,8 @@ typing-extensions = "^4.9.0"
 languru = "languru.cli.main:app"
 
 [tool.poetry.extras]
-all = ["einops", "fastapi", "huggingface", "ninja", "nvgpu", "openai", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+all = ["einops", "fastapi", "google-cloud-aiplatform", "huggingface", "ninja", "nvgpu", "openai", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+google = ["google-cloud-aiplatform"]
 huggingface = ["einops", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
 server = ["fastapi", "openai"]
 torch = ["torch", "torchaudio", "torchvision"]
