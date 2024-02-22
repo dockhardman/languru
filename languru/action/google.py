@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, List, Optional, Text, Union
 
 import google.generativeai as genai
 from google.generativeai.types.content_types import ContentDict
+from google.generativeai.types.text_types import BatchEmbeddingDict
+from openai.types import CreateEmbeddingResponse
 from openai.types.chat import ChatCompletion
 from openai.types.completion import Completion
 
@@ -11,7 +13,6 @@ from languru.action.base import ActionBase, ModelDeploy
 from languru.llm.config import logger
 
 if TYPE_CHECKING:
-    from openai.types import Completion, CreateEmbeddingResponse
     from openai.types.chat import ChatCompletionMessageParam
 
 
@@ -81,11 +82,13 @@ class GoogleGenAiAction(ActionBase):
         ]
         input_tokens = genai_model.count_tokens(contents).total_tokens
 
+        # Generate the chat response
         latest_content = contents.pop()
         chat_session = genai_model.start_chat(history=contents or None)
         response = chat_session.send_message(latest_content)
         out_tokens = genai_model.count_tokens(response.parts).total_tokens
 
+        # Parse the response
         chat_completion = ChatCompletion.model_validate(
             dict(
                 id=str(uuid.uuid4()),
@@ -118,9 +121,11 @@ class GoogleGenAiAction(ActionBase):
         genai_model = genai.GenerativeModel(model)
         input_tokens = genai_model.count_tokens(prompt).total_tokens
 
+        # Generate the text
         gen_res = genai_model.generate_content(prompt)
         output_tokens = genai_model.count_tokens(gen_res.parts).total_tokens
 
+        # Parse the response
         completion_res = Completion.model_validate(
             dict(
                 id=str(uuid.uuid4()),
@@ -152,4 +157,46 @@ class GoogleGenAiAction(ActionBase):
         model: Text,
         **kwargs,
     ) -> "CreateEmbeddingResponse":
-        raise NotImplementedError
+        if not input:
+            raise ValueError("The input must not be empty")
+        contents: List[Text] = []
+        if isinstance(input, List):
+            for idx, seq in enumerate(input):
+                if not seq:
+                    raise ValueError(f"The input[{idx}] must not be empty")
+                elif isinstance(seq, Text):
+                    contents.append(seq)
+                else:
+                    contents.append("".join(seq))
+        else:
+            contents.append(input)
+        input_tokens = (
+            genai.GenerativeModel("models/gemini-pro")
+            .count_tokens(contents)
+            .total_tokens
+        )
+
+        # Retrieve the embeddings
+        batch_emb_dict: BatchEmbeddingDict = genai.embed_content(
+            model=model,
+            content=contents,
+            task_type="retrieval_document",
+        )
+
+        # Parse the response
+        emb_res = CreateEmbeddingResponse.model_validate(
+            dict(
+                data=[
+                    dict(
+                        embedding=emb,
+                        index=idx,
+                        object="embedding",
+                    )
+                    for idx, emb in enumerate(batch_emb_dict["embedding"])
+                ],
+                model=model,
+                object="list",
+                usage=dict(prompt_tokens=input_tokens, total_tokens=input_tokens),
+            )
+        )
+        return emb_res
