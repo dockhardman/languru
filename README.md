@@ -171,3 +171,53 @@ print(f"The embeddings length is {len(res.data[0].embedding)}.")
 # There are 3 embeddings.
 # The embeddings length is 384.
 ```
+
+### Use google gemini generative ai models
+
+Run agent server and llm action server.
+
+```shell
+languru server run
+languru llm run --action languru.action.google.GoogleGenaiAction
+```
+
+Query llm chat.
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8680/v1")
+
+# Chat
+res = client.chat.completions.create(
+    model="gemini-pro",
+    messages=[{"role": "user", "content": "Hello, how are you?"}],
+)
+for choice in res.choices:
+    print(f"{choice.message.role}: {choice.message.content}")
+    # assistant: As an AI language model, I don't have personal feelings or emotions, so I don't experience states like happiness or sadness. However, I am designed to be helpful and informative, and I can engage in conversations and answer your questions to the best of my abilities.
+    # How about you? How are you feeling today?
+
+# Text Generation
+res = client.completions.create(
+    model="gemini-pro",
+    prompt="The reverse of a dog is a",
+    max_tokens=200,
+)
+for choice in res.choices:
+    print(choice.text)
+    # god
+
+# Embeddings
+res = client.embeddings.create(
+    input=[
+        "Discover your spirit of adventure and indulge your thirst for wanderlust with the touring bike that has dominated the segment for the past 50 years: the Honda Gold Wing Tour, Gold Wing Tour Automatic DCT, and Gold Wing Tour Airbag Automatic DCT.",
+        "R1M: This is the most advanced production motorcycle for riders who are at the very top of their game.",
+    ],
+    model="models/embedding-001",
+)
+print(f"There are {len(res.data)} embeddings.")
+print(f"The embeddings length is {len(res.data[0].embedding)}.")
+# There are 2 embeddings.
+# The embeddings length is 768.
+```
