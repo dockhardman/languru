@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Optional, Text, Union
 import google.generativeai as genai
 from google.generativeai.types.content_types import ContentDict
 from openai.types.chat import ChatCompletion
+from openai.types.completion import Completion
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.llm.config import logger
@@ -112,7 +113,37 @@ class GoogleGenAiAction(ActionBase):
     def text_completion(
         self, prompt: Text, *args, model: Text, **kwargs
     ) -> "Completion":
-        raise NotImplementedError
+        if not prompt:
+            raise ValueError("prompt must not be empty")
+        genai_model = genai.GenerativeModel(model)
+        input_tokens = genai_model.count_tokens(prompt).total_tokens
+
+        gen_res = genai_model.generate_content(prompt)
+        output_tokens = genai_model.count_tokens(gen_res.parts).total_tokens
+
+        completion_res = Completion.model_validate(
+            dict(
+                id=str(uuid.uuid4()),
+                choices=[
+                    dict(
+                        finish_reason="stop",
+                        index=idx,
+                        text=part.text,
+                    )
+                    for idx, part in enumerate(gen_res.parts)
+                    if part.text
+                ],
+                created=int(time.time()),
+                model=model,
+                object="text_completion",
+                usage=dict(
+                    completion_tokens=output_tokens,
+                    prompt_tokens=input_tokens,
+                    total_tokens=input_tokens + output_tokens,
+                ),
+            )
+        )
+        return completion_res
 
     def embeddings(
         self,
