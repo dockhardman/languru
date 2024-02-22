@@ -1,14 +1,17 @@
+import time
+import uuid
 from typing import TYPE_CHECKING, List, Optional, Text, Union
 
 import google.generativeai as genai
 from google.generativeai.types.content_types import ContentDict
+from openai.types.chat import ChatCompletion
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.llm.config import logger
 
 if TYPE_CHECKING:
     from openai.types import Completion, CreateEmbeddingResponse
-    from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+    from openai.types.chat import ChatCompletionMessageParam
 
 
 class GoogleGenAiAction(ActionBase):
@@ -56,7 +59,7 @@ class GoogleGenAiAction(ActionBase):
 
     def health(self) -> bool:
         try:
-            genai.get_model("gemini-pro")
+            genai.get_model("models/gemini-pro")
             return True
         except Exception as e:
             logger.error(f"Google GenAI health check failed: {e}")
@@ -75,12 +78,36 @@ class GoogleGenAiAction(ActionBase):
             for m in messages
             if "content" in m and m["content"]
         ]
-        input_tokens = genai_model.count_tokens(contents)
+        input_tokens = genai_model.count_tokens(contents).total_tokens
 
         latest_content = contents.pop()
         chat_session = genai_model.start_chat(history=contents or None)
         response = chat_session.send_message(latest_content)
-        response.parts
+        out_tokens = genai_model.count_tokens(response.parts).total_tokens
+
+        chat_completion = ChatCompletion.model_validate(
+            dict(
+                id=str(uuid.uuid4()),
+                choices=[
+                    dict(
+                        finish_reason="stop",
+                        index=idx,
+                        message=dict(content=part.text, role="assistant"),
+                    )
+                    for idx, part in enumerate(response.parts)
+                    if part.text
+                ],
+                created=int(time.time()),
+                model=model,
+                object="chat.completion",
+                usage=dict(
+                    completion_tokens=out_tokens,
+                    prompt_tokens=input_tokens,
+                    total_tokens=input_tokens + out_tokens,
+                ),
+            )
+        )
+        return chat_completion
 
     def text_completion(
         self, prompt: Text, *args, model: Text, **kwargs
