@@ -4,7 +4,7 @@ description = "The general purpose LLM app stacks."
 license = "Apache-2.0 license"
 name = "languru"
 readme = "README.md"
-version = "0.2.0"
+version = "0.3.0"
 
 [tool.poetry.dependencies]
 aiohttp = "^3.9.3"
