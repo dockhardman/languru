@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
 
 
-class GoogleGenAiAction(ActionBase):
+class GoogleGenaiAction(ActionBase):
     model_deploys = (
         ModelDeploy("models/chat-bison-001", "models/chat-bison-001"),
         ModelDeploy("models/text-bison-001", "models/text-bison-001"),
