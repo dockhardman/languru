@@ -40,3 +40,8 @@ def validate_device(device: Optional[Text] = None) -> Text:
     # Validate unknown device
     logger.warning(f"Unknown device: {device}. The device will be CPU.")
     return "cpu"
+
+
+# Support dtype
+cpu_supported_dtype = ("float32", "float64")
+mps_supported_dtype = ("float16", "float32", "float64")
