@@ -178,7 +178,8 @@ class TransformersAction(ActionBase):
             raise ValueError("The `prompt` cannot be empty")
         if model != self.model_name:
             logger.warning(
-                f"The model `{model}` is not the same as the action's model `{self.model_name}`"
+                f"The model `{model}` is not the same as the action's model "
+                + f"`{self.model_name}`"
             )
 
         # Initialize completion response
@@ -234,18 +235,21 @@ class TransformersAction(ActionBase):
         # Generate text completion
         outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)
         outputs_tokens_length = outputs.shape[1]
-        completed_text = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)[
-            0
-        ]
+        completed_text = self.tokenizer.batch_decode(outputs)[0]
+        output_text = completed_text.replace(prompt, "", 1)
+        output_text = remove_special_tokens(output_text, tokenizer=self.tokenizer)
 
         # Collect completion response
         finish_reason = "length"
         if stop_criteria is not None:
             finish_reason = stop_criteria.get_stop_reason() or finish_reason
+        elif (
+            self.tokenizer.eos_token_id is not None
+            and outputs[-1][-1].item() == self.tokenizer.eos_token_id
+        ):
+            finish_reason = "stop"
         completion_choice = CompletionChoice(
-            finish_reason=finish_reason,
-            index=0,
-            text=completed_text.replace(prompt, "", 1),
+            finish_reason=finish_reason, index=0, text=output_text
         )
         completion_res.choices.append(completion_choice)
         completion_res.usage = CompletionUsage(
