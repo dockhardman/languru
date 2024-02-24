@@ -221,3 +221,64 @@ print(f"The embeddings length is {len(res.data[0].embedding)}.")
 # There are 2 embeddings.
 # The embeddings length is 768.
 ```
+
+### Google Gemma Transformers
+
+Run gemma action server:
+
+```shell
+languru server run
+MODEL_NAME=google/gemma-2b languru llm run --action languru.action.hf.TransformersAction
+MODEL_NAME=google/gemma-2b-it languru llm run --action languru.action.hf.TransformersAction
+```
+
+Query gemma llm.
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8680/v1")
+res = client.chat.completions.create(
+    model="google/gemma-2b-it",
+    messages=[
+        {"role": "user", "content": "Write a hello world program"},
+    ],
+    max_tokens=800,
+)
+for choice in res.choices:
+    print(f"{choice.message.role}: {choice.message.content}")
+# assistant: ```python
+# print("Hello, world!")
+# ```
+
+# **Explanation:**
+
+# * `print()` is a built-in Python function that prints the given argument to the console.
+# * `"Hello, world!"` is the string that we want to print.
+# * The `\n` character is used to insert a newline character into the print statement.
+
+# **Output:**
+
+# ```
+# Hello, world!
+# ```
+
+# **How it works:**
+
+# 1. The `print()` function takes one or more arguments.
+# 2. The first argument is the string that we want to print.
+# 3. If there are multiple arguments, they are separated by commas.
+# 4. The `print()` function prints the arguments in the order they are given, separated by a space.
+# 5. The `\n` character is used to insert a newline character into the output.
+
+# **Note:**
+
+# * The `print()` function can also print other types of objects, such as lists, dictionaries, and objects.
+# * You can use the `format()` method to format the output before printing it. For example, the following code will print the string with a dollar sign:
+
+# ```python
+# name = "John"
+# age = 30
+# print("My name is {} and I am {} years old.".format(name, age))
+# ```
+```
