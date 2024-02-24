@@ -4,7 +4,7 @@ description = "The general purpose LLM app stacks."
 license = "Apache-2.0 license"
 name = "languru"
 readme = "README.md"
-version = "0.3.0"
+version = "0.4.0"
 
 [tool.poetry.dependencies]
 accelerate = { version = "^0.27.2", optional = true, markers = "sys_platform == 'linux'" }
