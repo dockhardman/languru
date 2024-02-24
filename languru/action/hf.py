@@ -27,27 +27,19 @@ from languru.config import logger
 from languru.llm.config import settings as llm_settings
 from languru.utils.calculation import mean_pooling, tensor_to_np
 from languru.utils.common import must_list, replace_right, should_str_or_none
-from languru.utils.device import validate_device
+from languru.utils.device import validate_device, validate_dtype
 from languru.utils.hf import StopAtWordsStoppingCriteria
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
 
 # Device config
-DEVICE: Text = validate_device(device=llm_settings.device)
-llm_settings.device = DEVICE
-DTYPE = torch.float32
-if llm_settings.dtype is not None:
-    _torch_dtype = getattr(torch, llm_settings.dtype, None)
-    if _torch_dtype is not None:
-        DTYPE = _torch_dtype
-    else:
-        logger.warning(
-            f"Unknown dtype: {llm_settings.dtype}. The dtype setting will be ignored."
-        )
-elif DEVICE != "cpu":
-    DTYPE = torch.float16
-logger.info(f"Using device: {DEVICE}")
+DEVICE = llm_settings.device = validate_device(device=llm_settings.device)
+DTYPE = validate_dtype(
+    device=DEVICE,
+    dtype=llm_settings.dtype or ("float16" if DEVICE in ("cuda", "mps") else "float32"),
+)
+logger.info(f"Using device: {DEVICE} with dtype: {DTYPE}")
 torch.set_default_device(DEVICE)
 
 
