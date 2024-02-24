@@ -13,6 +13,8 @@ class SentenceTransformersParaphraseMultilingualMiniLML12V2Action(TransformersAc
         ModelDeploy("MiniLM-L12-v2", MODEL_NAME),
     )
 
+    is_causal_lm: bool = False
+
 
 if __name__ == "__main__":
 
