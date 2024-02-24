@@ -282,3 +282,16 @@ for choice in res.choices:
 # print("My name is {} and I am {} years old.".format(name, age))
 # ```
 ```
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8680/v1")
+res = client.completions.create(
+    model="google/gemma-2b",
+    prompt="The capital of France is ",
+    max_tokens=300,
+)
+for choice in res.choices:
+    print(choice.text)
+```
