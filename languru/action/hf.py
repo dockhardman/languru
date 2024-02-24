@@ -27,37 +27,33 @@ from languru.config import logger
 from languru.llm.config import settings as llm_settings
 from languru.utils.calculation import mean_pooling, tensor_to_np
 from languru.utils.common import must_list, replace_right, should_str_or_none
-from languru.utils.device import validate_device
-from languru.utils.hf import StopAtWordsStoppingCriteria
+from languru.utils.device import validate_device, validate_dtype
+from languru.utils.hf import StopAtWordsStoppingCriteria, remove_special_tokens
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
 
 # Device config
-DEVICE: Text = validate_device(device=llm_settings.device)
-llm_settings.device = DEVICE
-DTYPE = torch.float32
-if llm_settings.dtype is not None:
-    _torch_dtype = getattr(torch, llm_settings.dtype, None)
-    if _torch_dtype is not None:
-        DTYPE = _torch_dtype
-    else:
-        logger.warning(
-            f"Unknown dtype: {llm_settings.dtype}. The dtype setting will be ignored."
-        )
-elif DEVICE != "cpu":
-    DTYPE = torch.float16
-logger.info(f"Using device: {DEVICE}")
+DEVICE = llm_settings.device = validate_device(device=llm_settings.device)
+DTYPE = validate_dtype(
+    device=DEVICE,
+    dtype=llm_settings.dtype or ("float16" if DEVICE in ("cuda", "mps") else "float32"),
+)
+logger.info(f"Using device: {DEVICE} with dtype: {DTYPE}")
 torch.set_default_device(DEVICE)
 
 
 class TransformersAction(ActionBase):
     # Model configuration
     MODEL_NAME: Text = (os.getenv("HF_MODEL_NAME") or os.getenv("MODEL_NAME")) or ""
-    model_deploys = (ModelDeploy(MODEL_NAME, MODEL_NAME),)
+    model_deploys = (
+        ModelDeploy(MODEL_NAME, MODEL_NAME),
+        ModelDeploy(MODEL_NAME.split("/")[-1], MODEL_NAME),
+    )
 
     # Generation configuration
     stop_words: Sequence[Text] = ()
+    is_causal_lm: bool = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -69,18 +65,24 @@ class TransformersAction(ActionBase):
         self.model_name = (
             should_str_or_none(kwargs.get("model_name")) or self.MODEL_NAME
         )
+        logger.info(f"Using model: {self.model_name}")
         if not self.model_name:
             raise ValueError("The `model_name` cannot be empty")
         # Model and tokenizer
-        try:
-            self.model: "PreTrainedModel" = AutoModel.from_pretrained(
-                self.model_name, torch_dtype=self.dtype, trust_remote_code=True
-            )
-        except ValueError:
+        if self.is_causal_lm is True:
             self.model: "PreTrainedModel" = AutoModelForCausalLM.from_pretrained(
-                self.model_name, torch_dtype=self.dtype, trust_remote_code=True
+                self.model_name,
+                device_map=self.device,
+                torch_dtype=self.dtype,
+                trust_remote_code=True,
             )
-        self.model = self.model.to(self.device)
+        else:
+            self.model: "PreTrainedModel" = AutoModel.from_pretrained(
+                self.model_name,
+                device_map=self.device,
+                torch_dtype=self.dtype,
+                trust_remote_code=True,
+            )
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name, trust_remote_code=True
         )
@@ -101,31 +103,40 @@ class TransformersAction(ActionBase):
             raise ValueError("The `messages` cannot be empty")
 
         # Prepare prompt
-        prompt = ""
-        for m in messages:
-            if "content" in m and m["content"] is not None:
-                prompt += f"\n\n{m['role']}:\n{m['content']}"
-            prompt = prompt.strip()
-        prompt = prompt.strip()
-        if len(prompt) == 0:
-            raise ValueError("The `prompt` cannot be empty, no content in messages")
-        prompt += "\n\nassistant:\n"
-
-        # Prepare stop words
-        roles = set(
-            [message["role"] for message in messages]
-            + ["assistant", "bot", "user", "system"]
-        )
         stop = kwargs.pop("stop", [])
-        if isinstance(stop, Text):
-            stop = [stop]
-        elif isinstance(stop, Sequence):
-            stop = [str(w) for w in list(stop)]
+        if self.tokenizer.chat_template is None:
+            prompt = ""
+            for m in messages:
+                if "content" in m and m["content"] is not None:
+                    prompt += f"\n\n{m['role']}:\n{m['content']}"
+                prompt = prompt.strip()
+            prompt = prompt.strip()
+            if len(prompt) == 0:
+                raise ValueError("The `prompt` cannot be empty, no content in messages")
+            prompt += "\n\nassistant:\n"
+
+            # Prepare stop words
+            roles = set(
+                [message["role"] for message in messages]
+                + ["assistant", "bot", "user", "system"]
+            )
+            if isinstance(stop, Text):
+                stop = [stop]
+            elif isinstance(stop, Sequence):
+                stop = [str(w) for w in list(stop)]
+            else:
+                logger.warning(f"Invalid stop words parameters: {stop}")
+                stop = []
+            stop = [s for s in stop if s]
+            stop.extend([f"\n{role}:" for role in roles])
+
         else:
-            logger.warning(f"Invalid stop words parameters: {stop}")
-            stop = []
-        stop = [s for s in stop if s]
-        stop.extend([f"\n{role}:" for role in roles])
+            prompt = self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            assert isinstance(prompt, Text)
+            if not prompt:
+                raise ValueError("The `prompt` cannot be empty, no content in messages")
 
         # Chat completion request
         completion_res = self.text_completion(
@@ -171,7 +182,8 @@ class TransformersAction(ActionBase):
             raise ValueError("The `prompt` cannot be empty")
         if model != self.model_name:
             logger.warning(
-                f"The model `{model}` is not the same as the action's model `{self.model_name}`"
+                f"The model `{model}` is not the same as the action's model "
+                + f"`{self.model_name}`"
             )
 
         # Initialize completion response
@@ -228,15 +240,20 @@ class TransformersAction(ActionBase):
         outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)
         outputs_tokens_length = outputs.shape[1]
         completed_text = self.tokenizer.batch_decode(outputs)[0]
+        output_text = completed_text.replace(prompt, "", 1)
+        output_text = remove_special_tokens(output_text, tokenizer=self.tokenizer)
 
         # Collect completion response
         finish_reason = "length"
         if stop_criteria is not None:
             finish_reason = stop_criteria.get_stop_reason() or finish_reason
+        elif (
+            self.tokenizer.eos_token_id is not None
+            and outputs[-1][-1].item() == self.tokenizer.eos_token_id
+        ):
+            finish_reason = "stop"
         completion_choice = CompletionChoice(
-            finish_reason=finish_reason,
-            index=0,
-            text=completed_text.replace(prompt, "", 1),
+            finish_reason=finish_reason, index=0, text=output_text
         )
         completion_res.choices.append(completion_choice)
         completion_res.usage = CompletionUsage(

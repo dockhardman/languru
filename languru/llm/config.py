@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     RELOAD_DELAY: float = 5.0
     DATA_DIR: Text = str(Path("./data").absolute())
     ACTION_BASE_URL: Text = "http://localhost:8682"
-    ENDPOINT_URL: Text = "http://localhost:8682"
+    ENDPOINT_URL: Text = ""
     AGENT_BASE_URL: Text = "http://localhost:8680"
     MODEL_REGISTER_PERIOD: int = 10
     MODEL_REGISTER_FAIL_PERIOD: int = 60
