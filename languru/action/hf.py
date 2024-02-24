@@ -219,7 +219,9 @@ class TransformersAction(ActionBase):
         # Generate text completion
         outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)
         outputs_tokens_length = outputs.shape[1]
-        completed_text = self.tokenizer.batch_decode(outputs)[0]
+        completed_text = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)[
+            0
+        ]
 
         # Collect completion response
         finish_reason = "length"
