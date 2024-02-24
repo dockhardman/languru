@@ -75,7 +75,7 @@ async def app_lifespan(app: FastAPI):
                     id=model_deploy.model_deploy_name,
                     created=int(time.time()),
                     object="model",
-                    owned_by=settings.ACTION_BASE_URL,
+                    owned_by=settings.ENDPOINT_URL,
                 ),
                 period=settings.MODEL_REGISTER_PERIOD,
                 agent_base_url=settings.AGENT_BASE_URL,
