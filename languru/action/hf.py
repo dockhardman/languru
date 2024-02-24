@@ -99,31 +99,40 @@ class TransformersAction(ActionBase):
             raise ValueError("The `messages` cannot be empty")
 
         # Prepare prompt
-        prompt = ""
-        for m in messages:
-            if "content" in m and m["content"] is not None:
-                prompt += f"\n\n{m['role']}:\n{m['content']}"
-            prompt = prompt.strip()
-        prompt = prompt.strip()
-        if len(prompt) == 0:
-            raise ValueError("The `prompt` cannot be empty, no content in messages")
-        prompt += "\n\nassistant:\n"
-
-        # Prepare stop words
-        roles = set(
-            [message["role"] for message in messages]
-            + ["assistant", "bot", "user", "system"]
-        )
         stop = kwargs.pop("stop", [])
-        if isinstance(stop, Text):
-            stop = [stop]
-        elif isinstance(stop, Sequence):
-            stop = [str(w) for w in list(stop)]
+        if self.tokenizer.chat_template is None:
+            prompt = ""
+            for m in messages:
+                if "content" in m and m["content"] is not None:
+                    prompt += f"\n\n{m['role']}:\n{m['content']}"
+                prompt = prompt.strip()
+            prompt = prompt.strip()
+            if len(prompt) == 0:
+                raise ValueError("The `prompt` cannot be empty, no content in messages")
+            prompt += "\n\nassistant:\n"
+
+            # Prepare stop words
+            roles = set(
+                [message["role"] for message in messages]
+                + ["assistant", "bot", "user", "system"]
+            )
+            if isinstance(stop, Text):
+                stop = [stop]
+            elif isinstance(stop, Sequence):
+                stop = [str(w) for w in list(stop)]
+            else:
+                logger.warning(f"Invalid stop words parameters: {stop}")
+                stop = []
+            stop = [s for s in stop if s]
+            stop.extend([f"\n{role}:" for role in roles])
+
         else:
-            logger.warning(f"Invalid stop words parameters: {stop}")
-            stop = []
-        stop = [s for s in stop if s]
-        stop.extend([f"\n{role}:" for role in roles])
+            prompt = self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            assert isinstance(prompt, Text)
+            if not prompt:
+                raise ValueError("The `prompt` cannot be empty, no content in messages")
 
         # Chat completion request
         completion_res = self.text_completion(
