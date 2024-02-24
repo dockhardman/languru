@@ -28,7 +28,7 @@ from languru.llm.config import settings as llm_settings
 from languru.utils.calculation import mean_pooling, tensor_to_np
 from languru.utils.common import must_list, replace_right, should_str_or_none
 from languru.utils.device import validate_device, validate_dtype
-from languru.utils.hf import StopAtWordsStoppingCriteria
+from languru.utils.hf import StopAtWordsStoppingCriteria, remove_special_tokens
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
@@ -50,6 +50,7 @@ class TransformersAction(ActionBase):
 
     # Generation configuration
     stop_words: Sequence[Text] = ()
+    is_causal_lm: bool = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -64,15 +65,20 @@ class TransformersAction(ActionBase):
         if not self.model_name:
             raise ValueError("The `model_name` cannot be empty")
         # Model and tokenizer
-        try:
-            self.model: "PreTrainedModel" = AutoModel.from_pretrained(
-                self.model_name, torch_dtype=self.dtype, trust_remote_code=True
-            )
-        except ValueError:
+        if self.is_causal_lm is True:
             self.model: "PreTrainedModel" = AutoModelForCausalLM.from_pretrained(
-                self.model_name, torch_dtype=self.dtype, trust_remote_code=True
+                self.model_name,
+                device_map=self.device,
+                torch_dtype=self.dtype,
+                trust_remote_code=True,
             )
-        self.model = self.model.to(self.device)
+        else:
+            self.model: "PreTrainedModel" = AutoModel.from_pretrained(
+                self.model_name,
+                device_map=self.device,
+                torch_dtype=self.dtype,
+                trust_remote_code=True,
+            )
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name, trust_remote_code=True
         )
