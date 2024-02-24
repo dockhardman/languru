@@ -4,6 +4,25 @@ import torch
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast, StoppingCriteria
 
 
+def remove_special_tokens(
+    text: Text, tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
+) -> Text:
+    """Remove special tokens from the text.
+
+    Parameters
+    ----------
+    text: Text
+        The text to remove special tokens from.
+
+    Returns
+    -------
+    Text
+        The text with special tokens removed.
+    """
+
+    return tokenizer.decode(tokenizer.encode(text), skip_special_tokens=True)
+
+
 class StopAtWordsStoppingCriteria(StoppingCriteria):
 
     def __init__(self, stop_words_ids: Sequence["torch.LongTensor"]):
