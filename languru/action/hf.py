@@ -46,7 +46,10 @@ torch.set_default_device(DEVICE)
 class TransformersAction(ActionBase):
     # Model configuration
     MODEL_NAME: Text = (os.getenv("HF_MODEL_NAME") or os.getenv("MODEL_NAME")) or ""
-    model_deploys = (ModelDeploy(MODEL_NAME, MODEL_NAME),)
+    model_deploys = (
+        ModelDeploy(MODEL_NAME, MODEL_NAME),
+        ModelDeploy(MODEL_NAME.split("/")[-1], MODEL_NAME),
+    )
 
     # Generation configuration
     stop_words: Sequence[Text] = ()
@@ -62,6 +65,7 @@ class TransformersAction(ActionBase):
         self.model_name = (
             should_str_or_none(kwargs.get("model_name")) or self.MODEL_NAME
         )
+        logger.info(f"Using model: {self.model_name}")
         if not self.model_name:
             raise ValueError("The `model_name` cannot be empty")
         # Model and tokenizer
