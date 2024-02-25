@@ -76,6 +76,8 @@ isort = "*"
 poetry-plugin-export = "^1.6.0"
 pytest = "^8"
 pytest-asyncio = "*"
+pytest-cov = "^4"
+pytest-xdist = "^3"
 setuptools = "^69"
 
 [tool.isort]
