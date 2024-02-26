@@ -4,12 +4,17 @@ from typing import TYPE_CHECKING, List, NamedTuple, Optional, Sequence, Text, Un
 from languru.exceptions import ModelNotFound
 
 if TYPE_CHECKING:
+    from openai._streaming import Stream
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
         ModerationCreateResponse,
     )
-    from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+    from openai.types.chat import (
+        ChatCompletion,
+        ChatCompletionChunk,
+        ChatCompletionMessageParam,
+    )
 
 
 ModelDeploy = NamedTuple(
@@ -40,9 +45,19 @@ class ActionBase:
     ) -> "ChatCompletion":
         raise NotImplementedError
 
+    def chat_stream(
+        self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
+    ) -> "Stream[ChatCompletionChunk]":
+        raise NotImplementedError
+
     def text_completion(
         self, prompt: Text, *args, model: Text, **kwargs
     ) -> "Completion":
+        raise NotImplementedError
+
+    def text_completion_stream(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> "Stream[Completion]":
         raise NotImplementedError
 
     def embeddings(
