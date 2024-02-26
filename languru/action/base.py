@@ -1,10 +1,18 @@
 from functools import lru_cache
-from typing import TYPE_CHECKING, List, NamedTuple, Optional, Sequence, Text, Union
+from typing import (
+    TYPE_CHECKING,
+    Generator,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Text,
+    Union,
+)
 
 from languru.exceptions import ModelNotFound
 
 if TYPE_CHECKING:
-    from openai._streaming import Stream
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
@@ -47,7 +55,7 @@ class ActionBase:
 
     def chat_stream(
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
-    ) -> "Stream[ChatCompletionChunk]":
+    ) -> Generator["ChatCompletionChunk", None, None]:
         raise NotImplementedError
 
     def text_completion(
@@ -57,7 +65,7 @@ class ActionBase:
 
     def text_completion_stream(
         self, prompt: Text, *args, model: Text, **kwargs
-    ) -> "Stream[Completion]":
+    ) -> Generator["Completion", None, None]:
         raise NotImplementedError
 
     def embeddings(
