@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Text
+from typing import TYPE_CHECKING, Generator, List, Optional, Text
 
 import openai
 
@@ -11,7 +11,11 @@ if TYPE_CHECKING:
         CreateEmbeddingResponse,
         ModerationCreateResponse,
     )
-    from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+    from openai.types.chat import (
+        ChatCompletion,
+        ChatCompletionChunk,
+        ChatCompletionMessageParam,
+    )
 
 
 class OpenaiAction(ActionBase):
@@ -76,6 +80,17 @@ class OpenaiAction(ActionBase):
         )
         return chat_completion
 
+    def chat_stream(
+        self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
+    ) -> Generator["ChatCompletionChunk", None, None]:
+        if "stream" in kwargs and not kwargs["stream"]:
+            logger.warning(f"Chat stream should be True, but got: {kwargs['stream']}")
+        chat_completion_stream = self._client.chat.completions.create(
+            messages=messages, model=model, stream=True, **kwargs
+        )
+        for _chat in chat_completion_stream:
+            yield _chat
+
     def text_completion(
         self, prompt: Text, *args, model: Text, **kwargs
     ) -> "Completion":
@@ -83,6 +98,19 @@ class OpenaiAction(ActionBase):
             prompt=prompt, model=model, **kwargs
         )
         return completion
+
+    def text_completion_stream(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> Generator["Completion", None, None]:
+        if "stream" in kwargs and not kwargs["stream"]:
+            logger.warning(
+                f"Text completion stream should be True, but got: {kwargs['stream']}"
+            )
+        completion_stream = self._client.completions.create(
+            prompt=prompt, model=model, stream=True, **kwargs
+        )
+        for _completion in completion_stream:
+            yield _completion
 
     def embeddings(
         self, input: Text, *args, model: Text, **kwargs
