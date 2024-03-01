@@ -7,6 +7,7 @@ from typing import Text, Type
 
 import httpx
 from fastapi import Body, FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from openai.types import (
     Completion,
     CreateEmbeddingResponse,
@@ -14,7 +15,7 @@ from openai.types import (
     ModerationCreateResponse,
 )
 from openai.types.chat import ChatCompletion
-from pyassorted.asyncio.executor import run_func
+from pyassorted.asyncio.executor import run_func, run_generator
 
 from languru.action.base import ActionBase
 from languru.exceptions import ModelNotFound
@@ -95,8 +96,10 @@ def create_app():
 
     @app.post("/chat/completions")
     async def chat_completions(
-        request: Request, chat_completion_request: ChatCompletionRequest = Body(...)
-    ) -> ChatCompletion:
+        request: Request,
+        chat_completion_request: ChatCompletionRequest = Body(...),
+        # ) -> ChatCompletion | StreamingResponse:
+    ):
         if getattr(request.app.state, "action", None) is None:
             raise ValueError("Action is not initialized")
         action: "ActionBase" = request.app.state.action
@@ -107,10 +110,22 @@ def create_app():
         except ModelNotFound as e:
             raise HTTPException(status_code=404, detail=str(e))
 
-        chat_completion = await run_func(
-            action.chat, **chat_completion_request.model_dump(exclude_none=True)
-        )
-        return chat_completion
+        # Stream
+        if chat_completion_request.stream is True:
+            return StreamingResponse(
+                run_generator(
+                    action.chat_stream,
+                    **chat_completion_request.model_dump(exclude_none=True),
+                ),
+                media_type="application/json",
+            )
+
+        # Normal
+        else:
+            chat_completion = await run_func(
+                action.chat, **chat_completion_request.model_dump(exclude_none=True)
+            )
+            return chat_completion
 
     @app.post("/completions")
     async def completions(
