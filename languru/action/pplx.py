@@ -1,6 +1,8 @@
-from languru.action.base import ModelDeploy
-import openai
 from typing import Optional, Text
+
+import openai
+
+from languru.action.base import ModelDeploy
 from languru.action.openai import OpenaiAction
 
 
