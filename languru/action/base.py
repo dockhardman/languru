@@ -93,4 +93,4 @@ class ActionBase:
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> Generator[Text, None, None]:
         for chat in self.chat_stream(messages, model=model, **kwargs):
-            yield chat.model_dump_json()
+            yield chat.model_dump_json() + "\n"
