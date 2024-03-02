@@ -98,7 +98,6 @@ def create_app():
     async def chat_completions(
         request: Request,
         chat_completion_request: ChatCompletionRequest = Body(...),
-        # ) -> ChatCompletion | StreamingResponse:
     ):
         if getattr(request.app.state, "action", None) is None:
             raise ValueError("Action is not initialized")
@@ -114,7 +113,7 @@ def create_app():
         if chat_completion_request.stream is True:
             return StreamingResponse(
                 run_generator(
-                    action.chat_stream,
+                    action.chat_stream_json,
                     **chat_completion_request.model_dump(exclude_none=True),
                 ),
                 media_type="application/json",
