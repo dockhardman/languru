@@ -55,6 +55,9 @@ The service is compatible with OpenAI chat stream mode.
 ```python
 # languru server run
 # languru llm run
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8680/v1")
 res = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[
