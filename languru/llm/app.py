@@ -14,7 +14,6 @@ from openai.types import (
     Model,
     ModerationCreateResponse,
 )
-from openai.types.chat import ChatCompletion
 from pyassorted.asyncio.executor import run_func, run_generator
 
 from languru.action.base import ActionBase
@@ -98,7 +97,7 @@ def create_app():
     async def chat_completions(
         request: Request,
         chat_completion_request: ChatCompletionRequest = Body(...),
-    ):
+    ):  # -> openai.types.chat.ChatCompletion | openai.types.chat.ChatCompletionChunk
         if getattr(request.app.state, "action", None) is None:
             raise ValueError("Action is not initialized")
         action: "ActionBase" = request.app.state.action
@@ -116,7 +115,7 @@ def create_app():
                     action.chat_stream_json,
                     **chat_completion_request.model_dump(exclude_none=True),
                 ),
-                media_type="application/json",
+                media_type="application/x-ndjson",
             )
 
         # Normal
