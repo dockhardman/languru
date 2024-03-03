@@ -112,10 +112,10 @@ def create_app():
         if chat_completion_request.stream is True:
             return StreamingResponse(
                 run_generator(
-                    action.chat_stream_json,
+                    action.chat_stream_sse,
                     **chat_completion_request.model_dump(exclude_none=True),
                 ),
-                media_type="application/x-ndjson",
+                media_type="application/stream+json",
             )
 
         # Normal
