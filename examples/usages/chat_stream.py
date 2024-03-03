@@ -16,3 +16,4 @@ if __name__ == "__main__":
         for choice in chunk.choices:
             if choice.delta.content:
                 print(choice.delta.content, end="", flush=True)
+    print()
