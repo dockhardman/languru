@@ -85,6 +85,7 @@ class OpenaiAction(ActionBase):
     ) -> Generator["ChatCompletionChunk", None, None]:
         if "stream" in kwargs and not kwargs["stream"]:
             logger.warning(f"Chat stream should be True, but got: {kwargs['stream']}")
+        kwargs.pop("stream", None)
         chat_completion_stream = self._client.chat.completions.create(
             messages=messages, model=model, stream=True, **kwargs
         )
