@@ -89,8 +89,9 @@ class ActionBase:
                 return model_deploy.model_name
         raise ModelNotFound(f"Model deploy {model_deploy_name} not found")
 
-    def chat_stream_json(
+    def chat_stream_sse(
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> Generator[Text, None, None]:
         for chat in self.chat_stream(messages, model=model, **kwargs):
-            yield chat.model_dump_json() + "\n"
+            yield f"data: {chat.model_dump_json()}\n\n"
+        yield "data: [DONE]\n\n"
