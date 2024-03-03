@@ -63,6 +63,10 @@ async def register_models(request: Request, model: Model):
     if getattr(request.app.state, "model_discovery", None) is None:
         raise ValueError("Model discovery is not initialized")
     model_discovery: "ModelDiscovery" = request.app.state.model_discovery
-    registered_model = await run_func(model_discovery.register, model)
-    logger.debug(f"Registered model: {registered_model}")
-    return {"acknowledge": True}
+    try:
+        await run_func(model_discovery.register, model)
+        return {"acknowledge": True}
+    except Exception as e:
+        logger.exception(e)
+        logger.error(f"Failed to register model: {e}")
+        raise HTTPException(status_code=500, detail="Failed to register model")
