@@ -8,12 +8,7 @@ from typing import Text, Type
 import httpx
 from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from openai.types import (
-    Completion,
-    CreateEmbeddingResponse,
-    Model,
-    ModerationCreateResponse,
-)
+from openai.types import CreateEmbeddingResponse, Model, ModerationCreateResponse
 from pyassorted.asyncio.executor import run_func, run_generator
 
 from languru.action.base import ActionBase
@@ -128,7 +123,7 @@ def create_app():
     @app.post("/completions")
     async def completions(
         request: Request, completion_request: CompletionRequest = Body(...)
-    ) -> Completion:
+    ):  # -> openai.types.Completion
         if getattr(request.app.state, "action", None) is None:
             raise ValueError("Action is not initialized")
         action: "ActionBase" = request.app.state.action
@@ -137,10 +132,22 @@ def create_app():
         except ModelNotFound as e:
             raise HTTPException(status_code=404, detail=str(e))
 
-        completion = await run_func(
-            action.text_completion, **completion_request.model_dump(exclude_none=True)
-        )
-        return completion
+        # Stream
+        if completion_request.stream is True:
+            return StreamingResponse(
+                run_generator(
+                    action.text_completion_stream_sse,
+                    **completion_request.model_dump(exclude_none=True),
+                ),
+                media_type="application/stream+json",
+            )
+        # Normal
+        else:
+            completion = await run_func(
+                action.text_completion,
+                **completion_request.model_dump(exclude_none=True),
+            )
+            return completion
 
     @app.post("/embeddings")
     async def embeddings(
