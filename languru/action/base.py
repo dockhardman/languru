@@ -95,3 +95,10 @@ class ActionBase:
         for chat in self.chat_stream(messages, model=model, **kwargs):
             yield f"data: {chat.model_dump_json()}\n\n"
         yield "data: [DONE]\n\n"
+
+    def text_completion_stream_sse(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> Generator[Text, None, None]:
+        for completion in self.text_completion_stream(prompt, model=model, **kwargs):
+            yield f"data: {completion.model_dump_json()}\n\n"
+        yield "data: [DONE]\n\n"
