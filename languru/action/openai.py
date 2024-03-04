@@ -107,6 +107,7 @@ class OpenaiAction(ActionBase):
             logger.warning(
                 f"Text completion stream should be True, but got: {kwargs['stream']}"
             )
+        kwargs.pop("stream", None)
         completion_stream = self._client.completions.create(
             prompt=prompt, model=model, stream=True, **kwargs
         )
