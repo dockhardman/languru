@@ -4,6 +4,7 @@ import time
 
 import httpx
 from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from openai.types import Completion
 from pyassorted.asyncio.executor import run_func
 from yarl import URL
@@ -11,6 +12,7 @@ from yarl import URL
 from languru.resources.model.discovery import ModelDiscovery
 from languru.server.config import settings
 from languru.types.completions import CompletionRequest
+from languru.utils.http import requests_stream_lines
 
 router = APIRouter()
 
@@ -27,7 +29,7 @@ async def text_completions(
             "temperature": 0,
         },
     ),
-) -> Completion:
+):  # openai.types.Completion
     if getattr(request.app.state, "model_discovery", None) is None:
         raise ValueError("Model discovery is not initialized")
     model_discovery: "ModelDiscovery" = request.app.state.model_discovery
@@ -43,9 +45,20 @@ async def text_completions(
 
     model = random.choice(models)
     url = URL(model.owned_by).with_path("/completions")
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(
-            str(url), json=completions_request.model_dump(exclude_none=True)
+    # Request completion
+    # Stream
+    if completions_request.stream is True:
+        return StreamingResponse(
+            requests_stream_lines(
+                str(url), data=completions_request.model_dump(exclude_none=True)
+            ),
+            media_type="application/stream+json",
         )
-        response.raise_for_status()
-        return Completion(**response.json())
+    # Normal
+    else:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                str(url), json=completions_request.model_dump(exclude_none=True)
+            )
+            response.raise_for_status()
+            return Completion(**response.json())
