@@ -2,7 +2,6 @@ import time
 
 from rich import print
 
-from languru.action.base import ModelDeploy
 from languru.action.hf import TransformersAction
 from languru.types.chat.completions import ChatCompletionRequest, Message
 
@@ -11,17 +10,10 @@ class Mistral7BAction(TransformersAction):
     # Model configuration
     MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2"
 
-    model_deploys = (
-        ModelDeploy(
-            "mistralai/Mistral-7B-Instruct-v0.2", "mistralai/Mistral-7B-Instruct-v0.2"
-        ),
-        ModelDeploy("Mistral-7B-Instruct-v0.2", "Mistral-7B-Instruct-v0.2"),
-    )
-
 
 chat_params = ChatCompletionRequest.model_validate(
     {
-        "model": "Mistral-7B-Instruct-v0.2",
+        "model": Mistral7BAction.MODEL_NAME,
         "messages": [
             # Not allowed system role
             # Message(role="system", content="You are a helpful assistant."),
