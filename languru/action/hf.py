@@ -349,7 +349,8 @@ class TransformersAction(ActionBase):
         }
         if self.dtype is not None:
             params["torch_dtype"] = self.dtype
-
+        if kwargs.get("torch_dtype") is not None:
+            params["torch_dtype"] = self.dtype = kwargs["torch_dtype"]
         if self.is_causal_lm is True:
             model = AutoModelForCausalLM.from_pretrained(**params)
         else:
@@ -360,7 +361,11 @@ class TransformersAction(ActionBase):
         return (model, tokenizer)
 
     def load_quantization_config(self, **kwargs) -> Optional["BitsAndBytesConfig"]:
-        use_quantization = bool(kwargs.get("use_quantization") or self.use_quantization)
+        use_quantization = bool(
+            kwargs["use_quantization"]
+            if "use_quantization" in kwargs
+            else self.use_quantization
+        )
         if use_quantization is True:
             params = {}
             load_in_8bit = (
