@@ -2,7 +2,7 @@ import os
 import re
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Text, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Text, Union, cast
 
 import torch
 from openai.types import (
@@ -24,6 +24,7 @@ from transformers import (
     StoppingCriteria,
     StoppingCriteriaList,
 )
+from transformers.tokenization_utils_base import PreTokenizedInput
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
@@ -134,8 +135,13 @@ class TransformersAction(ActionBase):
             stop.extend([f"\n{role}:" for role in roles])
 
         else:
+            tokenizer_chat_conversation = [
+                {"role": m["role"], "content": m["content"]}
+                for m in messages
+                if "content" in m and m["content"] is not None
+            ]
             prompt = self.tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
+                tokenizer_chat_conversation, tokenize=False, add_generation_prompt=True
             )
             assert isinstance(prompt, Text)
             if not prompt:
@@ -228,7 +234,8 @@ class TransformersAction(ActionBase):
         inputs = self.tokenizer(
             prompt, return_tensors="pt", return_attention_mask=False
         )
-        input_ids: "torch.Tensor" = inputs["input_ids"]
+        input_ids = inputs["input_ids"]
+        input_ids = cast(torch.Tensor, input_ids)
         input_ids = input_ids.to(self.device)
         inputs_tokens_length = int(input_ids.shape[1])
         if max_length is not None and inputs_tokens_length >= max_length:
@@ -240,7 +247,8 @@ class TransformersAction(ActionBase):
             kwargs["max_length"] = max_length = inputs_tokens_length + 20
 
         # Generate text completion
-        outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)
+        outputs = self.model.generate(input_ids, **kwargs)
+        outputs = cast(torch.Tensor, outputs)
         outputs_tokens_length = outputs.shape[1]
         completed_text = self.tokenizer.batch_decode(outputs)[0]
         output_text = self.remove_echo_text(
@@ -270,7 +278,7 @@ class TransformersAction(ActionBase):
 
     def embeddings(
         self,
-        input: Union[Text, List[Union[Text, List[Text]]]],
+        input: Union[Text, PreTokenizedInput, List[PreTokenizedInput]],
         *args,
         model: Text,
         **kwargs,
