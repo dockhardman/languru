@@ -1,7 +1,8 @@
 import os
+import re
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Text, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Text, Union, cast
 
 import torch
 from openai.types import (
@@ -18,9 +19,12 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     PreTrainedModel,
+    PreTrainedTokenizer,
+    PreTrainedTokenizerFast,
     StoppingCriteria,
     StoppingCriteriaList,
 )
+from transformers.tokenization_utils_base import PreTokenizedInput
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
@@ -131,8 +135,13 @@ class TransformersAction(ActionBase):
             stop.extend([f"\n{role}:" for role in roles])
 
         else:
+            tokenizer_chat_conversation = [
+                {"role": m["role"], "content": m["content"]}
+                for m in messages
+                if "content" in m and m["content"] is not None
+            ]
             prompt = self.tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
+                tokenizer_chat_conversation, tokenize=False, add_generation_prompt=True
             )
             assert isinstance(prompt, Text)
             if not prompt:
@@ -225,7 +234,8 @@ class TransformersAction(ActionBase):
         inputs = self.tokenizer(
             prompt, return_tensors="pt", return_attention_mask=False
         )
-        input_ids: "torch.Tensor" = inputs["input_ids"]
+        input_ids = inputs["input_ids"]
+        input_ids = cast(torch.Tensor, input_ids)
         input_ids = input_ids.to(self.device)
         inputs_tokens_length = int(input_ids.shape[1])
         if max_length is not None and inputs_tokens_length >= max_length:
@@ -237,11 +247,13 @@ class TransformersAction(ActionBase):
             kwargs["max_length"] = max_length = inputs_tokens_length + 20
 
         # Generate text completion
-        outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)
+        outputs = self.model.generate(input_ids, **kwargs)
+        outputs = cast(torch.Tensor, outputs)
         outputs_tokens_length = outputs.shape[1]
         completed_text = self.tokenizer.batch_decode(outputs)[0]
-        output_text = completed_text.replace(prompt, "", 1)
-        output_text = remove_special_tokens(output_text, tokenizer=self.tokenizer)
+        output_text = self.remove_echo_text(
+            prompt=prompt, completed_text=completed_text, tokenizer=self.tokenizer
+        )
 
         # Collect completion response
         finish_reason = "length"
@@ -266,7 +278,7 @@ class TransformersAction(ActionBase):
 
     def embeddings(
         self,
-        input: Union[Text, List[Union[Text, List[Text]]]],
+        input: Union[Text, PreTokenizedInput, List[PreTokenizedInput]],
         *args,
         model: Text,
         **kwargs,
@@ -317,3 +329,38 @@ class TransformersAction(ActionBase):
                 f"Input is not a tensor, converting to tensor: {type(input)}"
             )
         return input
+
+    def remove_echo_text(
+        self,
+        prompt: Text,
+        completed_text: Text,
+        tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast],
+    ) -> Text:
+        """Remove the echo text from the completed text.
+
+        Parameters
+        ----------
+        prompt : Text
+            The prompt text.
+        completed_text : Text
+            The completed text.
+        tokenizer : Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
+            The tokenizer used to tokenize the prompt and completed text.
+
+        Returns
+        -------
+        Text
+            The output text without the echo text.
+        """
+
+        if tokenizer.eos_token:
+            _pat = rf"\s*{re.escape(tokenizer.eos_token)}\s*"
+            prompt = re.sub(_pat, "", prompt)
+            completed_text = re.sub(_pat, "", completed_text)
+        if tokenizer.bos_token:
+            _pat = rf"\s*{re.escape(tokenizer.bos_token)}\s*"
+            prompt = re.sub(_pat, "", prompt)
+            completed_text = re.sub(_pat, "", completed_text)
+        output_text = completed_text.replace(prompt, "", 1)
+        output_text = remove_special_tokens(output_text, tokenizer=self.tokenizer)
+        return output_text
