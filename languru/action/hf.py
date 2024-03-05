@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import uuid
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Text, Union
@@ -18,6 +19,8 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     PreTrainedModel,
+    PreTrainedTokenizer,
+    PreTrainedTokenizerFast,
     StoppingCriteria,
     StoppingCriteriaList,
 )
@@ -240,8 +243,9 @@ class TransformersAction(ActionBase):
         outputs: "torch.Tensor" = self.model.generate(input_ids, **kwargs)
         outputs_tokens_length = outputs.shape[1]
         completed_text = self.tokenizer.batch_decode(outputs)[0]
-        output_text = completed_text.replace(prompt, "", 1)
-        output_text = remove_special_tokens(output_text, tokenizer=self.tokenizer)
+        output_text = self.remove_echo_text(
+            prompt=prompt, completed_text=completed_text, tokenizer=self.tokenizer
+        )
 
         # Collect completion response
         finish_reason = "length"
@@ -317,3 +321,38 @@ class TransformersAction(ActionBase):
                 f"Input is not a tensor, converting to tensor: {type(input)}"
             )
         return input
+
+    def remove_echo_text(
+        self,
+        prompt: Text,
+        completed_text: Text,
+        tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast],
+    ) -> Text:
+        """Remove the echo text from the completed text.
+
+        Parameters
+        ----------
+        prompt : Text
+            The prompt text.
+        completed_text : Text
+            The completed text.
+        tokenizer : Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
+            The tokenizer used to tokenize the prompt and completed text.
+
+        Returns
+        -------
+        Text
+            The output text without the echo text.
+        """
+
+        if tokenizer.eos_token:
+            _pat = rf"\s*{re.escape(tokenizer.eos_token)}\s*"
+            prompt = re.sub(_pat, "", prompt)
+            completed_text = re.sub(_pat, "", completed_text)
+        if tokenizer.bos_token:
+            _pat = rf"\s*{re.escape(tokenizer.bos_token)}\s*"
+            prompt = re.sub(_pat, "", prompt)
+            completed_text = re.sub(_pat, "", completed_text)
+        output_text = completed_text.replace(prompt, "", 1)
+        output_text = remove_special_tokens(output_text, tokenizer=self.tokenizer)
+        return output_text
