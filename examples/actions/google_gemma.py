@@ -2,7 +2,6 @@ from typing import Text
 
 from rich import print
 
-from languru.action.base import ModelDeploy
 from languru.action.hf import TransformersAction
 
 
@@ -10,11 +9,6 @@ class GoogleGemmaChatAction(TransformersAction):
     # Model configuration
     MODEL_NAME = "google/gemma-2b-it"
     # google/gemma-7b-it, google/gemma-7b, google/gemma-2b-it, google/gemma-2b
-
-    model_deploys = (
-        ModelDeploy(MODEL_NAME, MODEL_NAME),
-        ModelDeploy(MODEL_NAME.split("/")[-1], MODEL_NAME),
-    )
 
     def name(self) -> Text:
         return "google_gemma_chat_action"
@@ -24,11 +18,6 @@ class GoogleGemmaAction(TransformersAction):
     # Model configuration
     MODEL_NAME = "google/gemma-2b"
     # google/gemma-7b-it, google/gemma-7b, google/gemma-2b-it, google/gemma-2b
-
-    model_deploys = (
-        ModelDeploy(MODEL_NAME, MODEL_NAME),
-        ModelDeploy(MODEL_NAME.split("/")[-1], MODEL_NAME),
-    )
 
     def name(self) -> Text:
         return "google_gemma_action"

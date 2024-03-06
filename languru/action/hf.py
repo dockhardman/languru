@@ -2,7 +2,17 @@ import os
 import re
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Text, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    List,
+    Optional,
+    Sequence,
+    Text,
+    Tuple,
+    Union,
+    cast,
+)
 
 import torch
 from openai.types import (
@@ -15,9 +25,11 @@ from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion import Choice as ChatChoice
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from transformers import (
+    AutoConfig,
     AutoModel,
     AutoModelForCausalLM,
     AutoTokenizer,
+    BitsAndBytesConfig,
     PreTrainedModel,
     PreTrainedTokenizer,
     PreTrainedTokenizerFast,
@@ -39,11 +51,8 @@ if TYPE_CHECKING:
 
 # Device config
 DEVICE = llm_settings.device = validate_device(device=llm_settings.device)
-DTYPE = validate_dtype(
-    device=DEVICE,
-    dtype=llm_settings.dtype or ("float16" if DEVICE in ("cuda", "mps") else "float32"),
-)
-logger.info(f"Using device: {DEVICE} with dtype: {DTYPE}")
+validate_dtype(device=DEVICE, dtype=llm_settings.dtype)
+logger.info(f"Using device: {DEVICE} with dtype: {llm_settings.dtype}")
 torch.set_default_device(DEVICE)
 
 
@@ -55,6 +64,21 @@ class TransformersAction(ActionBase):
         ModelDeploy(MODEL_NAME.split("/")[-1], MODEL_NAME),
     )
 
+    # Model Quantization configuration
+    use_quantization: bool = bool(
+        os.getenv("HF_USE_QUANTIZATION") or os.getenv("USE_QUANTIZATION") or False
+    )
+    load_in_8bit: Optional[bool] = None
+    load_in_4bit: Optional[bool] = None
+    llm_int8_threshold: Optional[float] = None
+    llm_int8_skip_modules: Optional[Sequence[Text]] = None
+    llm_int8_enable_fp32_cpu_offload: Optional[bool] = None
+    llm_int8_has_fp16_weight: Optional[bool] = None
+    bnb_4bit_compute_dtype: Optional[Text] = None
+    bnb_4bit_quant_type: Optional[Text] = None
+    bnb_4bit_use_double_quant: Optional[bool] = None
+    use_flash_attention: bool = False
+
     # Generation configuration
     stop_words: Sequence[Text] = ()
     is_causal_lm: bool = True
@@ -62,34 +86,13 @@ class TransformersAction(ActionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.dtype = DTYPE
+        self.dtype = llm_settings.dtype
         self.device = DEVICE
 
         # Model name
-        self.model_name = (
-            should_str_or_none(kwargs.get("model_name")) or self.MODEL_NAME
-        )
-        logger.info(f"Using model: {self.model_name}")
-        if not self.model_name:
-            raise ValueError("The `model_name` cannot be empty")
+        self.model_name = self.read_model_name(**kwargs)
         # Model and tokenizer
-        if self.is_causal_lm is True:
-            self.model: "PreTrainedModel" = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                device_map=self.device,
-                torch_dtype=self.dtype,
-                trust_remote_code=True,
-            )
-        else:
-            self.model: "PreTrainedModel" = AutoModel.from_pretrained(
-                self.model_name,
-                device_map=self.device,
-                torch_dtype=self.dtype,
-                trust_remote_code=True,
-            )
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name, trust_remote_code=True
-        )
+        self.model, self.tokenizer = self.load_model_and_tokenizer(**kwargs)
 
     def name(self):
         return "transformers_action"
@@ -329,6 +332,122 @@ class TransformersAction(ActionBase):
                 f"Input is not a tensor, converting to tensor: {type(input)}"
             )
         return input
+
+    def read_model_name(self, **kwargs) -> Text:
+        model_name = should_str_or_none(kwargs.get("model_name")) or self.MODEL_NAME
+        if not model_name:
+            raise ValueError("The `model_name` cannot be empty")
+        logger.info(f"Using model: {model_name}")
+        return model_name
+
+    def load_model_and_tokenizer(
+        self, **kwargs
+    ) -> Tuple[PreTrainedModel, Union[PreTrainedTokenizer, PreTrainedTokenizerFast]]:
+        model_config = AutoConfig.from_pretrained(self.model_name)
+        params = {
+            "pretrained_model_name_or_path": self.model_name,
+            "device_map": self.device,
+            "trust_remote_code": True,
+        }
+        # Define flash attention config
+        if (
+            "use_flash_attention" in kwargs and kwargs["use_flash_attention"]
+        ) or self.use_flash_attention is True:
+            params["attn_implementation"] = "flash_attention_2"
+            logger.info("Using Flash Attention 2.")
+        # Define quantization config
+        else:
+            quantization_config = self.load_quantization_config(**kwargs)
+            if quantization_config is not None:
+                params["quantization_config"] = quantization_config
+        # Define torch dtype
+        if (
+            kwargs.get("torch_dtype") is not None
+            or self.dtype is not None
+            or hasattr(model_config, "torch_dtype")
+        ):
+            if params.get("quantization_config"):
+                logger.info(
+                    "The `torch_dtype` is not used when `quantization_config` is set."
+                )
+            elif kwargs.get("torch_dtype") is not None:
+                params["torch_dtype"] = self.dtype = kwargs["torch_dtype"]
+            elif self.dtype is not None:
+                params["torch_dtype"] = self.dtype
+            elif hasattr(model_config, "torch_dtype"):
+                params["torch_dtype"] = self.dtype = model_config.torch_dtype
+        logger.info(f"Loading model with params: {params}")
+        # Load model and tokenizer
+        # Load causal language model
+        if self.is_causal_lm is True:
+            model = AutoModelForCausalLM.from_pretrained(**params)
+        # Load other models
+        else:
+            model = AutoModel.from_pretrained(**params)
+        tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name, trust_remote_code=True
+        )
+        return (model, tokenizer)
+
+    def load_quantization_config(self, **kwargs) -> Optional["BitsAndBytesConfig"]:
+        use_quantization = bool(
+            kwargs["use_quantization"]
+            if "use_quantization" in kwargs
+            else self.use_quantization
+        )
+        if use_quantization is True:
+            params = {}
+            load_in_8bit = (
+                kwargs["load_in_8bit"]
+                if "load_in_8bit" in kwargs
+                else self.load_in_8bit
+            )
+            load_in_4bit = (
+                kwargs["load_in_4bit"]
+                if "load_in_4bit" in kwargs
+                else self.load_in_4bit
+            )
+            llm_int8_threshold = (
+                kwargs["llm_int8_threshold"]
+                if "llm_int8_threshold" in kwargs
+                else self.llm_int8_threshold
+            )
+            llm_int8_skip_modules = (
+                kwargs["llm_int8_skip_modules"]
+                if "llm_int8_skip_modules" in kwargs
+                else self.llm_int8_skip_modules
+            )
+            llm_int8_enable_fp32_cpu_offload = (
+                kwargs["llm_int8_enable_fp32_cpu_offload"]
+                if "llm_int8_enable_fp32_cpu_offload" in kwargs
+                else self.llm_int8_enable_fp32_cpu_offload
+            )
+            llm_int8_has_fp16_weight = (
+                kwargs["llm_int8_has_fp16_weight"]
+                if "llm_int8_has_fp16_weight" in kwargs
+                else self.llm_int8_has_fp16_weight
+            )
+            if load_in_8bit is not None:
+                params["load_in_8bit"] = load_in_8bit
+            if load_in_4bit is not None:
+                params["load_in_4bit"] = load_in_4bit
+                if load_in_4bit is True:
+                    params["bnb_4bit_compute_dtype"] = torch.float16
+            if llm_int8_threshold is not None:
+                params["llm_int8_threshold"] = llm_int8_threshold
+            if llm_int8_skip_modules is not None:
+                params["llm_int8_skip_modules"] = llm_int8_skip_modules
+            if llm_int8_enable_fp32_cpu_offload is not None:
+                params["llm_int8_enable_fp32_cpu_offload"] = (
+                    llm_int8_enable_fp32_cpu_offload
+                )
+            if llm_int8_has_fp16_weight is not None:
+                params["llm_int8_has_fp16_weight"] = llm_int8_has_fp16_weight
+
+            logger.info(f"Using quantization config: {params}")
+            return BitsAndBytesConfig(**params)
+        else:
+            return None
 
     def remove_echo_text(
         self,
