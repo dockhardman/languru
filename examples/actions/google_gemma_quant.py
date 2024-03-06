@@ -56,7 +56,7 @@ def chat(**kwargs):
 
 
 if __name__ == "__main__":
-    chat(use_quantization=False, torch_dtype=torch.bfloat16)
+    chat(use_quantization=False)
     chat(load_in_8bit=True)
     chat(load_in_4bit=True)
     chat(use_flash_attention=True)
