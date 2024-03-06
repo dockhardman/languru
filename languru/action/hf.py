@@ -25,6 +25,7 @@ from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion import Choice as ChatChoice
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from transformers import (
+    AutoConfig,
     AutoModel,
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -76,6 +77,7 @@ class TransformersAction(ActionBase):
     bnb_4bit_compute_dtype: Optional[Text] = None
     bnb_4bit_quant_type: Optional[Text] = None
     bnb_4bit_use_double_quant: Optional[bool] = None
+    use_flash_attention: bool = False
 
     # Generation configuration
     stop_words: Sequence[Text] = ()
@@ -341,18 +343,45 @@ class TransformersAction(ActionBase):
     def load_model_and_tokenizer(
         self, **kwargs
     ) -> Tuple[PreTrainedModel, Union[PreTrainedTokenizer, PreTrainedTokenizerFast]]:
+        model_config = AutoConfig.from_pretrained(self.model_name)
         params = {
             "pretrained_model_name_or_path": self.model_name,
             "device_map": self.device,
             "trust_remote_code": True,
-            "quantization_config": self.load_quantization_config(**kwargs),
         }
-        if self.dtype is not None:
-            params["torch_dtype"] = self.dtype
-        if kwargs.get("torch_dtype") is not None:
-            params["torch_dtype"] = self.dtype = kwargs["torch_dtype"]
+        # Define flash attention config
+        if (
+            "use_flash_attention" in kwargs and kwargs["use_flash_attention"]
+        ) or self.use_flash_attention is True:
+            params["attn_implementation"] = "flash_attention_2"
+            logger.info("Using Flash Attention 2.")
+        # Define quantization config
+        else:
+            quantization_config = self.load_quantization_config(**kwargs)
+            if quantization_config is not None:
+                params["quantization_config"] = quantization_config
+        # Define torch dtype
+        if (
+            kwargs.get("torch_dtype") is not None
+            or self.dtype is not None
+            or hasattr(model_config, "torch_dtype")
+        ):
+            if params.get("quantization_config"):
+                logger.info(
+                    "The `torch_dtype` is not used when `quantization_config` is set."
+                )
+            elif kwargs.get("torch_dtype") is not None:
+                params["torch_dtype"] = self.dtype = kwargs["torch_dtype"]
+            elif self.dtype is not None:
+                params["torch_dtype"] = self.dtype
+            elif hasattr(model_config, "torch_dtype"):
+                params["torch_dtype"] = self.dtype = model_config.torch_dtype
+        logger.info(f"Loading model with params: {params}")
+        # Load model and tokenizer
+        # Load causal language model
         if self.is_causal_lm is True:
             model = AutoModelForCausalLM.from_pretrained(**params)
+        # Load other models
         else:
             model = AutoModel.from_pretrained(**params)
         tokenizer = AutoTokenizer.from_pretrained(
