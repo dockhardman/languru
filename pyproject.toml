@@ -84,6 +84,12 @@ pytest-cov = "^4"
 pytest-xdist = "^3"
 setuptools = "^69"
 
+[tool.poetry.group.test.dependencies]
+pytest = "^8"
+pytest-asyncio = "*"
+pytest-cov = "^4"
+pytest-xdist = "^3"
+
 [tool.isort]
 profile = "black"
 

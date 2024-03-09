@@ -5402,4 +5402,4 @@ torch = ["torch", "torchaudio", "torchvision"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "c511003bdb32f3d597658539cce4ee5e0374e9d8e7a253745126162fd06c3654"
+content-hash = "8d4dcf881ebbd2f5e019d95c77c6280d6291b06b531beded34ec4a4f4b84de5f"
