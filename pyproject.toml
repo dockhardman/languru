@@ -26,6 +26,7 @@ pyassorted = "^0.8.0"
 pydantic = "^2"
 pydantic-settings = "^2"
 python = ">=3.10,<4.0"
+python-dotenv = "^1"
 pytz = "^2024.1"
 rich = "^13.7.0"
 sentencepiece = { version = "^0.1.99", optional = true }
