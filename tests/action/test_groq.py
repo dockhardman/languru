@@ -13,6 +13,15 @@ def test_groq_action():
     )
     assert chat_completion.choices[0].message.content
 
+    # Test chat stream
+    answer = ""
+    for _chat in action.chat_stream(
+        messages=[{"role": "user", "content": user_say}], model="mixtral-8x7b-32768"
+    ):
+        if _chat.choices[0].delta.content:
+            answer += _chat.choices[0].delta.content
+    assert answer
+
 
 def test_groq_openai_action():
     action = GroqOpenaiAction()
@@ -25,3 +34,12 @@ def test_groq_openai_action():
         messages=[{"role": "user", "content": user_say}], model="mixtral-8x7b-32768"
     )
     assert chat_completion.choices[0].message.content
+
+    # Test chat stream
+    answer = ""
+    for _chat in action.chat_stream(
+        messages=[{"role": "user", "content": user_say}], model="mixtral-8x7b-32768"
+    ):
+        if _chat.choices[0].delta.content:
+            answer += _chat.choices[0].delta.content
+    assert answer
