@@ -31,3 +31,5 @@ jobs:
       - name: Test with pytest
         run: |
           pytest -s --log-cli-level=DEBUG
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
