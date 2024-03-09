@@ -20,8 +20,6 @@ class GroqAction(OpenaiAction):
         api_key: Optional[Text] = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-
         from groq import Groq
 
         api_key = api_key or os.environ.get("GROQ_API_KEY")
@@ -53,8 +51,6 @@ class GroqOpenaiAction(OpenaiAction):
         api_key: Optional[Text] = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-
         api_key = api_key or os.environ.get("GROQ_API_KEY")
         if api_key is None:
             logger.error("GROQ_API_KEY is not set")
