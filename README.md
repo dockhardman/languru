@@ -2,6 +2,8 @@
 
 The general-purpose LLM app stacks deploy AI services quickly and (stupidly) simply.
 
+[![codecov](https://codecov.io/gh/dockhardman/languru/graph/badge.svg?token=OFX6C8Z31C)](https://codecov.io/gh/dockhardman/languru)
+
 ## Getting Started
 
 Install Languru:
