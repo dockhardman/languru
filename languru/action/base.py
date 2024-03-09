@@ -43,30 +43,30 @@ class ActionBase:
         ) or ()
 
     def name(self) -> Text:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def health(self) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def chat(
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> "ChatCompletion":
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def chat_stream(
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> Generator["ChatCompletionChunk", None, None]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def text_completion(
         self, prompt: Text, *args, model: Text, **kwargs
     ) -> "Completion":
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def text_completion_stream(
         self, prompt: Text, *args, model: Text, **kwargs
     ) -> Generator["Completion", None, None]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def embeddings(
         self,
@@ -75,12 +75,12 @@ class ActionBase:
         model: Text,
         **kwargs,
     ) -> "CreateEmbeddingResponse":
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def moderations(
         self, input: Text, *args, model: Text, **kwargs
     ) -> "ModerationCreateResponse":
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @lru_cache
     def get_model_name(self, model_deploy_name: Text) -> Text:
