@@ -18,4 +18,4 @@ update-all:
 		poetry export --without-hashes -f requirements.txt --output requirements.txt && \
 		poetry export --without-hashes --with dev -E server -f requirements.txt --output requirements-dev.txt && \
 		poetry export --without-hashes --with dev -E all -f requirements.txt --output requirements-all.txt && \
-		poetry export --without-hashes --with test -E server -f requirements.txt --output requirements-test.txt
+		poetry export --without-hashes --with test -E server -E google -E groq -f requirements.txt --output requirements-test.txt
