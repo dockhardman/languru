@@ -17,14 +17,16 @@ fastapi = { extras = ["all"], version = "^0.109.0", optional = true }
 flash-attn = { version = "^2", optional = true, markers = "sys_platform == 'linux'" }
 google-cloud-aiplatform = { version = "^1.38", optional = true }
 google-generativeai = { version = "^0.3.2", optional = true }
+groq = { version = "<1,>=0.4.2", optional = true }
 ninja = { version = "^1.11.1.1", optional = true }
 nvgpu = { version = "^0.10.0", optional = true, markers = "sys_platform == 'linux'" }
-openai = { version = "^1.10.0", optional = true }
+openai = "^1.10.0"
 packaging = "^23.2"
 pyassorted = "^0.8.0"
 pydantic = "^2"
 pydantic-settings = "^2"
 python = ">=3.10,<4.0"
+python-dotenv = "^1"
 pytz = "^2024.1"
 rich = "^13.7.0"
 sentencepiece = { version = "^0.1.99", optional = true }
@@ -39,16 +41,16 @@ typing-extensions = "^4.9.0"
 languru = "languru.cli.main:app"
 
 [tool.poetry.extras]
-all = ["einops", "fastapi", "google-cloud-aiplatform", "google-generativeai", "huggingface", "ninja", "nvgpu", "openai", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+all = ["einops", "fastapi", "google-cloud-aiplatform", "google-generativeai", "groq", "huggingface", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
 cuda = ["accelerate", "bitsandbytes", "flash-attn", "nvgpu"]
 google = ["google-cloud-aiplatform", "google-generativeai"]
+groq = ["groq"]
 huggingface = ["einops", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
-server = ["fastapi", "openai"]
+server = ["fastapi"]
 torch = ["torch", "torchaudio", "torchvision"]
 
 [tool.poetry.group.server.dependencies]
 fastapi = { extras = ["all"], version = "^0.109.0", optional = true }
-openai = { version = "^1.10.0", optional = true }
 
 [tool.poetry.group.torch.dependencies]
 torch = { version = "^2.2.0", optional = true }
