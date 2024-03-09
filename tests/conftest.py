@@ -1,5 +1,9 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 test_env_vars = {
     "logger_name": "languru_test",
     "is_test": True,
