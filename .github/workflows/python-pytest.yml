@@ -30,7 +30,7 @@ jobs:
           python -m pip install -r requirements-test.txt
       - name: Test with pytest
         run: |
-          pytest -s --log-cli-level=DEBUG --cov=languru tests/
+          pytest -s --log-cli-level=DEBUG --cov=languru --cov-report=xml:coverage.xml tests/
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       - name: Upload coverage reports to Codecov

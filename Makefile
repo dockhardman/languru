@@ -21,4 +21,4 @@ update-all:
 		poetry export --without-hashes --with test -E server -E google -E groq -f requirements.txt --output requirements-test.txt
 
 pytest:
-	python -m pytest --cov=languru tests/
+	python -m pytest --cov=languru --cov-report=xml:coverage.xml tests/
