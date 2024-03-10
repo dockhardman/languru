@@ -92,11 +92,7 @@ class ActionBase:
         raise NotImplementedError  # pragma: no cover
 
     def embeddings(
-        self,
-        input: Union[Text, List[Union[Text, List[Text]]]],
-        *args,
-        model: Text,
-        **kwargs,
+        self, input: Union[Text, List[Text]], *args, model: Text, **kwargs
     ) -> "CreateEmbeddingResponse":
         raise NotImplementedError  # pragma: no cover
 
