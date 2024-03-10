@@ -1,19 +1,17 @@
+import os
 import time
 import uuid
-from typing import TYPE_CHECKING, List, Optional, Text, Union
+from typing import List, Optional, Text, Union
 
 import google.generativeai as genai
 from google.generativeai.types.content_types import ContentDict
 from google.generativeai.types.text_types import BatchEmbeddingDict
 from openai.types import CreateEmbeddingResponse
-from openai.types.chat import ChatCompletion
+from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from openai.types.completion import Completion
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.llm.config import logger
-
-if TYPE_CHECKING:
-    from openai.types.chat import ChatCompletionMessageParam
 
 
 class GoogleGenaiAction(ActionBase):
@@ -54,6 +52,11 @@ class GoogleGenaiAction(ActionBase):
     ):
         super().__init__(*args, **kwargs)
 
+        api_key = (
+            api_key or os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
+        )
+        if not api_key:
+            logger.error("Google GenAI API key is not provided")
         genai.configure(api_key=api_key)
 
     def name(self) -> Text:
@@ -72,6 +75,7 @@ class GoogleGenaiAction(ActionBase):
     ) -> "ChatCompletion":
         if len(messages) == 0:
             raise ValueError("messages must not be empty")
+        model = self.validate_model(model)
 
         # pop out the last message
         genai_model = genai.GenerativeModel(model)
@@ -118,6 +122,8 @@ class GoogleGenaiAction(ActionBase):
     ) -> "Completion":
         if not prompt:
             raise ValueError("prompt must not be empty")
+        model = self.validate_model(model)
+
         genai_model = genai.GenerativeModel(model)
         input_tokens = genai_model.count_tokens(prompt).total_tokens
 
@@ -159,6 +165,8 @@ class GoogleGenaiAction(ActionBase):
     ) -> "CreateEmbeddingResponse":
         if not input:
             raise ValueError("The input must not be empty")
+        model = self.validate_model(model)
+
         contents: List[Text] = []
         if isinstance(input, List):
             for idx, seq in enumerate(input):

@@ -79,3 +79,7 @@ def debug_print(
 
 def replace_right(source_str: Text, old: Text, new: Text, occurrence: int = -1) -> Text:
     return source_str[::-1].replace(old[::-1], new[::-1], occurrence)[::-1]
+
+
+def str_strong_casefold(text: Text) -> Text:
+    return text.strip().replace("-_. ", "").casefold()
