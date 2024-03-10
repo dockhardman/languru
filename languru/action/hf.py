@@ -288,6 +288,7 @@ class TransformersAction(ActionBase):
     ) -> "CreateEmbeddingResponse":
         # Validate parameters
         kwargs.pop("encoding_format", None)  # TODO: Implement encoding_format
+        kwargs.pop("output_hidden_states", None)
 
         # Tokenize prompt
         inputs = self.tokenizer(
@@ -298,8 +299,8 @@ class TransformersAction(ActionBase):
         inputs_tokens_length = int(input_ids.shape[1])
 
         with torch.no_grad():  # No need to compute gradients
-            output = self.model(**inputs, **kwargs)
-            hidden_states = output.last_hidden_state
+            output = self.model(**inputs, output_hidden_states=True, **kwargs)
+            hidden_states = output.hidden_states[-1]
 
         # Perform pooling.
         embeddings = mean_pooling(
