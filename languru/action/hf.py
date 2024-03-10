@@ -221,7 +221,7 @@ class TransformersAction(ActionBase):
         kwargs.pop("presence_penalty", None)  # TODO: Implement presence_penalty
         kwargs.pop("stream", None)  # TODO: Implement stream
         kwargs.pop("logprobs", None)  # TODO: Implement logprobs
-        total_stop_words = must_list(self.stop_words) + must_list(
+        total_stop_words: Sequence[Text] = must_list(self.stop_words) + must_list(
             kwargs.pop("stop", ())
         )
 
@@ -336,7 +336,12 @@ class TransformersAction(ActionBase):
     def read_model_name(self, **kwargs) -> Text:
         model_name = should_str_or_none(kwargs.get("model_name")) or self.MODEL_NAME
         if not model_name:
-            raise ValueError("The `model_name` cannot be empty")
+            raise ValueError(
+                "The `model_name` cannot be empty. Please set the `HF_MODEL_NAME` "
+                + "or `MODEL_NAME` environment variable or pass the `model_name` "
+                + "parameter. Or you might want to override the "
+                + f"{self.__class__.__name__}.MODEL_NAME attribute."
+            )
         logger.info(f"Using model: {model_name}")
         return model_name
 

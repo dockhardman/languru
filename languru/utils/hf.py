@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Sequence, Text, Union
+from typing import Literal, Optional, Sequence, Text, Union, cast
 
 import torch
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast, StoppingCriteria
@@ -32,16 +32,17 @@ class StopAtWordsStoppingCriteria(StoppingCriteria):
         Parameters
         ----------
         stop_words_ids: Sequence["torch.LongTensor"]
-            A sequence of token ids to stop at. e.g.: [tensor(50256), tensor([  58,   47, 2885,   60])]
+            A sequence of token ids to stop at. e.g.:
+            [tensor(50256), tensor([  58,   47, 2885,   60])]
         """
 
         super().__init__()
 
-        self.stop_words_ids = stop_words_ids
+        self.stop_words_ids = [self.to_cpu_long(s) for s in stop_words_ids]
         self.stop_reason: Optional[Literal["stop", "length", "content_filter"]] = None
 
     def __call__(self, input_ids: "torch.LongTensor", scores: "torch.FloatTensor"):
-        input_ids_cpu = input_ids.cpu().long()
+        input_ids_cpu = self.to_cpu_long(input_ids)
         for stop_words_id in self.stop_words_ids:
             if torch.all(
                 (stop_words_id == input_ids_cpu[0][-len(stop_words_id) :])
@@ -52,6 +53,11 @@ class StopAtWordsStoppingCriteria(StoppingCriteria):
 
     def get_stop_reason(self) -> Optional[Literal["stop", "length", "content_filter"]]:
         return self.stop_reason
+
+    def to_cpu_long(self, tensor: "torch.Tensor") -> "torch.LongTensor":
+        long_tensor = tensor.cpu().long()
+        long_tensor = cast(torch.LongTensor, long_tensor)
+        return long_tensor
 
     @classmethod
     def from_stop_words(
@@ -78,8 +84,11 @@ class StopAtWordsStoppingCriteria(StoppingCriteria):
         if not stop_words:
             raise ValueError("The `stop_words` cannot be empty")
 
-        stop_words_ids = [
-            tokenizer(stop_word, return_tensors="pt")["input_ids"].squeeze()
-            for stop_word in stop_words
-        ]
+        stop_words_ids = []
+        for stop_word in stop_words:
+            _input_ids = tokenizer(stop_word, return_tensors="pt")["input_ids"]
+            _input_ids = cast(torch.LongTensor, _input_ids)
+            each_stop_words_ids = _input_ids.squeeze()
+            stop_words_ids.append(each_stop_words_ids)
+
         return cls(stop_words_ids=stop_words_ids)

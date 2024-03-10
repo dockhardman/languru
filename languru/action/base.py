@@ -34,7 +34,7 @@ ModelDeploy = NamedTuple(
 class ActionBase:
     model_deploys: Optional[Sequence[ModelDeploy]] = None
 
-    default_max_tokens: int = 800
+    default_max_tokens: int = 20
 
     def __init__(
         self, *args, model_deploys: Optional[Sequence[ModelDeploy]] = None, **kwargs
@@ -42,6 +42,28 @@ class ActionBase:
         self._model_deploys = (
             self.model_deploys if model_deploys is None else model_deploys
         ) or ()
+
+    @classmethod
+    def from_models(
+        cls,
+        model_deploys: Optional[Sequence[ModelDeploy]] = None,
+        model: Optional[Text] = None,
+        model_name: Optional[Text] = None,
+        **kwargs,
+    ):
+        model_name = model_name or model
+        model_deploys = list(model_deploys or [])
+        if model_name:
+            model_deploys.append(ModelDeploy(model_name, model_name))
+            model_deploys.append(ModelDeploy(model_name.split("/")[-1], model_name))
+        if model_deploys:
+            model_deploys = tuple(sorted(list(set(model_deploys)), key=lambda x: x[0]))
+        return cls(
+            model_deploys=model_deploys or None,
+            model_name=model_name or None,
+            model=model_name or None,
+            **kwargs,
+        )
 
     def name(self) -> Text:
         raise NotImplementedError  # pragma: no cover
