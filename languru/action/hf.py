@@ -307,7 +307,6 @@ class TransformersAction(ActionBase):
             tensor_to_np(tensor=self.ensure_tensor(hidden_states)),
             tensor_to_np(self.ensure_tensor(inputs["attention_mask"])),
         )
-        print(embeddings.shape)  # (1, 384)
         return CreateEmbeddingResponse.model_validate(
             {
                 "data": [
