@@ -1,9 +1,11 @@
+import os
 from typing import Optional, Text
 
 import openai
 
 from languru.action.base import ModelDeploy
 from languru.action.openai import OpenaiAction
+from languru.llm.config import logger
 
 
 class PerplexityAction(OpenaiAction):
@@ -30,8 +32,18 @@ class PerplexityAction(OpenaiAction):
         base_url: Text = "https://api.perplexity.ai",
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-
+        api_key = (
+            api_key
+            or os.getenv("PERPLEXITY_API_KEY")
+            or os.getenv("PPLX_API_KEY")
+            or os.getenv("OPENAI_API_KEY")
+        ) or None
+        if api_key is None:
+            raise ValueError("Perplexity api_key is required")
+        elif api_key.startswith("pplx-") is False:
+            logger.warning(
+                "Perplexity api_key should start with 'pplx-', but got %s", api_key
+            )
         self._client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
     def name(self):

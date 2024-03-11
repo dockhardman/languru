@@ -29,13 +29,13 @@ class ModelDiscovery:
             raise ValueError(f"Unsupported discovery url: {url_str}")
 
     def touch(self) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def register(self, model: Model) -> Model:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def retrieve(self, id: Text) -> Model | None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def list(
         self,
@@ -45,7 +45,7 @@ class ModelDiscovery:
         created_to: Optional[int] = None,
         limit: int = 20,
     ) -> list[Model]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 class SqlModelDiscovery(ModelDiscovery):

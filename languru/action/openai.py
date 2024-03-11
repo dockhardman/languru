@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Generator, List, Optional, Text
+from typing import TYPE_CHECKING, Generator, List, Optional, Text, Union
 
 import openai
 
@@ -75,6 +75,7 @@ class OpenaiAction(ActionBase):
     def chat(
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> "ChatCompletion":
+        model = self.validate_model(model)
         chat_completion = self._client.chat.completions.create(
             messages=messages, model=model, **kwargs
         )
@@ -86,6 +87,7 @@ class OpenaiAction(ActionBase):
         if "stream" in kwargs and not kwargs["stream"]:
             logger.warning(f"Chat stream should be True, but got: {kwargs['stream']}")
         kwargs.pop("stream", None)
+        model = self.validate_model(model)
         chat_completion_stream = self._client.chat.completions.create(
             messages=messages, model=model, stream=True, **kwargs
         )
@@ -95,6 +97,7 @@ class OpenaiAction(ActionBase):
     def text_completion(
         self, prompt: Text, *args, model: Text, **kwargs
     ) -> "Completion":
+        model = self.validate_model(model)
         completion = self._client.completions.create(
             prompt=prompt, model=model, **kwargs
         )
@@ -108,6 +111,7 @@ class OpenaiAction(ActionBase):
                 f"Text completion stream should be True, but got: {kwargs['stream']}"
             )
         kwargs.pop("stream", None)
+        model = self.validate_model(model)
         completion_stream = self._client.completions.create(
             prompt=prompt, model=model, stream=True, **kwargs
         )
@@ -115,13 +119,15 @@ class OpenaiAction(ActionBase):
             yield _completion
 
     def embeddings(
-        self, input: Text, *args, model: Text, **kwargs
+        self, input: Union[Text, List[Text]], *args, model: Text, **kwargs
     ) -> "CreateEmbeddingResponse":
+        model = self.validate_model(model)
         embeddings = self._client.embeddings.create(input=input, model=model, **kwargs)
         return embeddings
 
     def moderations(
         self, input: Text, *args, model: Text, **kwargs
     ) -> "ModerationCreateResponse":
+        model = self.validate_model(model)
         moderation = self._client.moderations.create(input=input, model=model, **kwargs)
         return moderation

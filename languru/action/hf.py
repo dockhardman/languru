@@ -221,7 +221,7 @@ class TransformersAction(ActionBase):
         kwargs.pop("presence_penalty", None)  # TODO: Implement presence_penalty
         kwargs.pop("stream", None)  # TODO: Implement stream
         kwargs.pop("logprobs", None)  # TODO: Implement logprobs
-        total_stop_words = must_list(self.stop_words) + must_list(
+        total_stop_words: Sequence[Text] = must_list(self.stop_words) + must_list(
             kwargs.pop("stop", ())
         )
 
@@ -288,6 +288,7 @@ class TransformersAction(ActionBase):
     ) -> "CreateEmbeddingResponse":
         # Validate parameters
         kwargs.pop("encoding_format", None)  # TODO: Implement encoding_format
+        kwargs.pop("output_hidden_states", None)
 
         # Tokenize prompt
         inputs = self.tokenizer(
@@ -298,15 +299,14 @@ class TransformersAction(ActionBase):
         inputs_tokens_length = int(input_ids.shape[1])
 
         with torch.no_grad():  # No need to compute gradients
-            output = self.model(**inputs, **kwargs)
-            hidden_states = output.last_hidden_state
+            output = self.model(**inputs, output_hidden_states=True, **kwargs)
+            hidden_states = output.hidden_states[-1]
 
         # Perform pooling.
         embeddings = mean_pooling(
             tensor_to_np(tensor=self.ensure_tensor(hidden_states)),
             tensor_to_np(self.ensure_tensor(inputs["attention_mask"])),
         )
-        print(embeddings.shape)  # (1, 384)
         return CreateEmbeddingResponse.model_validate(
             {
                 "data": [
@@ -336,7 +336,12 @@ class TransformersAction(ActionBase):
     def read_model_name(self, **kwargs) -> Text:
         model_name = should_str_or_none(kwargs.get("model_name")) or self.MODEL_NAME
         if not model_name:
-            raise ValueError("The `model_name` cannot be empty")
+            raise ValueError(
+                "The `model_name` cannot be empty. Please set the `HF_MODEL_NAME` "
+                + "or `MODEL_NAME` environment variable or pass the `model_name` "
+                + "parameter. Or you might want to override the "
+                + f"{self.__class__.__name__}.MODEL_NAME attribute."
+            )
         logger.info(f"Using model: {model_name}")
         return model_name
 
@@ -349,6 +354,7 @@ class TransformersAction(ActionBase):
             "device_map": self.device,
             "trust_remote_code": True,
         }
+        logger.debug(f"Loading model... : {self.model_name}")
         # Define flash attention config
         if (
             "use_flash_attention" in kwargs and kwargs["use_flash_attention"]

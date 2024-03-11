@@ -30,9 +30,12 @@ jobs:
           python -m pip install -r requirements-test.txt
       - name: Test with pytest
         run: |
-          pytest -s --log-cli-level=DEBUG --cov=languru tests/
+          pytest --cov=languru --cov-report=xml:coverage.xml tests/
         env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PPLX_API_KEY: ${{ secrets.PPLX_API_KEY }}
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
         with:
