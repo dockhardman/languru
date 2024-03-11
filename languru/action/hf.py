@@ -354,6 +354,7 @@ class TransformersAction(ActionBase):
             "device_map": self.device,
             "trust_remote_code": True,
         }
+        logger.debug(f"Loading model... : {self.model_name}")
         # Define flash attention config
         if (
             "use_flash_attention" in kwargs and kwargs["use_flash_attention"]
