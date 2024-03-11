@@ -5396,10 +5396,11 @@ cuda = ["accelerate", "bitsandbytes", "flash-attn", "nvgpu"]
 google = ["google-cloud-aiplatform", "google-generativeai"]
 groq = ["groq"]
 huggingface = ["einops", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+huggingface-cpu = ["transformers"]
 server = ["fastapi"]
 torch = ["torch", "torchaudio", "torchvision"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "8d4dcf881ebbd2f5e019d95c77c6280d6291b06b531beded34ec4a4f4b84de5f"
+content-hash = "3ec44fb0a289c5a76c04d6d4889fee61af1f48fb423004c84671f4ef861eb286"

@@ -46,6 +46,7 @@ cuda = ["accelerate", "bitsandbytes", "flash-attn", "nvgpu"]
 google = ["google-cloud-aiplatform", "google-generativeai"]
 groq = ["groq"]
 huggingface = ["einops", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+huggingface_cpu = ["transformers"]
 server = ["fastapi"]
 torch = ["torch", "torchaudio", "torchvision"]
 
