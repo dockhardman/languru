@@ -141,3 +141,9 @@ def init_logger_config(settings: "ServerBaseSettings") -> None:
         init(autoreset=True)
     logging.config.dictConfig(default_logging_config(settings))
     return
+
+
+def init_paths(settings: "ServerBaseSettings") -> None:
+    Path(settings.logs_dir).mkdir(parents=True, exist_ok=True, mode=0o770)
+    Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True, mode=0o770)
+    return

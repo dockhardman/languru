@@ -1,9 +1,7 @@
 import asyncio
-import importlib
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
-from typing import Text, Type
+from typing import Sequence, Text, cast
 
 import httpx
 from fastapi import Body, FastAPI, HTTPException, Request
@@ -11,9 +9,10 @@ from fastapi.responses import StreamingResponse
 from openai.types import CreateEmbeddingResponse, Model, ModerationCreateResponse
 from pyassorted.asyncio.executor import run_func, run_generator
 
-from languru.action.base import ActionBase
+from languru.action.base import ActionBase, ModelDeploy
+from languru.action.utils import load_action
 from languru.exceptions import ModelNotFound
-from languru.server.config_base import init_logger_config
+from languru.server.config_base import init_logger_config, init_paths
 from languru.server.config_llm import logger, settings
 from languru.types.chat.completions import ChatCompletionRequest
 from languru.types.completions import CompletionRequest
@@ -39,31 +38,14 @@ async def register_model_periodically(model: Model, period: int, agent_base_url:
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     # Initialize server
-    # Check if logs directory exists, if not create it
-    if Path(settings.logs_dir).is_dir() is False:
-        Path(settings.logs_dir).mkdir(parents=True, exist_ok=True, mode=0o770)
-    # Check if data directory exists, if not create it
-    if Path(settings.DATA_DIR).is_dir() is False:
-        Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True, mode=0o770)
+    # Initialize paths
+    init_paths(settings)
     # Initialize logger
     init_logger_config(settings)
-
     # Load action class
-    logger.info(f"Loading action class '{settings.action}'")
-    action_module_path, action_class_name = settings.action.rsplit(".", 1)
-    action_cls: Type["ActionBase"] = getattr(
-        importlib.import_module(action_module_path), action_class_name
-    )
-    if issubclass(action_cls, ActionBase) is False:
-        raise ValueError(
-            f"Action class '{settings.action}' is not a subclass of ActionBase"
-        )
-    action = action_cls()
-    if action.model_deploys is None:
-        raise ValueError("Action model_deploys is not defined")
-    app.state.action = action
-
+    app.state.action = action = load_action(settings.action, logger=logger)
     # Register models periodically
+    action.model_deploys = cast(Sequence[ModelDeploy], action.model_deploys)
     for model_deploy in action.model_deploys:
         asyncio.create_task(
             register_model_periodically(
