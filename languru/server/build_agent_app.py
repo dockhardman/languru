@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from languru.resources.model.discovery import ModelDiscovery
 from languru.server.config_agent import logger, settings
-from languru.server.config_base import init_logger_config
+from languru.server.config import init_logger_config
 from languru.utils.socket import check_port, get_available_port
 
 

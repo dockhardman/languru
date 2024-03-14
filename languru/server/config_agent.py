@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Text
 
-from languru.server.config_base import ServerBaseSettings
+from languru.server.config import ServerBaseSettings
 
 
 class Settings(ServerBaseSettings):

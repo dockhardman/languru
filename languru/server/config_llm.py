@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Text
 
-from languru.server.config_base import ServerBaseSettings
+from languru.server.config import ServerBaseSettings
 
 
 class Settings(ServerBaseSettings):

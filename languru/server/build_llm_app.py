@@ -9,7 +9,7 @@ from openai.types import Model
 
 from languru.action.base import ModelDeploy
 from languru.action.utils import load_action
-from languru.server.config_base import init_logger_config, init_paths
+from languru.server.config import init_logger_config, init_paths
 from languru.server.config_llm import logger, settings
 
 
