@@ -13,7 +13,8 @@ from pyassorted.asyncio.executor import run_func, run_generator
 
 from languru.action.base import ActionBase
 from languru.exceptions import ModelNotFound
-from languru.llm.config import init_logger_config, logger, settings
+from languru.server.config_base import init_logger_config
+from languru.server.config_llm import logger, settings
 from languru.types.chat.completions import ChatCompletionRequest
 from languru.types.completions import CompletionRequest
 from languru.types.embeddings import EmbeddingRequest
@@ -45,7 +46,7 @@ async def app_lifespan(app: FastAPI):
     if Path(settings.DATA_DIR).is_dir() is False:
         Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True, mode=0o770)
     # Initialize logger
-    init_logger_config()
+    init_logger_config(settings)
 
     # Load action class
     logger.info(f"Loading action class '{settings.action}'")
@@ -185,10 +186,7 @@ def create_app():
     return app
 
 
-app = create_app()
-
-
-def run_app():
+def run_app(app: "FastAPI"):
     import uvicorn
 
     app_str = "languru.llm.app:app"
@@ -215,7 +213,3 @@ def run_app():
             port=port,
             workers=settings.WORKERS,
         )
-
-
-if __name__ == "__main__":
-    run_app()

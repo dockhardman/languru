@@ -9,7 +9,7 @@ from openai.pagination import SyncPage
 from openai.types import ModelDeleted
 from pyassorted.asyncio.executor import run_func
 
-from languru.server.config import logger, settings
+from languru.server.config_agent import logger, settings
 from languru.types.model import Model
 
 if TYPE_CHECKING:

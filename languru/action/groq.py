@@ -5,7 +5,7 @@ import openai
 
 from languru.action.base import ModelDeploy
 from languru.action.openai import OpenaiAction
-from languru.llm.config import logger
+from languru.server.config_llm import logger
 
 
 class GroqAction(OpenaiAction):

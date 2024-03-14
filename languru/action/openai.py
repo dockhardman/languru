@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Generator, List, Optional, Text, Union
 import openai
 
 from languru.action.base import ActionBase, ModelDeploy
-from languru.llm.config import logger
+from languru.server.config_llm import logger
 
 if TYPE_CHECKING:
     from openai.types import (

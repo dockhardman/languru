@@ -40,7 +40,7 @@ from transformers.tokenization_utils_base import PreTokenizedInput
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
-from languru.llm.config import settings as llm_settings
+from languru.server.config_llm import settings as llm_settings
 from languru.utils.calculation import mean_pooling, tensor_to_np
 from languru.utils.common import must_list, replace_right, should_str_or_none
 from languru.utils.device import validate_device, validate_dtype

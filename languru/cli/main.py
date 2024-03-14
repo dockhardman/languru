@@ -21,7 +21,7 @@ def llm():
 
 @click.command("run")
 def server_run():
-    from languru.server.app import run_app
+    from languru.server.app_agent import run_app
 
     click.echo("Running server")
     run_app()
@@ -33,8 +33,8 @@ def server_run():
 def llm_run(action: Optional[Text], port: Optional[int]):
     from yarl import URL
 
-    from languru.llm.app import run_app
-    from languru.llm.config import settings
+    from languru.server.app_llm import run_app
+    from languru.server.config_llm import settings
     from languru.utils.socket import check_port, get_available_port
 
     # Parse action parameter

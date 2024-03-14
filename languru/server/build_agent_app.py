@@ -4,7 +4,8 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from languru.resources.model.discovery import ModelDiscovery
-from languru.server.config import init_logger_config, logger, settings
+from languru.server.config_agent import logger, settings
+from languru.server.config_base import init_logger_config
 from languru.utils.socket import check_port, get_available_port
 
 
@@ -18,7 +19,7 @@ async def app_lifespan(app: FastAPI):
     if Path(settings.DATA_DIR).is_dir() is False:
         Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True, mode=0o770)
     # Initialize logger
-    init_logger_config()
+    init_logger_config(settings)
 
     # Touch database
     model_discovery = ModelDiscovery.from_url(settings.url_model_discovery)
@@ -47,10 +48,7 @@ def create_app():
     return app
 
 
-app = create_app()
-
-
-def run_app():
+def run_app(app: "FastAPI"):
     import uvicorn
 
     app_str = "languru.server.app:app"
@@ -77,7 +75,3 @@ def run_app():
     else:
         logger.info("Running server in production mode")
         uvicorn.run(app, host=settings.HOST, port=port, workers=settings.WORKERS)
-
-
-if __name__ == "__main__":
-    run_app()

@@ -12,11 +12,11 @@ from pydantic_settings import BaseSettings
 from languru.version import VERSION
 
 
-class Settings(BaseSettings):
+class ServerBaseSettings(BaseSettings):
     """Settings for the server."""
 
     # Server
-    APP_NAME: Text = "languru-server"
+    APP_NAME: Text = "languru"
     SERVICE_NAME: Text = APP_NAME
     APP_VERSION: Text = VERSION
     is_production: bool = False
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     logging_level: Text = "DEBUG"
     logs_dir: Text = "logs"
     HOST: Text = "0.0.0.0"
-    DEFAULT_PORT: int = 8680
+    DEFAULT_PORT: int
     PORT: Optional[int] = None
     WORKERS: int = 1
     RELOAD: bool = True
@@ -35,17 +35,8 @@ class Settings(BaseSettings):
     RELOAD_DELAY: float = 5.0
     DATA_DIR: Text = str(Path("./data").absolute())
 
-    # Model discovery configuration
-    url_model_discovery: Text = f"sqlite:///{DATA_DIR}/languru_model_discovery.db"
-    MODEL_REGISTER_PERIOD: int = 10
-
     # Resources configuration
     openai_available: bool = True if os.environ.get("OPENAI_API_KEY") else False
-
-
-settings = Settings()
-
-logger = logging.getLogger(settings.SERVICE_NAME)
 
 
 class IsoDatetimeFormatter(logging.Formatter):
@@ -89,12 +80,12 @@ class ColoredIsoDatetimeFormatter(IsoDatetimeFormatter):
         return super(ColoredIsoDatetimeFormatter, self).format(record)
 
 
-def default_logging_config():
+def default_logging_config(settings: "ServerBaseSettings"):
     d = {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "colered_formatter": {
+            "colored_formatter": {
                 "()": ColoredIsoDatetimeFormatter,
                 "format": "%(asctime)s %(levelname)-8s %(name)s  - %(message)s",
             },
@@ -108,7 +99,7 @@ def default_logging_config():
             "console_handler": {
                 "level": "DEBUG",
                 "class": "logging.StreamHandler",
-                "formatter": "colered_formatter",
+                "formatter": "colored_formatter",
             },
             "file_handler": {
                 "level": settings.logging_level,
@@ -145,8 +136,8 @@ def default_logging_config():
     return d
 
 
-def init_logger_config():
+def init_logger_config(settings: "ServerBaseSettings") -> None:
     if settings.USE_COLORS:
         init(autoreset=True)
-    logging.config.dictConfig(default_logging_config())
-    return logger
+    logging.config.dictConfig(default_logging_config(settings))
+    return

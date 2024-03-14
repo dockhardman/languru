@@ -10,7 +10,7 @@ from pyassorted.asyncio.executor import run_func
 from yarl import URL
 
 from languru.resources.model.discovery import ModelDiscovery
-from languru.server.config import settings
+from languru.server.config_agent import settings
 from languru.types.chat.completions import ChatCompletionRequest
 from languru.utils.http import requests_stream_lines
 
