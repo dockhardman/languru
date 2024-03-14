@@ -4,20 +4,13 @@ from contextlib import asynccontextmanager
 from typing import Sequence, Text, cast
 
 import httpx
-from fastapi import Body, FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
-from openai.types import CreateEmbeddingResponse, Model, ModerationCreateResponse
-from pyassorted.asyncio.executor import run_func, run_generator
+from fastapi import FastAPI
+from openai.types import Model
 
-from languru.action.base import ActionBase, ModelDeploy
+from languru.action.base import ModelDeploy
 from languru.action.utils import load_action
-from languru.exceptions import ModelNotFound
 from languru.server.config_base import init_logger_config, init_paths
 from languru.server.config_llm import logger, settings
-from languru.types.chat.completions import ChatCompletionRequest
-from languru.types.completions import CompletionRequest
-from languru.types.embeddings import EmbeddingRequest
-from languru.types.moderations import ModerationRequest
 
 
 async def register_model_periodically(model: Model, period: int, agent_base_url: Text):
@@ -43,7 +36,9 @@ async def app_lifespan(app: FastAPI):
     # Initialize logger
     init_logger_config(settings)
     # Load action class
-    app.state.action = action = load_action(settings.action, logger=logger)
+    app.state.action = app.extra["action"] = action = load_action(
+        settings.action, logger=logger
+    )
     # Register models periodically
     action.model_deploys = cast(Sequence[ModelDeploy], action.model_deploys)
     for model_deploy in action.model_deploys:
@@ -71,99 +66,14 @@ def create_app():
         lifespan=app_lifespan,
     )
 
-    @app.post("/chat/completions")
-    async def chat_completions(
-        request: Request,
-        chat_completion_request: ChatCompletionRequest = Body(...),
-    ):  # -> openai.types.chat.ChatCompletion | openai.types.chat.ChatCompletionChunk
-        if getattr(request.app.state, "action", None) is None:
-            raise ValueError("Action is not initialized")
-        action: "ActionBase" = request.app.state.action
-        try:
-            chat_completion_request.model = action.get_model_name(
-                chat_completion_request.model
-            )
-        except ModelNotFound as e:
-            raise HTTPException(status_code=404, detail=str(e))
+    @app.get("/health")
+    async def health():
+        logger.debug("Health check")
+        return {"status": "ok"}
 
-        # Stream
-        if chat_completion_request.stream is True:
-            return StreamingResponse(
-                run_generator(
-                    action.chat_stream_sse,
-                    **chat_completion_request.model_dump(exclude_none=True),
-                ),
-                media_type="application/stream+json",
-            )
+    from languru.server.api.v1 import router as api_v1_router
 
-        # Normal
-        else:
-            chat_completion = await run_func(
-                action.chat, **chat_completion_request.model_dump(exclude_none=True)
-            )
-            return chat_completion
-
-    @app.post("/completions")
-    async def completions(
-        request: Request, completion_request: CompletionRequest = Body(...)
-    ):  # -> openai.types.Completion
-        if getattr(request.app.state, "action", None) is None:
-            raise ValueError("Action is not initialized")
-        action: "ActionBase" = request.app.state.action
-        try:
-            completion_request.model = action.get_model_name(completion_request.model)
-        except ModelNotFound as e:
-            raise HTTPException(status_code=404, detail=str(e))
-
-        # Stream
-        if completion_request.stream is True:
-            return StreamingResponse(
-                run_generator(
-                    action.text_completion_stream_sse,
-                    **completion_request.model_dump(exclude_none=True),
-                ),
-                media_type="application/stream+json",
-            )
-        # Normal
-        else:
-            completion = await run_func(
-                action.text_completion,
-                **completion_request.model_dump(exclude_none=True),
-            )
-            return completion
-
-    @app.post("/embeddings")
-    async def embeddings(
-        request: Request, embedding_request: EmbeddingRequest = Body(...)
-    ) -> CreateEmbeddingResponse:
-        if getattr(request.app.state, "action", None) is None:
-            raise ValueError("Action is not initialized")
-        action: "ActionBase" = request.app.state.action
-        try:
-            embedding_request.model = action.get_model_name(embedding_request.model)
-        except ModelNotFound as e:
-            raise HTTPException(status_code=404, detail=str(e))
-
-        embedding = await run_func(
-            action.embeddings, **embedding_request.model_dump(exclude_none=True)
-        )
-        return embedding
-
-    @app.post("/moderations")
-    async def request_moderations(
-        request: Request, moderation_request: ModerationRequest = Body(...)
-    ) -> ModerationCreateResponse:
-        if getattr(request.app.state, "action", None) is None:
-            raise ValueError("Action is not initialized")
-        action: "ActionBase" = request.app.state.action
-        try:
-            moderation_request.model = action.get_model_name(moderation_request.model)
-        except ModelNotFound as e:
-            raise HTTPException(status_code=404, detail=str(e))
-        moderation = await run_func(
-            action.moderations, **moderation_request.model_dump(exclude_none=True)
-        )
-        return moderation
+    app.include_router(router=api_v1_router, prefix="/v1")
 
     return app
 

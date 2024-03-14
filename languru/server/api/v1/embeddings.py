@@ -48,3 +48,20 @@ async def text_completions(
         )
         response.raise_for_status()
         return CreateEmbeddingResponse(**response.json())
+
+    # @app.post("/embeddings")
+    # async def embeddings(
+    #     request: Request, embedding_request: EmbeddingRequest = Body(...)
+    # ) -> CreateEmbeddingResponse:
+    #     if getattr(request.app.state, "action", None) is None:
+    #         raise ValueError("Action is not initialized")
+    #     action: "ActionBase" = request.app.state.action
+    #     try:
+    #         embedding_request.model = action.get_model_name(embedding_request.model)
+    #     except ModelNotFound as e:
+    #         raise HTTPException(status_code=404, detail=str(e))
+
+    #     embedding = await run_func(
+    #         action.embeddings, **embedding_request.model_dump(exclude_none=True)
+    #     )
+    #     return embedding

@@ -44,3 +44,20 @@ async def request_moderations(
         )
         response.raise_for_status()
         return ModerationCreateResponse(**response.json())
+
+
+# @app.post("/moderations")
+# async def request_moderations(
+#     request: Request, moderation_request: ModerationRequest = Body(...)
+# ) -> ModerationCreateResponse:
+#     if getattr(request.app.state, "action", None) is None:
+#         raise ValueError("Action is not initialized")
+#     action: "ActionBase" = request.app.state.action
+#     try:
+#         moderation_request.model = action.get_model_name(moderation_request.model)
+#     except ModelNotFound as e:
+#         raise HTTPException(status_code=404, detail=str(e))
+#     moderation = await run_func(
+#         action.moderations, **moderation_request.model_dump(exclude_none=True)
+#     )
+#     return moderation

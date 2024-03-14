@@ -66,3 +66,36 @@ async def chat_completions(
             )
             response.raise_for_status()
             return ChatCompletion(**response.json())
+
+
+# @app.post("/chat/completions")
+# async def chat_completions(
+#     request: Request,
+#     chat_completion_request: ChatCompletionRequest = Body(...),
+# ):  # -> openai.types.chat.ChatCompletion | openai.types.chat.ChatCompletionChunk
+#     if getattr(request.app.state, "action", None) is None:
+#         raise ValueError("Action is not initialized")
+#     action: "ActionBase" = request.app.state.action
+#     try:
+#         chat_completion_request.model = action.get_model_name(
+#             chat_completion_request.model
+#         )
+#     except ModelNotFound as e:
+#         raise HTTPException(status_code=404, detail=str(e))
+
+#     # Stream
+#     if chat_completion_request.stream is True:
+#         return StreamingResponse(
+#             run_generator(
+#                 action.chat_stream_sse,
+#                 **chat_completion_request.model_dump(exclude_none=True),
+#             ),
+#             media_type="application/stream+json",
+#         )
+
+#     # Normal
+#     else:
+#         chat_completion = await run_func(
+#             action.chat, **chat_completion_request.model_dump(exclude_none=True)
+#         )
+#         return chat_completion

@@ -62,3 +62,33 @@ async def text_completions(
             )
             response.raise_for_status()
             return Completion(**response.json())
+
+
+# @app.post("/completions")
+# async def completions(
+#     request: Request, completion_request: CompletionRequest = Body(...)
+# ):  # -> openai.types.Completion
+#     if getattr(request.app.state, "action", None) is None:
+#         raise ValueError("Action is not initialized")
+#     action: "ActionBase" = request.app.state.action
+#     try:
+#         completion_request.model = action.get_model_name(completion_request.model)
+#     except ModelNotFound as e:
+#         raise HTTPException(status_code=404, detail=str(e))
+
+#     # Stream
+#     if completion_request.stream is True:
+#         return StreamingResponse(
+#             run_generator(
+#                 action.text_completion_stream_sse,
+#                 **completion_request.model_dump(exclude_none=True),
+#             ),
+#             media_type="application/stream+json",
+#         )
+#     # Normal
+#     else:
+#         completion = await run_func(
+#             action.text_completion,
+#             **completion_request.model_dump(exclude_none=True),
+#         )
+#         return completion
