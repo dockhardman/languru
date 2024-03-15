@@ -17,6 +17,7 @@ from languru.server.config import (
     AppType,
     LlmSettings,
     ServerBaseSettings,
+    console,
     init_logger_config,
     init_paths,
 )
@@ -63,20 +64,22 @@ async def app_lifespan(app: FastAPI):
             settings.action, logger=logger
         )
         # Register models periodically
-        action.model_deploys = cast(Sequence[ModelDeploy], action.model_deploys)
-        for model_deploy in action.model_deploys:
-            asyncio.create_task(
-                register_model_periodically(
-                    model=Model(
-                        id=model_deploy.model_deploy_name,
-                        created=int(time.time()),
-                        object="model",
-                        owned_by=settings.ENDPOINT_URL or settings.ACTION_BASE_URL,
-                    ),
-                    period=settings.MODEL_REGISTER_PERIOD,
-                    agent_base_url=settings.AGENT_BASE_URL,
+        if settings.AGENT_BASE_URL:
+            action.model_deploys = cast(Sequence[ModelDeploy], action.model_deploys)
+            for model_deploy in action.model_deploys:
+                asyncio.create_task(
+                    register_model_periodically(
+                        model=Model(
+                            id=model_deploy.model_deploy_name,
+                            created=int(time.time()),
+                            object="model",
+                            owned_by=settings.ACTION_ENDPOINT_URL
+                            or settings.ACTION_BASE_URL,
+                        ),
+                        period=settings.MODEL_REGISTER_PERIOD,
+                        agent_base_url=settings.AGENT_BASE_URL,
+                    )
                 )
-            )
     if isinstance(settings, AgentSettings):
         # Touch database
         model_discovery = ModelDiscovery.from_url(settings.url_model_discovery)
@@ -140,3 +143,10 @@ if __server_base_settings__.APP_TYPE == AppType.llm:
     app = create_app(LlmSettings())
 elif __server_base_settings__.APP_TYPE == AppType.agent:
     app = create_app(AgentSettings())
+else:
+    console.print(
+        "The APP_TYPE environment variable is not set. "
+        + "You might want to set it in values of "
+        + f"{', '.join([m for m in AppType.__members__])} "
+        + "to define the type of FastAPI app to run."
+    )

@@ -9,8 +9,11 @@ from typing import Literal, Optional, Text
 import pytz
 from colorama import Fore, Style, init
 from pydantic_settings import BaseSettings
+from rich.console import Console
 
 from languru.version import VERSION
+
+console = Console()
 
 
 # string enum
@@ -54,9 +57,9 @@ class LlmSettings(ServerBaseSettings):
     DEFAULT_PORT: int = 8682
 
     # LLM Server Configuration
-    ACTION_BASE_URL: Text = "http://localhost:8682"
-    ENDPOINT_URL: Text = ""
-    AGENT_BASE_URL: Text = "http://localhost:8680"
+    ACTION_BASE_URL: Text = "http://0.0.0.0:8682"
+    ACTION_ENDPOINT_URL: Text = "http://0.0.0.0:8682"
+    AGENT_BASE_URL: Optional[Text] = None
     MODEL_REGISTER_PERIOD: int = 10
     MODEL_REGISTER_FAIL_PERIOD: int = 60
 
