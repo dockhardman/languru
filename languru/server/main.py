@@ -8,10 +8,7 @@ import httpx
 from fastapi import FastAPI
 from openai.types import Model
 
-from languru.action.base import ModelDeploy
-from languru.action.utils import load_action
 from languru.config import logger as languru_logger
-from languru.resources.model.discovery import ModelDiscovery
 from languru.server.config import (
     AgentSettings,
     AppType,
@@ -48,9 +45,9 @@ async def register_model_periodically(
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
-    settings = get_value_from_app(app, key="settings", value_type=ServerBaseSettings)
+    settings = get_value_from_app(app, key="settings", value_typing=ServerBaseSettings)
     logger = get_value_from_app(
-        app, key="logger", value_type=logging.Logger, default=languru_logger
+        app, key="logger", value_typing=logging.Logger, default=languru_logger
     )
     # Initialize server
     # Initialize paths
@@ -59,6 +56,9 @@ async def app_lifespan(app: FastAPI):
     init_logger_config(settings)
 
     if isinstance(settings, LlmSettings):
+        from languru.action.base import ModelDeploy
+        from languru.action.utils import load_action
+
         # Load action class
         app.state.action = app.extra["action"] = action = load_action(
             settings.action, logger=logger
@@ -81,6 +81,8 @@ async def app_lifespan(app: FastAPI):
                     )
                 )
     if isinstance(settings, AgentSettings):
+        from languru.resources.model.discovery import ModelDiscovery
+
         # Touch database
         model_discovery = ModelDiscovery.from_url(settings.url_model_discovery)
         model_discovery.touch()
@@ -98,6 +100,7 @@ def create_app(settings: "ServerBaseSettings", **kwargs):
     )
     app.state.settings = app.extra["settings"] = settings
     app.state.logger = app.extra["logger"] = logging.getLogger(settings.APP_NAME)
+    app.state.app_type = app.extra["app_type"] = settings.APP_TYPE
 
     @app.get("/health")
     async def health():
