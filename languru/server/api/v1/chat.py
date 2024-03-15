@@ -152,12 +152,18 @@ async def chat_completions(
     request: Request,
     chat_completion_request: ChatCompletionRequest = Body(
         ...,
-        example={
-            "model": "gpt-3.5-turbo",
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "Hello!"},
-            ],
+        openapi_examples={
+            "Quick chat": {
+                "summary": "Quick chat",
+                "description": "Chat completion request",
+                "value": {
+                    "model": "gpt-3.5-turbo",
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": "Hello!"},
+                    ],
+                },
+            }
         },
     ),
     settings: ServerBaseSettings = Depends(app_settings),
