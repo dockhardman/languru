@@ -4,7 +4,7 @@ import time
 from typing import cast
 
 import httpx
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from openai.types.completion import Completion
 from pyassorted.asyncio.executor import run_func, run_generator
@@ -17,6 +17,7 @@ from languru.server.config import (
     LlmSettings,
     ServerBaseSettings,
 )
+from languru.server.deps.common import app_settings
 from languru.server.utils.common import get_value_from_app
 from languru.types.completions import CompletionRequest
 from languru.utils.http import requests_stream_lines
@@ -151,11 +152,10 @@ async def text_completions(
             "temperature": 0,
         },
     ),
+    settings: ServerBaseSettings = Depends(app_settings),
 ):  # openai.types.Completion
     return await TextCompletionHandler().handle_request(
         request=request,
         completion_request=completion_request,
-        settings=get_value_from_app(
-            request.app, key="settings", value_typing=ServerBaseSettings
-        ),
+        settings=settings,
     )
