@@ -147,9 +147,6 @@ class ChatCompletionHandler:
                 return ChatCompletion(**response.json())
 
 
-chat_completion_handler = ChatCompletionHandler()
-
-
 @router.post("/chat/completions")
 async def chat_completions(
     request: Request,
@@ -165,7 +162,7 @@ async def chat_completions(
     ),
     settings: ServerBaseSettings = Depends(app_settings),
 ):  # -> openai.types.chat.ChatCompletion | openai.types.chat.ChatCompletionChunk
-    return await chat_completion_handler.handle_request(
+    return await ChatCompletionHandler().handle_request(
         request=request,
         chat_completion_request=chat_completion_request,
         settings=settings,

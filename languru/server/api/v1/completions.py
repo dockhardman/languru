@@ -139,9 +139,6 @@ class TextCompletionHandler:
                 return Completion(**response.json())
 
 
-text_completion_handler = TextCompletionHandler()
-
-
 @router.post("/completions")
 async def text_completions(
     request: Request,
@@ -155,7 +152,7 @@ async def text_completions(
         },
     ),
 ):  # openai.types.Completion
-    return await text_completion_handler.handle_request(
+    return await TextCompletionHandler().handle_request(
         request=request,
         completion_request=completion_request,
         settings=get_value_from_app(
