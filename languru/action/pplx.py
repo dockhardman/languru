@@ -5,7 +5,7 @@ import openai
 
 from languru.action.base import ModelDeploy
 from languru.action.openai import OpenaiAction
-from languru.server.config_llm import logger
+from languru.config import logger
 
 
 class PerplexityAction(OpenaiAction):

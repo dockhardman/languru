@@ -61,7 +61,7 @@ async def app_lifespan(app: FastAPI):
 
         # Load action class
         app.state.action = app.extra["action"] = action = load_action(
-            settings.action, logger=logger
+            settings.action, logger=logger, device=settings.device, dtype=settings.dtype
         )
         # Register models periodically
         if settings.AGENT_BASE_URL:

@@ -40,7 +40,6 @@ from transformers.tokenization_utils_base import PreTokenizedInput
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
-from languru.server.config_llm import settings as llm_settings
 from languru.utils.calculation import mean_pooling, tensor_to_np
 from languru.utils.common import must_list, replace_right, should_str_or_none
 from languru.utils.device import validate_device, validate_dtype
@@ -48,12 +47,6 @@ from languru.utils.hf import StopAtWordsStoppingCriteria, remove_special_tokens
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
-
-# Device config
-DEVICE = llm_settings.device = validate_device(device=llm_settings.device)
-validate_dtype(device=DEVICE, dtype=llm_settings.dtype)
-logger.info(f"Using device: {DEVICE} with dtype: {llm_settings.dtype}")
-torch.set_default_device(DEVICE)
 
 
 class TransformersAction(ActionBase):
@@ -83,11 +76,20 @@ class TransformersAction(ActionBase):
     stop_words: Sequence[Text] = ()
     is_causal_lm: bool = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        device: Optional[Text] = None,
+        dtype: Optional[Text] = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
 
-        self.dtype = llm_settings.dtype
-        self.device = DEVICE
+        self.device = validate_device(device=device)
+        self.dtype = dtype
+        validate_dtype(device=self.device, dtype=self.dtype)
+        logger.info(f"Using device: {self.device} with dtype: {self.dtype}")
+        torch.set_default_device(self.device)
 
         # Model name
         self.model_name = self.read_model_name(**kwargs)
