@@ -1,3 +1,4 @@
+import importlib
 import json
 import time
 from typing import TYPE_CHECKING
@@ -6,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+import languru.server.main
 from languru.server.config import AppType
 
 if TYPE_CHECKING:
@@ -72,9 +74,9 @@ def mocked_model_discovery_list():
 
 
 def test_llm_app_text_completions(llm_env, mocked_openai_text_completion_create):
-    from languru.server.main import app
+    importlib.reload(languru.server.main)
 
-    with TestClient(app) as client:
+    with TestClient(languru.server.main.app) as client:
         completion_call = {
             "model": "gpt-3.5-turbo-instruct",
             "prompt": "Say this is a test",
@@ -89,9 +91,9 @@ def test_llm_app_text_completions(llm_env, mocked_openai_text_completion_create)
 def test_llm_app_text_completions_stream(
     llm_env, mocked_openai_text_completion_create_stream
 ):
-    from languru.server.main import app
+    importlib.reload(languru.server.main)
 
-    with TestClient(app) as client:
+    with TestClient(languru.server.main.app) as client:
         completion_call = {
             "model": "gpt-3.5-turbo-instruct",
             "prompt": "Say this is a test",
@@ -115,9 +117,9 @@ def test_llm_app_text_completions_stream(
 def test_agent_app_chat(
     agent_env, mocked_model_discovery_list, mocked_openai_text_completion_create
 ):
-    from languru.server.main import app
+    importlib.reload(languru.server.main)
 
-    with TestClient(app) as client:
+    with TestClient(languru.server.main.app) as client:
         completion_call = {
             "model": "gpt-3.5-turbo-instruct",
             "prompt": "Say this is a test",
@@ -131,9 +133,9 @@ def test_agent_app_chat(
 def test_agent_app_chat_stream(
     agent_env, mocked_model_discovery_list, mocked_openai_text_completion_create_stream
 ):
-    from languru.server.main import app
+    importlib.reload(languru.server.main)
 
-    with TestClient(app) as client:
+    with TestClient(languru.server.main.app) as client:
         completion_call = {
             "model": "gpt-3.5-turbo-instruct",
             "prompt": "Say this is a test",
