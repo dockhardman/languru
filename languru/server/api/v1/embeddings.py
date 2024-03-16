@@ -3,11 +3,9 @@ import random
 import time
 from typing import cast
 
-import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from openai.types import CreateEmbeddingResponse
 from pyassorted.asyncio.executor import run_func
-from yarl import URL
 
 from languru.exceptions import ModelNotFound
 from languru.server.config import (
@@ -88,6 +86,8 @@ class EmbeddingHandler:
         settings: "AgentSettings",
         **kwargs,
     ) -> "CreateEmbeddingResponse":
+        from openai import OpenAI
+
         from languru.resources.model.discovery import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
@@ -104,13 +104,10 @@ class EmbeddingHandler:
             )
 
         model = random.choice(models)
-        url = URL(model.owned_by).with_path("/embeddings")
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                str(url), json=embedding_request.model_dump(exclude_none=True)
-            )
-            response.raise_for_status()
-            return CreateEmbeddingResponse(**response.json())
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        return await run_func(
+            client.embeddings.create, **embedding_request.model_dump(exclude_none=True)
+        )
 
 
 @router.post("/embeddings")

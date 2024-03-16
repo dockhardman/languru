@@ -1,3 +1,4 @@
+import importlib
 import time
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -5,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+import languru.server.main
 from languru.server.config import AppType
 
 if TYPE_CHECKING:
@@ -57,9 +59,9 @@ def mocked_model_discovery_list():
 
 
 def test_llm_app_embedding(llm_env):
-    from languru.server.main import app
+    importlib.reload(languru.server.main)
 
-    with TestClient(app) as client:
+    with TestClient(languru.server.main.app) as client:
         embedding_call = {
             "input": ["Hello", "world!"],
             "model": "text-embedding-ada-002",
@@ -73,9 +75,9 @@ def test_llm_app_embedding(llm_env):
 def test_agent_app_embedding(
     agent_env, mocked_model_discovery_list, mocked_openai_embeddings_create
 ):
-    from languru.server.main import app
+    importlib.reload(languru.server.main)
 
-    with TestClient(app) as client:
+    with TestClient(languru.server.main.app) as client:
         embedding_call = {
             "input": ["Hello", "world!"],
             "model": "text-embedding-ada-002",
