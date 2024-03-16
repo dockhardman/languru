@@ -1,7 +1,7 @@
 import logging
 import math
 import time
-from typing import Annotated, Any, Dict, Optional, Text, cast
+from typing import Annotated, Any, Dict, List, Optional, Text, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import Path as PathParam
@@ -10,7 +10,13 @@ from openai.pagination import SyncPage
 from openai.types import ModelDeleted
 from pyassorted.asyncio.executor import run_func
 
-from languru.server.config import AgentSettings, AppType, ServerBaseSettings
+from languru.exceptions import ModelNotFound
+from languru.server.config import (
+    AgentSettings,
+    AppType,
+    LlmSettings,
+    ServerBaseSettings,
+)
 from languru.server.deps.common import app_settings
 from languru.server.utils.common import get_value_from_app
 from languru.types.model import Model
@@ -31,6 +37,16 @@ class ModelsHandler:
         if settings.APP_TYPE == AppType.agent:
             settings = cast(AgentSettings, settings)
             return await self.handle_models_agent(
+                request=request,
+                id=id,
+                owned_by=owned_by,
+                created_from=created_from,
+                created_to=created_to,
+                settings=settings,
+            )
+        if settings.APP_TYPE == AppType.llm:
+            settings = cast(LlmSettings, settings)
+            return await self.handle_models_llm(
                 request=request,
                 id=id,
                 owned_by=owned_by,
@@ -77,8 +93,35 @@ class ModelsHandler:
         )
         return SyncPage(data=retrieved_models, object="list")
 
+    async def handle_models_llm(
+        self,
+        request: "Request",
+        id: Optional[Text],
+        owned_by: Optional[Text],
+        created_from: Optional[int],
+        created_to: Optional[int],
+        settings: "LlmSettings",
+    ) -> "SyncPage[Model]":
+        from languru.action.base import ActionBase
 
-class ModelHandler:
+        action: "ActionBase" = get_value_from_app(
+            request.app, key="action", value_typing=ActionBase
+        )
+        models: List["Model"] = []
+        if action.model_deploys:
+            for model_deploy in action.model_deploys:
+                models.append(
+                    Model(
+                        id=model_deploy.model_deploy_name,
+                        created=int(time.time()),
+                        object="model",
+                        owned_by=settings.LLM_BASE_URL,
+                    )
+                )
+        return SyncPage(data=models, object="list")
+
+
+class RetrieveModelHandler:
     async def handle_model_request(
         self,
         request: "Request",
@@ -88,6 +131,11 @@ class ModelHandler:
         if settings.APP_TYPE == AppType.agent:
             settings = cast(AgentSettings, settings)
             return await self.handle_model_agent(
+                request=request, model=model, settings=settings
+            )
+        if settings.APP_TYPE == AppType.llm:
+            settings = cast(LlmSettings, settings)
+            return await self.handle_model_llm(
                 request=request, model=model, settings=settings
             )
 
@@ -117,6 +165,35 @@ class ModelHandler:
             raise HTTPException(status_code=404, detail="Model not found")
         return retrieved_model
 
+    async def handle_model_llm(
+        self,
+        request: "Request",
+        model: Text,
+        settings: "LlmSettings",
+    ) -> Model:
+        from languru.action.base import ActionBase
+
+        action: "ActionBase" = get_value_from_app(
+            request.app, key="action", value_typing=ActionBase
+        )
+        logger = get_value_from_app(
+            request.app,
+            key="logger",
+            value_typing=logging.Logger,
+            default=logging.getLogger(settings.APP_NAME),
+        )
+        try:
+            model = action.get_model_name(model)
+        except ModelNotFound as e:
+            logger.debug(f"Model not found: {e}")
+            raise HTTPException(status_code=404, detail=str(e))
+        return Model(
+            id=model,
+            created=int(time.time()),
+            object="model",
+            owned_by=settings.LLM_BASE_URL,
+        )
+
 
 class ModelRegisterHandler:
     async def handle_model_register_request(
@@ -126,6 +203,11 @@ class ModelRegisterHandler:
             settings = cast(AgentSettings, settings)
             return await self.handle_model_register_agent(
                 request=request, model=model, settings=settings
+            )
+        if settings.APP_TYPE == AppType.llm:
+            raise HTTPException(
+                status_code=403,
+                detail="Model registration not allowed for this app server type",
             )
 
         # Not implemented or unknown app server type
@@ -183,7 +265,7 @@ async def get_model(
     model: Text = PathParam(...),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> Model:
-    return await ModelHandler().handle_model_request(
+    return await RetrieveModelHandler().handle_model_request(
         request=request, model=model, settings=settings
     )
 

@@ -1,9 +1,11 @@
 import random
+import time
 
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 from languru.types.completions import Completion
+from languru.types.model import Model
 
 return_chat_completion = ChatCompletion.model_validate(
     {
@@ -253,5 +255,13 @@ return_embedding = CreateEmbeddingResponse.model_validate(
         "model": "text-embedding-ada-002",
         "object": "list",
         "usage": {"prompt_tokens": 3, "total_tokens": 3},
+    }
+)
+return_model = Model.model_validate(
+    {
+        "id": "model_id",
+        "created": int(time.time()),
+        "object": "model",
+        "owned_by": "test",
     }
 )
