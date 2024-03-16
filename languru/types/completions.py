@@ -1,5 +1,7 @@
-from typing import Dict, List, Optional, Text, Union
+from typing import Dict, List, Literal, Optional, Text, Union
 
+from openai.types.completion import Completion as OpenaiCompletion
+from openai.types.completion_choice import CompletionChoice as OpenaiCompletionChoice
 from pydantic import BaseModel, Field
 
 
@@ -8,7 +10,9 @@ class CompletionRequest(BaseModel):
     prompt: Union[Text, List[Union[Text, List[int]]]]
     best_of: Optional[int] = Field(
         default=1,
-        description="Generates best_of completions server-side and returns the 'best' one.",
+        description=(
+            "Generates best_of completions server-side and returns the 'best' one."
+        ),
     )
     echo: Optional[bool] = Field(
         default=False, description="Echo back the prompt in addition to the completion."
@@ -21,7 +25,9 @@ class CompletionRequest(BaseModel):
     )
     logit_bias: Optional[Dict[int, int]] = Field(
         default=None,
-        description="Modify the likelihood of specified tokens appearing in the completion.",
+        description=(
+            "Modify the likelihood of specified tokens appearing in the completion."
+        ),
     )
     logprobs: Optional[int] = Field(
         default=None,
@@ -31,7 +37,9 @@ class CompletionRequest(BaseModel):
     )
     max_tokens: Optional[int] = Field(
         default=16,
-        description="The maximum number of tokens that can be generated in the completion.",
+        description=(
+            "The maximum number of tokens that can be generated in the completion."
+        ),
     )
     n: Optional[int] = Field(
         default=1, description="How many completions to generate for each prompt."
@@ -63,8 +71,18 @@ class CompletionRequest(BaseModel):
         default=1,
         ge=0,
         le=1,
-        description="An alternative to sampling with temperature, called nucleus sampling.",
+        description=(
+            "An alternative to sampling with temperature, called nucleus sampling."
+        ),
     )
     user: Optional[Text] = Field(
         default=None, description="A unique identifier representing your end-user."
     )
+
+
+class CompletionChoice(OpenaiCompletionChoice):
+    finish_reason: Optional[Literal["stop", "length", "content_filter"]] = None
+
+
+class Completion(OpenaiCompletion):
+    choices: List[CompletionChoice]

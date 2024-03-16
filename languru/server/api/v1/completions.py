@@ -1,14 +1,12 @@
 import math
 import random
 import time
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
-import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from openai.types.completion import Completion
 from pyassorted.asyncio.executor import run_func, run_generator
-from yarl import URL
 
 from languru.exceptions import ModelNotFound
 from languru.server.config import (
@@ -20,7 +18,10 @@ from languru.server.config import (
 from languru.server.deps.common import app_settings
 from languru.server.utils.common import get_value_from_app
 from languru.types.completions import CompletionRequest
-from languru.utils.http import requests_stream_lines
+from languru.utils.http import simple_sse_encode
+
+if TYPE_CHECKING:
+    from openai import Stream
 
 router = APIRouter()
 
@@ -104,6 +105,8 @@ class TextCompletionHandler:
         settings: "AgentSettings",
         **kwargs,
     ) -> Completion | StreamingResponse:
+        from openai import OpenAI
+
         from languru.resources.model.discovery import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
@@ -120,24 +123,26 @@ class TextCompletionHandler:
             )
 
         model = random.choice(models)
-        url = URL(model.owned_by).with_path("/completions")
+
         # Request completion
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
         # Stream
         if completion_request.stream is True:
+            completion_stream_params = completion_request.model_dump(exclude_none=True)
+            completion_stream_params.pop("stream", None)
+            text_completion_stream: "Stream[Completion]" = await run_func(
+                client.completions.create, **completion_stream_params, stream=True
+            )
             return StreamingResponse(
-                requests_stream_lines(
-                    str(url), data=completion_request.model_dump(exclude_none=True)
-                ),
+                simple_sse_encode(text_completion_stream, logger=settings.APP_NAME),
                 media_type="application/stream+json",
             )
         # Normal
         else:
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.post(
-                    str(url), json=completion_request.model_dump(exclude_none=True)
-                )
-                response.raise_for_status()
-                return Completion(**response.json())
+            return await run_func(
+                client.completions.create,
+                completion_request.model_dump(exclude_none=True),
+            )
 
 
 @router.post("/completions")

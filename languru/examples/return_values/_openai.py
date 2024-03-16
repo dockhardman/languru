@@ -1,5 +1,7 @@
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
+from languru.types.completions import Completion
+
 return_chat_completion = ChatCompletion.model_validate(
     {
         "id": "chatcmpl-xxxxxxxxxxxxxxxxxxxxxxxx",
@@ -133,6 +135,101 @@ return_chat_completion_chunks = [
             "model": "gpt-3.5-turbo-0125",
             "object": "chat.completion.chunk",
             "system_fingerprint": "fp_xxxx",
+        }
+    ),
+]
+return_text_completion = Completion.model_validate(
+    {
+        "id": "cmpl-xxxxxxxxxxxxxxxxxxxx",
+        "choices": [
+            {
+                "finish_reason": "stop",
+                "index": 0,
+                "text": "\n\nThis is a test.",
+            }
+        ],
+        "created": 1710579700,
+        "model": "gpt-3.5-turbo-instruct",
+        "object": "text_completion",
+        "usage": {"completion_tokens": 6, "prompt_tokens": 5, "total_tokens": 11},
+    }
+)
+return_text_completion_stream = [
+    Completion.model_validate(
+        {
+            "id": "cmpl-xxxxxxxxx",
+            "choices": [
+                {"finish_reason": None, "index": 0, "logprobs": None, "text": "\n\n"}
+            ],
+            "created": 1710580063,
+            "model": "gpt-3.5-turbo-instruct",
+            "object": "text_completion",
+        }
+    ),
+    Completion.model_validate(
+        {
+            "id": "cmpl-xxxxxxxxx",
+            "choices": [
+                {"finish_reason": None, "index": 0, "logprobs": None, "text": "This"}
+            ],
+            "created": 1710580063,
+            "model": "gpt-3.5-turbo-instruct",
+            "object": "text_completion",
+        }
+    ),
+    Completion.model_validate(
+        {
+            "id": "cmpl-xxxxxxxxx",
+            "choices": [
+                {"finish_reason": None, "index": 0, "logprobs": None, "text": " is"}
+            ],
+            "created": 1710580063,
+            "model": "gpt-3.5-turbo-instruct",
+            "object": "text_completion",
+        }
+    ),
+    Completion.model_validate(
+        {
+            "id": "cmpl-xxxxxxxxx",
+            "choices": [
+                {"finish_reason": None, "index": 0, "logprobs": None, "text": " a"}
+            ],
+            "created": 1710580063,
+            "model": "gpt-3.5-turbo-instruct",
+            "object": "text_completion",
+        }
+    ),
+    Completion.model_validate(
+        {
+            "id": "cmpl-xxxxxxxxx",
+            "choices": [
+                {"finish_reason": None, "index": 0, "logprobs": None, "text": " test"}
+            ],
+            "created": 1710580063,
+            "model": "gpt-3.5-turbo-instruct",
+            "object": "text_completion",
+        }
+    ),
+    Completion.model_validate(
+        {
+            "id": "cmpl-xxxxxxxxx",
+            "choices": [
+                {"finish_reason": None, "index": 0, "logprobs": None, "text": "."}
+            ],
+            "created": 1710580063,
+            "model": "gpt-3.5-turbo-instruct",
+            "object": "text_completion",
+        }
+    ),
+    Completion.model_validate(
+        {
+            "id": "cmpl-xxxxxxxxx",
+            "choices": [
+                {"finish_reason": "stop", "index": 0, "logprobs": None, "text": ""}
+            ],
+            "created": 1710580063,
+            "model": "gpt-3.5-turbo-instruct",
+            "object": "text_completion",
         }
     ),
 ]
