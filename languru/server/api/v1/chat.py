@@ -1,7 +1,7 @@
 import math
 import random
 import time
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -19,6 +19,9 @@ from languru.server.deps.common import app_settings
 from languru.server.utils.common import get_value_from_app
 from languru.types.chat.completions import ChatCompletionRequest
 from languru.utils.http import simple_sse_encode
+
+if TYPE_CHECKING:
+    from openai import Stream
 
 router = APIRouter()
 
@@ -131,11 +134,9 @@ class ChatCompletionHandler:
         if chat_completion_request.stream is True:
             chat_stream_params = chat_completion_request.model_dump(exclude_none=True)
             chat_stream_params.pop("stream", None)
-            chat_completion_stream = client.chat.completions.create(
-                **chat_stream_params, stream=True
+            chat_completion_stream: "Stream[ChatCompletionChunk]" = await run_func(
+                client.chat.completions.create, **chat_stream_params, stream=True
             )
-            for i in chat_completion_stream:
-                pass
             return StreamingResponse(
                 simple_sse_encode(chat_completion_stream, logger=settings.APP_NAME),
                 media_type="application/stream+json",
