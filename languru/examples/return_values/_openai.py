@@ -265,3 +265,38 @@ return_model = Model.model_validate(
         "owned_by": "test",
     }
 )
+return_moderation_create = {
+    "id": "modr-xxxxxxxx",
+    "model": "text-moderation-007",
+    "results": [
+        {
+            "categories": {
+                "harassment": True,
+                "harassment/threatening": True,
+                "hate": False,
+                "hate/threatening": False,
+                "self-harm": False,
+                "self-harm/instructions": False,
+                "self-harm/intent": False,
+                "sexual": False,
+                "sexual/minors": False,
+                "violence": True,
+                "violence/graphic": False,
+            },
+            "category_scores": {
+                "harassment": 0.5289425849914551,
+                "harassment/threatening": 0.5736028552055359,
+                "hate": 0.2289084941148758,
+                "hate/threatening": 0.02360980585217476,
+                "self-harm": 2.2852241272630636e-06,
+                "self-harm/instructions": 1.1107282871236634e-09,
+                "self-harm/intent": 1.6410396028732066e-06,
+                "sexual": 1.223516846948769e-05,
+                "sexual/minors": 7.491369302670137e-08,
+                "violence": 0.9972043633460999,
+                "violence/graphic": 3.43257597705815e-05,
+            },
+            "flagged": True,
+        }
+    ],
+}
