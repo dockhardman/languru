@@ -4,14 +4,18 @@ import os
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Literal, Optional, Text
+from typing import TYPE_CHECKING, Literal, Optional, Text
 
 import pytz
 from colorama import Fore, Style, init
 from pydantic_settings import BaseSettings
 from rich.console import Console
+from rich.table import Table
 
 from languru.version import VERSION
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 console = Console()
 
@@ -192,3 +196,23 @@ def init_paths(settings: "ServerBaseSettings") -> None:
     Path(settings.logs_dir).mkdir(parents=True, exist_ok=True, mode=0o770)
     Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True, mode=0o770)
     return
+
+
+def pretty_print_app_routes(app: "FastAPI") -> None:
+    """Show all routes in the FastAPI app."""
+
+    table = Table(title="\nLanguru Routes")
+    table.add_column("Path", style="cyan", no_wrap=True)
+    table.add_column("Name", style="magenta", no_wrap=True)
+
+    path_names = [
+        (str(getattr(route, "path", "null")), str(getattr(route, "name", "null")))
+        for route in app.routes
+    ]
+    url_list = [
+        {"path": path_name[0], "name": path_name[1]} for path_name in path_names
+    ]
+    url_list.sort(key=lambda item: item["path"])
+    for _url_item in url_list:
+        table.add_row(_url_item["path"], _url_item["name"])
+    console.print(table)

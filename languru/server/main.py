@@ -17,6 +17,7 @@ from languru.server.config import (
     console,
     init_logger_config,
     init_paths,
+    pretty_print_app_routes,
 )
 from languru.server.utils.common import get_value_from_app
 
@@ -144,8 +145,10 @@ __server_base_settings__ = ServerBaseSettings(DEFAULT_PORT=8000)
 app: "FastAPI"
 if __server_base_settings__.APP_TYPE == AppType.llm:
     app = create_app(LlmSettings())
+    pretty_print_app_routes(app)
 elif __server_base_settings__.APP_TYPE == AppType.agent:
     app = create_app(AgentSettings())
+    pretty_print_app_routes(app)
 else:
     console.print(
         "The APP_TYPE environment variable is not set. "
