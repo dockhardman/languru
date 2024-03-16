@@ -115,10 +115,15 @@ async def text_completions(
     request: Request,
     embedding_request: EmbeddingRequest = Body(
         ...,
-        example={
-            "input": "The food was delicious and the waiter...",
-            "model": "text-embedding-ada-002",
-            "encoding_format": "float",
+        openapi_examples={
+            "Quick embedding": {
+                "summary": "Quick embedding",
+                "description": "Embedding request",
+                "value": {
+                    "model": "text-embedding-ada-002",
+                    "input": "The food was delicious and the waiter...",
+                },
+            }
         },
     ),
     settings: ServerBaseSettings = Depends(app_settings),

@@ -150,11 +150,17 @@ async def text_completions(
     request: Request,
     completion_request: CompletionRequest = Body(
         ...,
-        example={
-            "model": "gpt-3.5-turbo-instruct",
-            "prompt": "Say this is a test",
-            "max_tokens": 7,
-            "temperature": 0,
+        openapi_examples={
+            "Quick text completion": {
+                "summary": "Quick text completion",
+                "description": "Text completion request",
+                "value": {
+                    "model": "gpt-3.5-turbo-instruct",
+                    "prompt": "Say this is a test",
+                    "max_tokens": 7,
+                    "temperature": 0,
+                },
+            },
         },
     ),
     settings: ServerBaseSettings = Depends(app_settings),
