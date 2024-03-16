@@ -1,5 +1,7 @@
 import json
+import time
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,11 +22,69 @@ def agent_env(monkeypatch: "MonkeyPatch"):
     monkeypatch.setenv("APP_TYPE", AppType.agent)
 
 
-def test_llm_app_chat(llm_env):
+@pytest.fixture
+def mocked_openai_chat_completion_create():
+    from openai.resources.chat.completions import Completions as OpenaiCompletions
+    from openai.types.chat import ChatCompletion
+
+    return_chat_completion = ChatCompletion.model_validate(
+        {
+            "id": "chatcmpl-xxxxxxxxxxxxxxxxxxxxxxxx",
+            "choices": [
+                {
+                    "finish_reason": "stop",
+                    "index": 0,
+                    "logprobs": None,
+                    "message": {
+                        "content": "Hello! How can I assist you today?",
+                        "role": "assistant",
+                        "function_call": None,
+                        "tool_calls": None,
+                    },
+                }
+            ],
+            "created": 1710559936,
+            "model": "gpt-3.5-turbo-0125",
+            "object": "chat.completion",
+            "system_fingerprint": "fp_xxxxxxxx",
+            "usage": {
+                "completion_tokens": 9,
+                "prompt_tokens": 19,
+                "total_tokens": 28,
+            },
+        }
+    )
+    with patch.object(
+        OpenaiCompletions, "create", MagicMock(return_value=return_chat_completion)
+    ):
+        yield
+
+
+@pytest.fixture
+def mocked_model_discovery_list():
+    from languru.resources.model.discovery import ModelDiscovery, SqlModelDiscovery
+    from languru.types.model import Model
+
+    return_model_discovery_list = [
+        Model(
+            id="gpt-3.5-turbo",
+            created=int(time.time()) - 1,
+            object="model",
+            owned_by="http://0.0.0.0:8682/v1",
+        )
+    ]
+    with patch.object(
+        ModelDiscovery, "list", MagicMock(return_value=return_model_discovery_list)
+    ), patch.object(
+        SqlModelDiscovery, "list", MagicMock(return_value=return_model_discovery_list)
+    ):
+        yield
+
+
+def test_llm_app_chat(llm_env, mocked_openai_chat_completion_create):
     from languru.server.main import app
 
     with TestClient(app) as client:
-
         chat_call = {
             "model": "gpt-3.5-turbo",
             "messages": [
@@ -60,3 +120,20 @@ def test_llm_app_chat_stream(llm_env):
                     if chat_chunk["choices"][0]["delta"]["content"]:
                         answer += chat_chunk["choices"][0]["delta"]["content"]
             assert answer
+
+
+def test_agent_app_chat(
+    agent_env, mocked_model_discovery_list, mocked_openai_chat_completion_create
+):
+    from languru.server.main import app
+
+    with TestClient(app) as client:
+        chat_call = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Hello!"},
+            ],
+        }
+        response = client.post("/v1/chat/completions", json=chat_call)
+        assert response.status_code == 200

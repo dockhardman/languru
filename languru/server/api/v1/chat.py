@@ -3,7 +3,6 @@ import random
 import time
 from typing import cast
 
-import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
@@ -106,6 +105,8 @@ class ChatCompletionHandler:
         settings: "AgentSettings",
         **kwargs,
     ) -> ChatCompletion | ChatCompletionChunk | StreamingResponse:
+        from openai import OpenAI
+
         from languru.resources.model.discovery import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
@@ -127,6 +128,7 @@ class ChatCompletionHandler:
         url = URL(model.owned_by).with_path("/chat/completions")
 
         # Request completion
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
         # Stream
         if chat_completion_request.stream is True:
             return StreamingResponse(
@@ -138,13 +140,10 @@ class ChatCompletionHandler:
             )
         # Normal
         else:
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.post(
-                    str(url),
-                    json=chat_completion_request.model_dump(exclude_none=True),
-                )
-                response.raise_for_status()
-                return ChatCompletion(**response.json())
+            return await run_func(
+                client.chat.completions.create,
+                **chat_completion_request.model_dump(exclude_none=True),
+            )
 
 
 @router.post("/chat/completions")
