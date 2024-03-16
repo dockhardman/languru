@@ -25,37 +25,27 @@ def agent_env(monkeypatch: "MonkeyPatch"):
 @pytest.fixture
 def mocked_openai_chat_completion_create():
     from openai.resources.chat.completions import Completions as OpenaiCompletions
-    from openai.types.chat import ChatCompletion
 
-    return_chat_completion = ChatCompletion.model_validate(
-        {
-            "id": "chatcmpl-xxxxxxxxxxxxxxxxxxxxxxxx",
-            "choices": [
-                {
-                    "finish_reason": "stop",
-                    "index": 0,
-                    "logprobs": None,
-                    "message": {
-                        "content": "Hello! How can I assist you today?",
-                        "role": "assistant",
-                        "function_call": None,
-                        "tool_calls": None,
-                    },
-                }
-            ],
-            "created": 1710559936,
-            "model": "gpt-3.5-turbo-0125",
-            "object": "chat.completion",
-            "system_fingerprint": "fp_xxxxxxxx",
-            "usage": {
-                "completion_tokens": 9,
-                "prompt_tokens": 19,
-                "total_tokens": 28,
-            },
-        }
-    )
+    from languru.examples.return_values._openai import return_chat_completion_chunks
+
     with patch.object(
-        OpenaiCompletions, "create", MagicMock(return_value=return_chat_completion)
+        OpenaiCompletions,
+        "create",
+        MagicMock(return_value=return_chat_completion_chunks),
+    ):
+        yield
+
+
+@pytest.fixture
+def mocked_openai_chat_completion_create_stream():
+    from openai.resources.chat.completions import Completions as OpenaiCompletions
+
+    from languru.examples.return_values._openai import return_chat_completion_chunks
+
+    with patch.object(
+        OpenaiCompletions,
+        "create",
+        MagicMock(return_value=return_chat_completion_chunks),
     ):
         yield
 
@@ -96,7 +86,7 @@ def test_llm_app_chat(llm_env, mocked_openai_chat_completion_create):
         assert response.status_code == 200
 
 
-def test_llm_app_chat_stream(llm_env):
+def test_llm_app_chat_stream(llm_env, mocked_openai_chat_completion_create_stream):
     from languru.server.main import app
 
     with TestClient(app) as client:
@@ -137,3 +127,31 @@ def test_agent_app_chat(
         }
         response = client.post("/v1/chat/completions", json=chat_call)
         assert response.status_code == 200
+
+
+def test_agent_app_chat_stream(
+    agent_env, mocked_model_discovery_list, mocked_openai_chat_completion_create_stream
+):
+    from languru.server.main import app
+
+    with TestClient(app) as client:
+
+        chat_call = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Hello!"},
+            ],
+            "stream": True,
+        }
+        with client.stream(
+            "POST", url="/v1/chat/completions", json=chat_call
+        ) as response:
+            answer = ""
+            for line in response.iter_lines():
+                line = line.replace("data:", "", 1).strip()
+                if line and line != "[DONE]":
+                    chat_chunk = json.loads(line)
+                    if chat_chunk["choices"][0]["delta"]["content"]:
+                        answer += chat_chunk["choices"][0]["delta"]["content"]
+            assert answer

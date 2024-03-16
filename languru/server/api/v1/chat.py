@@ -7,7 +7,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pyassorted.asyncio.executor import run_func, run_generator
-from yarl import URL
 
 from languru.exceptions import ModelNotFound
 from languru.server.config import (
@@ -19,7 +18,7 @@ from languru.server.config import (
 from languru.server.deps.common import app_settings
 from languru.server.utils.common import get_value_from_app
 from languru.types.chat.completions import ChatCompletionRequest
-from languru.utils.http import requests_stream_lines
+from languru.utils.http import simple_sse_encode
 
 router = APIRouter()
 
@@ -125,17 +124,20 @@ class ChatCompletionHandler:
                 detail=f"Model '{chat_completion_request.model}' not found",
             )
         model = random.choice(models)
-        url = URL(model.owned_by).with_path("/chat/completions")
 
         # Request completion
         client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
         # Stream
         if chat_completion_request.stream is True:
+            chat_stream_params = chat_completion_request.model_dump(exclude_none=True)
+            chat_stream_params.pop("stream", None)
+            chat_completion_stream = client.chat.completions.create(
+                **chat_stream_params, stream=True
+            )
+            for i in chat_completion_stream:
+                pass
             return StreamingResponse(
-                requests_stream_lines(
-                    str(url),
-                    data=chat_completion_request.model_dump(exclude_none=True),
-                ),
+                simple_sse_encode(chat_completion_stream, logger=settings.APP_NAME),
                 media_type="application/stream+json",
             )
         # Normal
