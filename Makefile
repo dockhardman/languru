@@ -21,4 +21,4 @@ update-all:
 		poetry export --without-hashes --with test -E server -E google -E groq -E huggingface_cpu -f requirements.txt --output requirements-test.txt
 
 pytest:
-	python -m pytest --cov=languru --cov-report=xml:coverage.xml tests/
+	python -m pytest --cov=languru --cov-config=.coveragerc --cov-report=xml:coverage.xml
