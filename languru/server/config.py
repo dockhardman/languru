@@ -2,23 +2,38 @@ import logging
 import logging.config
 import os
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
-from typing import Optional, Text
+from typing import TYPE_CHECKING, Literal, Optional, Text
 
 import pytz
 from colorama import Fore, Style, init
 from pydantic_settings import BaseSettings
+from rich.console import Console
+from rich.table import Table
 
 from languru.version import VERSION
 
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
-class Settings(BaseSettings):
+console = Console()
+
+
+# string enum
+class AppType(str, Enum):
+    llm = "llm"
+    agent = "agent"
+
+
+class ServerBaseSettings(BaseSettings):
     """Settings for the server."""
 
     # Server
-    APP_NAME: Text = "languru-server"
+    APP_NAME: Text = "languru"
     SERVICE_NAME: Text = APP_NAME
     APP_VERSION: Text = VERSION
+    APP_TYPE: Optional[Literal[AppType.llm, AppType.agent]] = None
     is_production: bool = False
     is_development: bool = True
     is_testing: bool = False
@@ -26,7 +41,7 @@ class Settings(BaseSettings):
     logging_level: Text = "DEBUG"
     logs_dir: Text = "logs"
     HOST: Text = "0.0.0.0"
-    DEFAULT_PORT: int = 8680
+    DEFAULT_PORT: int
     PORT: Optional[int] = None
     WORKERS: int = 1
     RELOAD: bool = True
@@ -35,17 +50,43 @@ class Settings(BaseSettings):
     RELOAD_DELAY: float = 5.0
     DATA_DIR: Text = str(Path("./data").absolute())
 
-    # Model discovery configuration
-    url_model_discovery: Text = f"sqlite:///{DATA_DIR}/languru_model_discovery.db"
-    MODEL_REGISTER_PERIOD: int = 10
-
     # Resources configuration
     openai_available: bool = True if os.environ.get("OPENAI_API_KEY") else False
 
 
-settings = Settings()
+class LlmSettings(ServerBaseSettings):
+    APP_NAME: Text = "languru-llm"
+    SERVICE_NAME: Text = APP_NAME
+    APP_TYPE: Literal[AppType.llm] = AppType.llm
+    DEFAULT_PORT: int = 8682
 
-logger = logging.getLogger(settings.SERVICE_NAME)
+    # LLM Server Configuration
+    LLM_BASE_URL: Text = "http://0.0.0.0:8682/v1"
+    ACTION_BASE_URL: Text = LLM_BASE_URL  # Deprecated, use LLM_BASE_URL instead
+    ACTION_ENDPOINT_URL: Text = LLM_BASE_URL  # Deprecated, use LLM_BASE_URL instead
+    AGENT_BASE_URL: Optional[Text] = None
+    MODEL_REGISTER_PERIOD: int = 10
+    MODEL_REGISTER_FAIL_PERIOD: int = 60
+
+    # Hardware device configuration
+    device: Optional[Text] = None
+    dtype: Optional[Text] = None
+
+    # LLM action configuration
+    action: Text = "languru.action.openai.OpenaiAction"
+
+
+class AgentSettings(ServerBaseSettings):
+    # Server
+    APP_NAME: Text = "languru-agent"
+    SERVICE_NAME: Text = APP_NAME
+    APP_TYPE: Literal[AppType.agent] = AppType.agent
+    DEFAULT_PORT: int = 8680
+    DATA_DIR: Text = str(Path("./data").absolute())
+
+    # Model discovery configuration
+    MODEL_REGISTER_PERIOD: int = 10
+    url_model_discovery: Text = f"sqlite:///{DATA_DIR}/languru_model_discovery.db"
 
 
 class IsoDatetimeFormatter(logging.Formatter):
@@ -89,12 +130,12 @@ class ColoredIsoDatetimeFormatter(IsoDatetimeFormatter):
         return super(ColoredIsoDatetimeFormatter, self).format(record)
 
 
-def default_logging_config():
+def default_logging_config(settings: "ServerBaseSettings"):
     d = {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "colered_formatter": {
+            "colored_formatter": {
                 "()": ColoredIsoDatetimeFormatter,
                 "format": "%(asctime)s %(levelname)-8s %(name)s  - %(message)s",
             },
@@ -108,7 +149,7 @@ def default_logging_config():
             "console_handler": {
                 "level": "DEBUG",
                 "class": "logging.StreamHandler",
-                "formatter": "colered_formatter",
+                "formatter": "colored_formatter",
             },
             "file_handler": {
                 "level": settings.logging_level,
@@ -145,8 +186,34 @@ def default_logging_config():
     return d
 
 
-def init_logger_config():
+def init_logger_config(settings: "ServerBaseSettings") -> None:
     if settings.USE_COLORS:
         init(autoreset=True)
-    logging.config.dictConfig(default_logging_config())
-    return logger
+    logging.config.dictConfig(default_logging_config(settings))
+    return
+
+
+def init_paths(settings: "ServerBaseSettings") -> None:
+    Path(settings.logs_dir).mkdir(parents=True, exist_ok=True, mode=0o770)
+    Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True, mode=0o770)
+    return
+
+
+def pretty_print_app_routes(app: "FastAPI") -> None:
+    """Show all routes in the FastAPI app."""
+
+    table = Table(title="\nLanguru Routes")
+    table.add_column("Path", style="cyan", no_wrap=True)
+    table.add_column("Name", style="magenta", no_wrap=True)
+
+    path_names = [
+        (str(getattr(route, "path", "null")), str(getattr(route, "name", "null")))
+        for route in app.routes
+    ]
+    url_list = [
+        {"path": path_name[0], "name": path_name[1]} for path_name in path_names
+    ]
+    url_list.sort(key=lambda item: item["path"])
+    for _url_item in url_list:
+        table.add_row(_url_item["path"], _url_item["name"])
+    console.print(table)

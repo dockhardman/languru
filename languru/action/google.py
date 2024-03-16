@@ -11,7 +11,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from openai.types.completion import Completion
 
 from languru.action.base import ActionBase, ModelDeploy
-from languru.llm.config import logger
+from languru.config import logger
 
 
 class GoogleGenaiAction(ActionBase):

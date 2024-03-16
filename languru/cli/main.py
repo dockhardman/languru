@@ -10,7 +10,7 @@ def app():
 
 
 @click.group()
-def server():
+def agent():
     pass
 
 
@@ -20,49 +20,62 @@ def llm():
 
 
 @click.command("run")
-def server_run():
-    from languru.server.app import run_app
+def agent_run():
+    from languru.server.config import AgentSettings, AppType
+    from languru.server.main import run_app
 
-    click.echo("Running server")
-    run_app()
+    settings = AgentSettings()
+    settings.APP_TYPE = os.environ["APP_TYPE"] = AppType.agent
+
+    click.echo("Running agent server")
+    run_app(settings)
 
 
 @click.command("run")
 @click.option("--action", default=None, help="Action to run")
 @click.option("--port", "-p", default=None, help="Port to run the server")
-def llm_run(action: Optional[Text], port: Optional[int]):
-    from yarl import URL
-
-    from languru.llm.app import run_app
-    from languru.llm.config import settings
+@click.option("--auto-port", default=True, help="Port to run the server")
+@click.option("--agent-base-url", default=None, help="Agent base URL")
+def llm_run(
+    action: Optional[Text],
+    port: Optional[int],
+    auto_port: bool = True,
+    agent_base_url: Optional[Text] = None,
+):
+    from languru.server.config import AppType, LlmSettings
+    from languru.server.main import run_app
     from languru.utils.socket import check_port, get_available_port
+
+    settings = LlmSettings()
+    settings.APP_TYPE = os.environ["APP_TYPE"] = AppType.llm
 
     # Parse action parameter
     if action is not None and action.strip() != "":
         os.environ["ACTION"] = settings.action = action.strip()
+
     # Parse port parameter
-    if port is None:
-        port = get_available_port(settings.DEFAULT_PORT)  # Determine port
-    else:
-        if check_port(port) is False:
-            raise ValueError(f"The port '{settings.PORT}' is already in use")
+    if port is None and auto_port is True:
+        port = get_available_port(settings.DEFAULT_PORT)  # Search for available port
+    elif port is None:
+        port = settings.DEFAULT_PORT
+    if check_port(port) is False:
+        raise ValueError(f"The port '{settings.PORT}' is already in use")
     if port != settings.DEFAULT_PORT:
         click.echo(f"Using port {port} instead of default port {settings.DEFAULT_PORT}")
-    settings.PORT = port
-    os.environ["PORT"] = str(port)
-    # Parse action base url
-    os.environ["ACTION_BASE_URL"] = settings.ACTION_BASE_URL = str(
-        URL(settings.ACTION_BASE_URL).with_port(port)
-    )
+    settings.PORT, os.environ["PORT"] = port, str(port)
+
+    # Parse agent base URL parameter
+    if agent_base_url is not None and agent_base_url.strip() != "":
+        os.environ["AGENT_BASE_URL"] = settings.AGENT_BASE_URL = agent_base_url.strip()
 
     # Run the app
     click.echo("Running llm server")
-    run_app()
+    run_app(settings=settings)
 
 
-app.add_command(server)
+app.add_command(agent)
 app.add_command(llm)
-server.add_command(server_run)
+agent.add_command(agent_run)
 llm.add_command(llm_run)
 
 
