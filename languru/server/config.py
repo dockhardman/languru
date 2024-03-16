@@ -61,8 +61,9 @@ class LlmSettings(ServerBaseSettings):
     DEFAULT_PORT: int = 8682
 
     # LLM Server Configuration
-    ACTION_BASE_URL: Text = "http://0.0.0.0:8682"
-    ACTION_ENDPOINT_URL: Text = "http://0.0.0.0:8682"
+    LLM_BASE_URL: Text = "http://0.0.0.0:8682/v1"
+    ACTION_BASE_URL: Text = LLM_BASE_URL  # Deprecated, use LLM_BASE_URL instead
+    ACTION_ENDPOINT_URL: Text = LLM_BASE_URL  # Deprecated, use LLM_BASE_URL instead
     AGENT_BASE_URL: Optional[Text] = None
     MODEL_REGISTER_PERIOD: int = 10
     MODEL_REGISTER_FAIL_PERIOD: int = 60
