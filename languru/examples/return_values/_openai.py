@@ -1,4 +1,7 @@
+import random
+
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 from languru.types.completions import Completion
 
@@ -233,3 +236,22 @@ return_text_completion_stream = [
         }
     ),
 ]
+return_embedding = CreateEmbeddingResponse.model_validate(
+    {
+        "data": [
+            {
+                "embedding": [random.uniform(-1, 1) for _ in range(1536)],
+                "index": 0,
+                "object": "embedding",
+            },
+            {
+                "embedding": [random.uniform(-1, 1) for _ in range(1536)],
+                "index": 1,
+                "object": "embedding",
+            },
+        ],
+        "model": "text-embedding-ada-002",
+        "object": "list",
+        "usage": {"prompt_tokens": 3, "total_tokens": 3},
+    }
+)
