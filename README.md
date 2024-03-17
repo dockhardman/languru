@@ -2,6 +2,10 @@
 
 The general-purpose LLM app stacks deploy AI services quickly and (stupidly) simply.
 
+[![image](https://img.shields.io/pypi/v/languru.svg)](https://pypi.python.org/pypi/languru)
+[![image](https://img.shields.io/pypi/l/languru.svg)](https://pypi.python.org/pypi/languru)
+[![image](https://img.shields.io/pypi/pyversions/languru.svg)](https://pypi.python.org/pypi/languru)
+[![PytestCI](https://github.com/dockhardman/languru/actions/workflows/python-pytest.yml/badge.svg)](https://github.com/dockhardman/languru/actions/workflows/python-pytest.yml)
 [![codecov](https://codecov.io/gh/dockhardman/languru/graph/badge.svg?token=OFX6C8Z31C)](https://codecov.io/gh/dockhardman/languru)
 
 ## Getting Started
@@ -10,27 +14,51 @@ Install Languru:
 
 ```shell
 pip install languru[server]
-```
-
-Or install all dependencies (include `torch`, `transformers`, ...)
-
-```shell
-pip install languru[all]
-```
-
-Run agent server:
-
-```shell
-languru server run
+pip install languru[all]  # Or install all dependencies (include `torch`, `transformers`, ...)
 ```
 
 Run llm action server:
 
 ```shell
+echo OPENAI_API_KEY=<YOUR_API_KEY> >>.env  # Replace <YOUR_API_KEY> with your key
 languru llm run
 ```
 
 Query llm service.
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8682/v1")
+res = client.chat.completions.create(
+    model="gpt-3.5-turbo",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Hello!"},
+    ],
+)
+for choice in res.choices:
+    print(f"{choice.message.role}: {choice.message.content}")
+# assistant: Hello! How can I assist you today?
+```
+
+## Usages
+
+### Agent server
+
+Run agent server first:
+
+```shell
+languru agent run
+```
+
+Then run llm action server with `--agent-base-url` parameters:
+
+```shell
+languru llm run --agent-base-url http://localhost:8680
+```
+
+Query llm through agent server:
 
 ```python
 from openai import OpenAI
@@ -48,18 +76,15 @@ for choice in res.choices:
 # assistant: Hello! How can I assist you today?
 ```
 
-## Usages
-
 ### Chat Streaming
 
 The service is compatible with OpenAI chat stream mode.
 
 ```python
-# languru server run
 # languru llm run
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8680/v1")
+client = OpenAI(base_url="http://localhost:8682/v1")
 res = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[
@@ -97,7 +122,6 @@ class MicrosoftPhiAction(TransformersAction):
 Run agent server and llm action server.
 
 ```shell
-languru server run
 languru llm run --action module_path.MicrosoftPhiAction
 ```
 
@@ -106,7 +130,7 @@ Query llm chat.
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8680/v1")
+client = OpenAI(base_url="http://localhost:8682/v1")
 res = client.chat.completions.create(
     model="microsoft/phi-1_5",
     messages=[
@@ -127,7 +151,7 @@ from textwrap import dedent
 
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8680/v1")
+client = OpenAI(base_url="http://localhost:8682/v1")
 res = client.completions.create(
     model="microsoft/phi-1_5",
     prompt=dedent(
@@ -176,7 +200,6 @@ class STMiniLML12V2Action(TransformersAction):
 Run agent server and llm action server.
 
 ```shell
-languru server run
 languru llm run --action module_path.STMiniLML12V2Action
 ```
 
@@ -185,7 +208,7 @@ Query text embeddings:
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8680/v1")
+client = OpenAI(base_url="http://localhost:8682/v1")
 res = client.embeddings.create(
     input=[
         "What is your return policy for online purchases?",
@@ -205,7 +228,6 @@ print(f"The embeddings length is {len(res.data[0].embedding)}.")
 Run agent server and llm action server.
 
 ```shell
-languru server run
 languru llm run --action languru.action.google.GoogleGenaiAction
 ```
 
@@ -214,7 +236,7 @@ Query llm chat.
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8680/v1")
+client = OpenAI(base_url="http://localhost:8682/v1")
 
 # Chat
 res = client.chat.completions.create(
@@ -255,17 +277,16 @@ print(f"The embeddings length is {len(res.data[0].embedding)}.")
 Run gemma action server:
 
 ```shell
-languru server run
-MODEL_NAME=google/gemma-2b languru llm run --action languru.action.hf.TransformersAction
 MODEL_NAME=google/gemma-2b-it languru llm run --action languru.action.hf.TransformersAction
 ```
 
 Query gemma llm.
 
 ```python
+# MODEL_NAME=google/gemma-2b-it languru llm run --action languru.action.hf.TransformersAction
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8680/v1")
+client = OpenAI(base_url="http://localhost:8682/v1")
 res = client.chat.completions.create(
     model="google/gemma-2b-it",
     messages=[
@@ -312,9 +333,10 @@ for choice in res.choices:
 ```
 
 ```python
+# MODEL_NAME=google/gemma-2b languru llm run --action languru.action.hf.TransformersAction
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8680/v1")
+client = OpenAI(base_url="http://localhost:8682/v1")
 res = client.completions.create(
     model="google/gemma-2b",
     prompt="The capital of France is ",
