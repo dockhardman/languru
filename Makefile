@@ -22,3 +22,18 @@ update-all:
 
 pytest:
 	python -m pytest --cov=languru --cov-config=.coveragerc --cov-report=xml:coverage.xml
+
+# Build Docker
+build-docker:
+	LANGURU_VERSION=$$(poetry version -s) && \
+	echo "Building Docker image for Languru version $$LANGURU_VERSION" && \
+	docker build \
+		--file docker/dockerfile \
+		-t dockhardman/languru:$$LANGURU_VERSION \
+		--build-arg LANGURU_VERSION=$$LANGURU_VERSION \
+		.
+
+push-docker:
+	LANGURU_VERSION=$$(poetry version -s) && \
+	echo "Pushing Docker image for Languru version $$LANGURU_VERSION" && \
+	docker push dockhardman/languru:$$LANGURU_VERSION
