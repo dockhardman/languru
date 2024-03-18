@@ -4,7 +4,7 @@ FROM python:3.10-slim
 ARG LANGURU_VERSION=
 
 # Install a package with the version if specified, otherwise install the latest
-RUN if [ -z "$LANGURU_VERSION" ] ; then pip install languru ; else pip install languru==$LANGURU_VERSION ; fi
+RUN if [ -z "$LANGURU_VERSION" ] ; then pip install languru[server] ; else pip install languru[server]==$LANGURU_VERSION ; fi
 
 # Set the working directory
 WORKDIR /app
