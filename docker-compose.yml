@@ -25,12 +25,13 @@ services:
       - IS_PRODUCTION=${IS_PRODUCTION:-false}
       - IS_DEVELOPMENT=${IS_DEVELOPMENT:-true}
       - IS_TESTING=${IS_TESTING:-false}
-      - PORT=${PORT:-80}
+      - PORT=${PORT:-8682}
       - AGENT_BASE_URL=${AGENT_BASE_URL:-http://languru-agent}
+      - LLM_BASE_URL="http://languru-llm-openai:8682/v1"
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-xxxxxxxxxxxxxxxxxxxxxxxx}
       - COLUMN_NAME=${COLUMN_NAME:-120}
     ports:
-      - "8682:80"
+      - "8682:8682"
     command:
       - "llm"
       - "run"
