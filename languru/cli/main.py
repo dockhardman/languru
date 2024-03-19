@@ -19,6 +19,17 @@ def llm():
     pass
 
 
+@click.command("version")
+@click.option("--short", "-s", default=False, help="Action to run")
+def version(short: bool = False):
+    from languru.version import VERSION
+
+    if short is True:
+        click.echo(VERSION)
+    else:
+        click.echo(f"languru {VERSION}")
+
+
 @click.command("run")
 def agent_run():
     from languru.server.config import AgentSettings, AppType
