@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  languru-agent:
+    image: dockhardman/languru:${LANGURU_VERSION:-0.6.0}
+    container_name: languru-agent
+    environment:
+      - IS_PRODUCTION=${IS_PRODUCTION:-false}
+      - IS_DEVELOPMENT=${IS_DEVELOPMENT:-true}
+      - IS_TESTING=${IS_TESTING:-false}
+      - PORT=${PORT:-80}
+      - COLUMN_NAME=${COLUMN_NAME:-120}
+    ports:
+      - "8680:80"
+    command:
+      - "agent"
+      - "run"
+    networks:
+      - languru-network
+
+  languru-llm-openai:
+    image: dockhardman/languru:0.6.0
+    container_name: languru-llm-openai
+    environment:
+      - IS_PRODUCTION=${IS_PRODUCTION:-false}
+      - IS_DEVELOPMENT=${IS_DEVELOPMENT:-true}
+      - IS_TESTING=${IS_TESTING:-false}
+      - PORT=${PORT:-80}
+      - AGENT_BASE_URL=${AGENT_BASE_URL:-http://languru-agent}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-xxxxxxxxxxxxxxxxxxxxxxxx}
+      - COLUMN_NAME=${COLUMN_NAME:-120}
+    ports:
+      - "8682:80"
+    command:
+      - "llm"
+      - "run"
+    networks:
+      - languru-network
+
+networks:
+  languru-network:
+    driver: bridge
