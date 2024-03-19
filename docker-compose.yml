@@ -2,7 +2,10 @@ version: '3'
 
 services:
   languru-agent:
-    image: dockhardman/languru:${LANGURU_VERSION:-0.6.0}
+    image: languru:${LANGURU_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/dockerfile.dev
     container_name: languru-agent
     environment:
       - IS_PRODUCTION=${IS_PRODUCTION:-false}
@@ -12,6 +15,8 @@ services:
       - COLUMN_NAME=${COLUMN_NAME:-120}
     ports:
       - "8680:80"
+    volumes:
+      - ./languru:/app/languru
     command:
       - "agent"
       - "run"
@@ -19,7 +24,10 @@ services:
       - languru-network
 
   languru-llm-openai:
-    image: dockhardman/languru:0.6.0
+    image: languru:${LANGURU_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/dockerfile.dev
     container_name: languru-llm-openai
     environment:
       - IS_PRODUCTION=${IS_PRODUCTION:-false}
@@ -27,16 +35,20 @@ services:
       - IS_TESTING=${IS_TESTING:-false}
       - PORT=${PORT:-8682}
       - AGENT_BASE_URL=${AGENT_BASE_URL:-http://languru-agent}
-      - LLM_BASE_URL="http://languru-llm-openai:8682/v1"
+      - LLM_BASE_URL=http://languru-llm-openai:8682/v1
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-xxxxxxxxxxxxxxxxxxxxxxxx}
       - COLUMN_NAME=${COLUMN_NAME:-120}
     ports:
       - "8682:8682"
+    volumes:
+      - ./languru:/app/languru
     command:
       - "llm"
       - "run"
     networks:
       - languru-network
+    depends_on:
+      - languru-agent
 
 networks:
   languru-network:
