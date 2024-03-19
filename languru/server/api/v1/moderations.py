@@ -1,3 +1,4 @@
+import logging
 import math
 import random
 import time
@@ -87,6 +88,8 @@ class ModerationsHandler:
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
         )
+        logger = logging.getLogger(settings.APP_NAME)
+
         models = await run_func(
             model_discovery.list,
             id=moderation_request.model,
@@ -99,6 +102,8 @@ class ModerationsHandler:
 
         model = random.choice(models)
         client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
+
         return await run_func(
             client.moderations.create,
             **moderation_request.model_dump(exclude_none=True),

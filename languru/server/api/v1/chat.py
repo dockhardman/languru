@@ -1,3 +1,4 @@
+import logging
 import math
 import random
 import time
@@ -114,6 +115,7 @@ class ChatCompletionHandler:
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
         )
+        logger = logging.getLogger(settings.APP_NAME)
 
         # Get model name and model destination
         models = await run_func(
@@ -130,6 +132,7 @@ class ChatCompletionHandler:
 
         # Request completion
         client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
         # Stream
         if chat_completion_request.stream is True:
             chat_stream_params = chat_completion_request.model_dump(exclude_none=True)
