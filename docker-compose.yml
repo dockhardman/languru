@@ -49,6 +49,9 @@ services:
       - languru-network
     depends_on:
       - languru-agent
+    profiles:
+      - openai
+      - oai
 
 networks:
   languru-network:
