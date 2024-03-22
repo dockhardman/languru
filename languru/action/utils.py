@@ -14,7 +14,10 @@ def load_action(
     from languru.action.base import ActionBase
 
     logger.info(f"Loading action class '{action}'")
-    action_module_path, action_class_name = action.rsplit(".", 1)
+    if ":" in action:  # action is in the form of module_path:ClassName
+        action_module_path, action_class_name = action.rsplit(":", 1)
+    else:  # action is in the form of module_path.ClassName
+        action_module_path, action_class_name = action.rsplit(".", 1)
     action_cls: Type["ActionBase"] = getattr(
         importlib.import_module(action_module_path), action_class_name
     )
