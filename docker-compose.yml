@@ -50,8 +50,43 @@ services:
     depends_on:
       - languru-agent
     profiles:
-      - openai
+      - all
       - oai
+      - openai
+
+  languru-llm-google:
+    image: languru-google:${LANGURU_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/dockerfile.google.dev
+    container_name: languru-llm-google
+    environment:
+      - IS_PRODUCTION=${IS_PRODUCTION:-false}
+      - IS_DEVELOPMENT=${IS_DEVELOPMENT:-true}
+      - IS_TESTING=${IS_TESTING:-false}
+      - PORT=${PORT:-80}
+      - ACTION=languru.action.google:GoogleGenaiAction
+      - AGENT_BASE_URL=${AGENT_BASE_URL:-http://languru-agent}
+      - LLM_BASE_URL=http://languru-llm-google/v1
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-xxxxxxxxxxxxxxxxxxxxxxxx}
+      - COLUMN_NAME=${COLUMN_NAME:-89}
+    ports:
+      - "8683:80"
+    volumes:
+      - ./languru:/app/languru
+    command:
+      - "llm"
+      - "run"
+    networks:
+      - languru-network
+    depends_on:
+      - languru-agent
+    profiles:
+      - all
+      - gemini
+      - gg
+      - google
+
 
 networks:
   languru-network:
