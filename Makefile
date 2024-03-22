@@ -13,6 +13,9 @@ run-server:
 format-all:
 	isort . --skip setup.py && black --exclude setup.py .
 
+install-all:
+	poetry install -E all --with dev
+
 update-all:
 	poetry update && \
 		poetry export --without-hashes -f requirements.txt --output requirements.txt && \
