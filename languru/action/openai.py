@@ -49,6 +49,37 @@ class OpenaiAction(ActionBase):
         ModelDeploy("tts-1-hd", "tts-1-hd"),
         ModelDeploy("tts-1-hd-1106", "tts-1-hd-1106"),
         ModelDeploy("whisper-1", "whisper-1"),
+        ModelDeploy("openai/babbage-002", "babbage-002"),
+        ModelDeploy("openai/dall-e-2", "dall-e-2"),
+        ModelDeploy("openai/dall-e-3", "dall-e-3"),
+        ModelDeploy("openai/davinci-002", "davinci-002"),
+        ModelDeploy("openai/gpt-3.5-turbo", "gpt-3.5-turbo"),
+        ModelDeploy("openai/gpt-3.5-turbo-0125", "gpt-3.5-turbo-0125"),
+        ModelDeploy("openai/gpt-3.5-turbo-0301", "gpt-3.5-turbo-0301"),
+        ModelDeploy("openai/gpt-3.5-turbo-0613", "gpt-3.5-turbo-0613"),
+        ModelDeploy("openai/gpt-3.5-turbo-1106", "gpt-3.5-turbo-1106"),
+        ModelDeploy("openai/gpt-3.5-turbo-16k", "gpt-3.5-turbo-16k"),
+        ModelDeploy("openai/gpt-3.5-turbo-16k-0613", "gpt-3.5-turbo-16k-0613"),
+        ModelDeploy("openai/gpt-3.5-turbo-instruct", "gpt-3.5-turbo-instruct"),
+        ModelDeploy(
+            "openai/gpt-3.5-turbo-instruct-0914", "gpt-3.5-turbo-instruct-0914"
+        ),
+        ModelDeploy("openai/gpt-4", "gpt-4"),
+        ModelDeploy("openai/gpt-4-0125-preview", "gpt-4-0125-preview"),
+        ModelDeploy("openai/gpt-4-0613", "gpt-4-0613"),
+        ModelDeploy("openai/gpt-4-1106-preview", "gpt-4-1106-preview"),
+        ModelDeploy("openai/gpt-4-turbo-preview", "gpt-4-turbo-preview"),
+        ModelDeploy("openai/gpt-4-vision-preview", "gpt-4-vision-preview"),
+        ModelDeploy("openai/text-embedding-3-large", "text-embedding-3-large"),
+        ModelDeploy("openai/text-embedding-3-small", "text-embedding-3-small"),
+        ModelDeploy("openai/text-embedding-ada-002", "text-embedding-ada-002"),
+        ModelDeploy("openai/text-moderation-latest", "text-moderation-latest"),
+        ModelDeploy("openai/text-moderation-stable", "text-moderation-stable"),
+        ModelDeploy("openai/tts-1", "tts-1"),
+        ModelDeploy("openai/tts-1-1106", "tts-1-1106"),
+        ModelDeploy("openai/tts-1-hd", "tts-1-hd"),
+        ModelDeploy("openai/tts-1-hd-1106", "tts-1-hd-1106"),
+        ModelDeploy("openai/whisper-1", "whisper-1"),
     )
 
     def __init__(
@@ -76,6 +107,8 @@ class OpenaiAction(ActionBase):
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> "ChatCompletion":
         model = self.validate_model(model)
+        if kwargs.get("frequency_penalty") == 0.0:
+            kwargs.pop("frequency_penalty")
         chat_completion = self._client.chat.completions.create(
             messages=messages, model=model, **kwargs
         )
@@ -86,8 +119,10 @@ class OpenaiAction(ActionBase):
     ) -> Generator["ChatCompletionChunk", None, None]:
         if "stream" in kwargs and not kwargs["stream"]:
             logger.warning(f"Chat stream should be True, but got: {kwargs['stream']}")
-        kwargs.pop("stream", None)
         model = self.validate_model(model)
+        kwargs.pop("stream", None)
+        if kwargs.get("frequency_penalty") == 0.0:
+            kwargs.pop("frequency_penalty")
         chat_completion_stream = self._client.chat.completions.create(
             messages=messages, model=model, stream=True, **kwargs
         )
