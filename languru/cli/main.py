@@ -20,8 +20,8 @@ def llm():
 
 
 @click.command("version")
-@click.option("--short", "-s", default=False, help="Action to run")
-def version(short: bool = False):
+@click.option("--short", "-s", default=False, help="Action to run", is_flag=True)
+def pkg_version(short: bool = False):
     from languru.version import VERSION
 
     if short is True:
@@ -102,10 +102,13 @@ def llm_run(
     run_app(settings=settings)
 
 
+agent.add_command(agent_run)
+
+llm.add_command(llm_run)
+
 app.add_command(agent)
 app.add_command(llm)
-agent.add_command(agent_run)
-llm.add_command(llm_run)
+app.add_command(pkg_version)
 
 
 if __name__ == "__main__":
