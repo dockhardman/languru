@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Text
+from typing import Optional, Sequence, Text
 
 import openai
 
@@ -10,7 +10,13 @@ from languru.config import logger
 
 class GroqAction(OpenaiAction):
     model_deploys = (
+        ModelDeploy("groq/llama2-70b", "llama2-70b-4096"),
+        ModelDeploy("groq/llama2-70b-4096", "llama2-70b-4096"),
+        ModelDeploy("groq/mixtral-8x7b", "mixtral-8x7b-32768"),
+        ModelDeploy("groq/mixtral-8x7b-32768", "mixtral-8x7b-32768"),
+        ModelDeploy("llama2-70b", "llama2-70b-4096"),
         ModelDeploy("llama2-70b-4096", "llama2-70b-4096"),
+        ModelDeploy("mixtral-8x7b", "mixtral-8x7b-32768"),
         ModelDeploy("mixtral-8x7b-32768", "mixtral-8x7b-32768"),
     )
 
@@ -41,7 +47,13 @@ class GroqAction(OpenaiAction):
 
 class GroqOpenaiAction(OpenaiAction):
     model_deploys = (
+        ModelDeploy("groq/llama2-70b", "llama2-70b-4096"),
+        ModelDeploy("groq/llama2-70b-4096", "llama2-70b-4096"),
+        ModelDeploy("groq/mixtral-8x7b", "mixtral-8x7b-32768"),
+        ModelDeploy("groq/mixtral-8x7b-32768", "mixtral-8x7b-32768"),
+        ModelDeploy("llama2-70b", "llama2-70b-4096"),
         ModelDeploy("llama2-70b-4096", "llama2-70b-4096"),
+        ModelDeploy("mixtral-8x7b", "mixtral-8x7b-32768"),
         ModelDeploy("mixtral-8x7b-32768", "mixtral-8x7b-32768"),
     )
 
@@ -49,8 +61,13 @@ class GroqOpenaiAction(OpenaiAction):
         self,
         *args,
         api_key: Optional[Text] = None,
+        model_deploys: Optional[Sequence[ModelDeploy]] = None,
         **kwargs,
     ):
+        self._model_deploys = (
+            self.model_deploys if model_deploys is None else model_deploys
+        ) or ()
+
         api_key = api_key or os.environ.get("GROQ_API_KEY")
         if api_key is None:
             logger.error("GROQ_API_KEY is not set")
