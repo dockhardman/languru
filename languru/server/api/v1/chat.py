@@ -158,8 +158,8 @@ async def chat_completions(
     chat_completion_request: ChatCompletionRequest = Body(
         ...,
         openapi_examples={
-            "Quick chat": {
-                "summary": "Quick chat",
+            "OpenAI": {
+                "summary": "OpenAI",
                 "description": "Chat completion request",
                 "value": {
                     "model": "gpt-3.5-turbo",
@@ -168,7 +168,15 @@ async def chat_completions(
                         {"role": "user", "content": "Hello!"},
                     ],
                 },
-            }
+            },
+            "Google Gemini": {
+                "summary": "Google Gemini",
+                "description": "Chat completion request",
+                "value": {
+                    "model": "gemini-pro",
+                    "messages": [{"role": "user", "content": "Hello, how are you?"}],
+                },
+            },
         },
     ),
     settings: ServerBaseSettings = Depends(app_settings),
