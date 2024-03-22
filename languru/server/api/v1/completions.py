@@ -1,3 +1,4 @@
+import logging
 import math
 import random
 import time
@@ -112,6 +113,8 @@ class TextCompletionHandler:
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
         )
+        logger = logging.getLogger(settings.APP_NAME)
+
         models = await run_func(
             model_discovery.list,
             id=completion_request.model,
@@ -126,6 +129,7 @@ class TextCompletionHandler:
 
         # Request completion
         client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
         # Stream
         if completion_request.stream is True:
             completion_stream_params = completion_request.model_dump(exclude_none=True)

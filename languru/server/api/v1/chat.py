@@ -1,3 +1,4 @@
+import logging
 import math
 import random
 import time
@@ -114,6 +115,7 @@ class ChatCompletionHandler:
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
         )
+        logger = logging.getLogger(settings.APP_NAME)
 
         # Get model name and model destination
         models = await run_func(
@@ -130,6 +132,7 @@ class ChatCompletionHandler:
 
         # Request completion
         client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
         # Stream
         if chat_completion_request.stream is True:
             chat_stream_params = chat_completion_request.model_dump(exclude_none=True)
@@ -155,8 +158,8 @@ async def chat_completions(
     chat_completion_request: ChatCompletionRequest = Body(
         ...,
         openapi_examples={
-            "Quick chat": {
-                "summary": "Quick chat",
+            "OpenAI": {
+                "summary": "OpenAI",
                 "description": "Chat completion request",
                 "value": {
                     "model": "gpt-3.5-turbo",
@@ -165,7 +168,40 @@ async def chat_completions(
                         {"role": "user", "content": "Hello!"},
                     ],
                 },
-            }
+            },
+            "Google Gemini": {
+                "summary": "Google Gemini",
+                "description": "Chat completion request",
+                "value": {
+                    "model": "gemini-pro",
+                    "messages": [{"role": "user", "content": "Hello, how are you?"}],
+                },
+            },
+            "Perplexity Sonar": {
+                "summary": "Perplexity Sonar",
+                "description": "Chat completion request",
+                "value": {
+                    "model": "sonar-small-chat",
+                    "messages": [
+                        {"role": "system", "content": "Be precise and concise."},
+                        {
+                            "role": "user",
+                            "content": "How many stars are there in our galaxy?",
+                        },
+                    ],
+                },
+            },
+            "Groq Mixtral": {
+                "summary": "Groq Mixtral",
+                "description": "Chat completion request",
+                "value": {
+                    "model": "sonar-small-chat",
+                    "messages": [
+                        {"role": "system", "content": "You are an unhelpful assistant"},
+                        {"role": "user", "content": "Are you a fish?"},
+                    ],
+                },
+            },
         },
     ),
     settings: ServerBaseSettings = Depends(app_settings),

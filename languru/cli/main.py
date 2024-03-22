@@ -19,13 +19,37 @@ def llm():
     pass
 
 
+@click.command("version")
+@click.option("--short", "-s", default=False, help="Action to run", is_flag=True)
+def pkg_version(short: bool = False):
+    from languru.version import VERSION
+
+    if short is True:
+        click.echo(VERSION)
+    else:
+        click.echo(f"languru {VERSION}")
+
+
 @click.command("run")
-def agent_run():
+@click.option("--port", "-p", default=None, help="Port to run the server")
+def agent_run(port: Optional[int]):
     from languru.server.config import AgentSettings, AppType
     from languru.server.main import run_app
 
     settings = AgentSettings()
     settings.APP_TYPE = os.environ["APP_TYPE"] = AppType.agent
+
+    # Parse port parameter
+    if port is None and settings.PORT is not None:
+        port = settings.PORT
+    elif port is None:
+        port = settings.DEFAULT_PORT
+    port = int(port)
+    if port == settings.DEFAULT_PORT:
+        click.echo(f"Using default port {settings.DEFAULT_PORT}")
+    else:
+        click.echo(f"Using port {port} instead of default port {settings.DEFAULT_PORT}")
+    settings.PORT, os.environ["PORT"] = port, str(port)
 
     click.echo("Running agent server")
     run_app(settings)
@@ -54,13 +78,18 @@ def llm_run(
         os.environ["ACTION"] = settings.action = action.strip()
 
     # Parse port parameter
-    if port is None and auto_port is True:
+    if port is None and settings.PORT is not None:
+        port = settings.PORT
+    elif port is None and auto_port is True:
         port = get_available_port(settings.DEFAULT_PORT)  # Search for available port
     elif port is None:
         port = settings.DEFAULT_PORT
+    int(port)  # Check if port is a valid integer
     if check_port(port) is False:
         raise ValueError(f"The port '{settings.PORT}' is already in use")
-    if port != settings.DEFAULT_PORT:
+    if port == settings.DEFAULT_PORT:
+        click.echo(f"Using default port {settings.DEFAULT_PORT}")
+    else:
         click.echo(f"Using port {port} instead of default port {settings.DEFAULT_PORT}")
     settings.PORT, os.environ["PORT"] = port, str(port)
 
@@ -73,10 +102,13 @@ def llm_run(
     run_app(settings=settings)
 
 
+agent.add_command(agent_run)
+
+llm.add_command(llm_run)
+
 app.add_command(agent)
 app.add_command(llm)
-agent.add_command(agent_run)
-llm.add_command(llm_run)
+app.add_command(pkg_version)
 
 
 if __name__ == "__main__":
