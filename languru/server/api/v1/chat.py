@@ -177,6 +177,31 @@ async def chat_completions(
                     "messages": [{"role": "user", "content": "Hello, how are you?"}],
                 },
             },
+            "Perplexity Sonar": {
+                "summary": "Perplexity Sonar",
+                "description": "Chat completion request",
+                "value": {
+                    "model": "sonar-small-chat",
+                    "messages": [
+                        {"role": "system", "content": "Be precise and concise."},
+                        {
+                            "role": "user",
+                            "content": "How many stars are there in our galaxy?",
+                        },
+                    ],
+                },
+            },
+            "Groq Mixtral": {
+                "summary": "Groq Mixtral",
+                "description": "Chat completion request",
+                "value": {
+                    "model": "sonar-small-chat",
+                    "messages": [
+                        {"role": "system", "content": "You are an unhelpful assistant"},
+                        {"role": "user", "content": "Are you a fish?"},
+                    ],
+                },
+            },
         },
     ),
     settings: ServerBaseSettings = Depends(app_settings),
