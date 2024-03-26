@@ -75,6 +75,9 @@ flash-attn = { version = "^2", optional = true, markers = "sys_platform == 'linu
 nvgpu = { version = "^0.10.0", optional = true, markers = "sys_platform == 'linux'" }
 
 [tool.poetry.group.docs.dependencies]
+mkdocs-git-authors-plugin = "*"
+mkdocs-git-committers-plugin-2 = "*"
+mkdocs-git-revision-date-localized-plugin = "*"
 mkdocs-material = "^9"
 mkdocs-minify-plugin = "*"
 mkdocs-nav-weight = "*"
