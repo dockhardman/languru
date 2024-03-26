@@ -2,7 +2,7 @@ name: mkdocs
 on:
   push:
     branches:
-      - gh_page
+      - master
 permissions:
   contents: write
 jobs:
