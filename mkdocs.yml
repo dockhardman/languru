@@ -8,6 +8,17 @@ theme:
     repo: fontawesome/brands/github
     edit: material/pencil
     view: material/eye
+  palette:
+    - primary: lime
+    - accent: lime
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   features:
     - content.action.edit
     - content.code.annotate
