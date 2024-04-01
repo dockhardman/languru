@@ -1,5 +1,7 @@
 # Welcome to Languru
 
+The general-purpose LLM app stacks deploy AI services quickly and (stupidly) simply.
+
 [![image](https://img.shields.io/pypi/v/languru.svg)](https://pypi.python.org/pypi/languru)
 [![image](https://img.shields.io/pypi/l/languru.svg)](https://pypi.python.org/pypi/languru)
 [![image](https://img.shields.io/pypi/pyversions/languru.svg)](https://pypi.python.org/pypi/languru)
@@ -23,7 +25,7 @@ Run llm action server:
 OPENAI_API_KEY=$OPENAI_API_KEY languru llm run  # Remember set OPENAI_API_KEY before you run.
 ```
 
-Query llm service.
+Query LLM service, which is fully compatible with OpenAI APIs.
 
 ```python
 from openai import OpenAI
