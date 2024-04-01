@@ -8,6 +8,15 @@ theme:
     repo: fontawesome/brands/github
     edit: material/pencil
     view: material/eye
+  features:
+    - content.action.edit
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - navigation.path
+    - navigation.tabs
+    - navigation.top
+    - toc.follow
 plugins:
   - git-authors
   - mkdocs-nav-weight
