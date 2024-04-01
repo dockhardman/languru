@@ -8,6 +8,8 @@ The general-purpose LLM app stacks deploy AI services quickly and (stupidly) sim
 [![PytestCI](https://github.com/dockhardman/languru/actions/workflows/python-pytest.yml/badge.svg)](https://github.com/dockhardman/languru/actions/workflows/python-pytest.yml)
 [![codecov](https://codecov.io/gh/dockhardman/languru/graph/badge.svg?token=OFX6C8Z31C)](https://codecov.io/gh/dockhardman/languru)
 
+Documentation: [Github Pages](https://dockhardman.github.io/languru/)
+
 ## Getting Started
 
 Install Languru:
@@ -20,11 +22,10 @@ pip install languru[all]  # Or install all dependencies (include `torch`, `trans
 Run llm action server:
 
 ```shell
-echo OPENAI_API_KEY=<YOUR_API_KEY> >>.env  # Replace <YOUR_API_KEY> with your key
-languru llm run
+OPENAI_API_KEY=$OPENAI_API_KEY languru llm run  # Remember set OPENAI_API_KEY before you run.
 ```
 
-Query llm service.
+Query LLM service, which is fully compatible with OpenAI APIs.
 
 ```python
 from openai import OpenAI
