@@ -211,6 +211,30 @@ docs = ["mkdocs", "mkdocs-material", "mkdocs-material-extensions", "mkdocstrings
 test = ["pytest", "pytest-cov"]
 
 [[package]]
+name = "anthropic"
+version = "0.21.3"
+description = "The official Python library for the anthropic API"
+optional = true
+python-versions = ">=3.7"
+files = [
+    {file = "anthropic-0.21.3-py3-none-any.whl", hash = "sha256:5869115453b543a46ded6515c9f29b8d610b6e94bbba3230ad80ac947d2b0862"},
+    {file = "anthropic-0.21.3.tar.gz", hash = "sha256:02f1ab5694c497e2b2d42d30d51a4f2edcaca92d2ec86bb64fe78a9c7434a869"},
+]
+
+[package.dependencies]
+anyio = ">=3.5.0,<5"
+distro = ">=1.7.0,<2"
+httpx = ">=0.23.0,<1"
+pydantic = ">=1.9.0,<3"
+sniffio = "*"
+tokenizers = ">=0.13.0"
+typing-extensions = ">=4.7,<5"
+
+[package.extras]
+bedrock = ["boto3 (>=1.28.57)", "botocore (>=1.31.57)"]
+vertex = ["google-auth (>=2,<3)"]
+
+[[package]]
 name = "anyio"
 version = "4.3.0"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
@@ -2900,6 +2924,7 @@ description = "Nvidia JIT LTO Library"
 optional = true
 python-versions = ">=3"
 files = [
+    {file = "nvidia_nvjitlink_cu12-12.4.99-py3-none-manylinux2014_aarch64.whl", hash = "sha256:75d6498c96d9adb9435f2bbdbddb479805ddfb97b5c1b32395c694185c20ca57"},
     {file = "nvidia_nvjitlink_cu12-12.4.99-py3-none-manylinux2014_x86_64.whl", hash = "sha256:c6428836d20fe7e327191c175791d38570e10762edc588fb46749217cd444c74"},
     {file = "nvidia_nvjitlink_cu12-12.4.99-py3-none-win_amd64.whl", hash = "sha256:991905ffa2144cb603d8ca7962d75c35334ae82bf92820b6ba78157277da1ad2"},
 ]
@@ -5675,7 +5700,8 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy", "pytest-ruff (>=0.2.1)"]
 
 [extras]
-all = ["einops", "fastapi", "google-cloud-aiplatform", "google-generativeai", "groq", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+all = ["anthropic", "einops", "fastapi", "google-cloud-aiplatform", "google-generativeai", "groq", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+anthropic = ["anthropic"]
 cuda = ["accelerate", "bitsandbytes", "flash-attn", "nvgpu"]
 google = ["google-cloud-aiplatform", "google-generativeai"]
 groq = ["groq"]
@@ -5687,4 +5713,4 @@ torch = ["torch", "torchaudio", "torchvision"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "98e7b4359729c9a5d6ba4f012d6cdd0acd9893e90e8662aa86b22738f2e80fd0"
+content-hash = "1db2b02e83daed0c71aebbafb69ce8c7bf7f47467870d431db7246e591194105"
