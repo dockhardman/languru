@@ -1,9 +1,12 @@
 [tool.poetry]
 authors = ["Allen Chou <f1470891079@gmail.com>"]
 description = "The general purpose LLM app stacks."
+documentation = "https://dockhardman.github.io/languru/"
+homepage = "https://github.com/dockhardman/languru"
 license = "Apache-2.0 license"
 name = "languru"
 readme = "README.md"
+repository = "https://github.com/dockhardman/languru"
 version = "0.7.0"
 
 [tool.poetry.dependencies]
