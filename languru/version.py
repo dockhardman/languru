@@ -1,3 +1,3 @@
 from typing import Final, Text
 
-VERSION: Final[Text] = "0.7.0"
+VERSION: Final[Text] = "0.7.1"
