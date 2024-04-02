@@ -42,3 +42,10 @@ for choice in res.choices:
     print(f"{choice.message.role}: {choice.message.content}")
 # assistant: Hello! How can I assist you today?
 ```
+
+## Concepts
+
+- [Action](concepts/action.md)
+- [LLM Server](concepts/llm_server.md)
+- [Agent Server](concepts/agent_server.md)
+- [Docker](concepts/docker.md)
