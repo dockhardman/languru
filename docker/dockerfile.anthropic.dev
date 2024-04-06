@@ -1,0 +1,26 @@
+FROM python:3.10-slim
+
+# Install System Dependencies
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+    wget curl ca-certificates build-essential && \
+    python -m pip install --upgrade pip
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python - && \
+    cd /usr/local/bin && \
+    ln -s /opt/poetry/bin/poetry && \
+    poetry config virtualenvs.create false
+
+# Install Dependencies
+WORKDIR /app
+ENV PYTHONPATH=${PYTHONPATH}:/app
+COPY ./README.md ./pyproject.toml ./poetry.lock* /app/
+COPY ./languru /app/languru
+RUN poetry install -E server -E anthropic && poetry show
+
+# Expose the port
+EXPOSE 80
+
+ENTRYPOINT ["languru"]
+CMD ["version"]

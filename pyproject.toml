@@ -12,6 +12,7 @@ version = "0.7.1"
 [tool.poetry.dependencies]
 accelerate = { version = "^0.27.2", optional = true, markers = "sys_platform == 'linux'" }
 aiohttp = "^3.9.3"
+anthropic = {version = "<1,>0.21", optional = true}
 bitsandbytes = { version = "^0.42", optional = true, markers = "sys_platform == 'linux'" }
 click = "^8.1.7"
 colorama = "^0.4.6"
@@ -44,7 +45,8 @@ typing-extensions = "^4.9.0"
 languru = "languru.cli.main:app"
 
 [tool.poetry.extras]
-all = ["einops", "fastapi", "google-cloud-aiplatform", "google-generativeai", "groq", "huggingface", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+all = ["anthropic", "einops", "fastapi", "google-cloud-aiplatform", "google-generativeai", "groq", "huggingface", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+anthropic = ["anthropic"]
 cuda = ["accelerate", "bitsandbytes", "flash-attn", "nvgpu"]
 google = ["google-cloud-aiplatform", "google-generativeai"]
 groq = ["groq"]
