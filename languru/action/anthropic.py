@@ -3,6 +3,8 @@ import time
 from typing import TYPE_CHECKING, Generator, List, Optional, Text
 
 import anthropic
+from anthropic.types.message_param import MessageParam as MessageParamDict
+from openai.types.chat import ChatCompletion
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
@@ -10,11 +12,7 @@ from languru.types.chat.anthropic import AnthropicChatCompletionRequest
 from languru.types.chat.completions import ChatCompletionRequest
 
 if TYPE_CHECKING:
-    from openai.types.chat import (
-        ChatCompletion,
-        ChatCompletionChunk,
-        ChatCompletionMessageParam,
-    )
+    from openai.types.chat import ChatCompletionChunk, ChatCompletionMessageParam
 
 
 class AnthropicAction(ActionBase):
@@ -84,32 +82,46 @@ class AnthropicAction(ActionBase):
             )
         res_message = self.client.messages.create(
             max_tokens=anthropic_req.max_tokens,
-            messages=anthropic_req.messages,
+            messages=[
+                MessageParamDict(**m.model_dump()) for m in anthropic_req.messages
+            ],
             model=anthropic_req.model,
             stream=False,
             **anthropic_req.model_dump(
                 exclude_none=True, exclude={"max_tokens", "messages", "model", "stream"}
             ),
         )
+        total_tokens = res_message.usage.input_tokens + res_message.usage.output_tokens
+        finish_reason = "stop"
+        if res_message.stop_reason == "end_turn":
+            finish_reason = "stop"
+        elif res_message.stop_reason == "max_tokens":
+            finish_reason = "length"
+        elif res_message.stop_reason == "stop_sequence":
+            finish_reason = "stop"
+        else:
+            logger.warning(f"Unknown stop reason: {res_message.stop_reason}")
+
         return ChatCompletion.model_validate(
             {
                 "id": res_message.id,
                 "choices": [
                     {
+                        "finish_reason": finish_reason,
                         "index": 0,
                         "message": {
                             "role": res_message.role,
-                            "content": res_message.content,
+                            "content": res_message.content[0].text,
                         },
                     }
                 ],
                 "created": int(time.time()),
+                "model": res_message.model,
                 "object": "chat.completion",
                 "usage": {
                     "completion_tokens": res_message.usage.output_tokens,
                     "prompt_tokens": res_message.usage.input_tokens,
-                    "total_tokens": res_message.usage.input_tokens
-                    + res_message.usage.output_tokens,
+                    "total_tokens": total_tokens,
                 },
             }
         )

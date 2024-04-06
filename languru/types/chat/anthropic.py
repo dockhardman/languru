@@ -1,9 +1,40 @@
-from typing import List, Optional, Text
+from enum import Enum
+from typing import List, Optional, Text, Union
 
-from anthropic.types.message_param import MessageParam
 from pydantic import BaseModel, ConfigDict, Field
 
 from languru.types.chat.completions import ChatCompletionRequest
+
+
+class Role(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class ContentType(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+
+
+class SourceType(str, Enum):
+    BASE64 = "base64"
+
+
+class Source(BaseModel):
+    type: SourceType
+    media_type: str
+    data: str
+
+
+class ContentBlock(BaseModel):
+    type: ContentType
+    text: Optional[str] = None
+    source: Optional[Source] = None
+
+
+class MessageParam(BaseModel):
+    role: Role
+    content: Union[str, List[ContentBlock]]
 
 
 class Metadata(BaseModel):
