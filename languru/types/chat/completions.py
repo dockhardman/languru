@@ -75,3 +75,11 @@ class ChatCompletionRequest(BaseModel):
     user: Optional[Text] = Field(
         None, description="A unique identifier representing your end-user"
     )
+
+    @classmethod
+    def from_kwargs(cls, **kwargs) -> "ChatCompletionRequest":
+        if "messages" not in kwargs:
+            raise ValueError("Parameter messages is required")
+        if "model" not in kwargs:
+            raise ValueError("Parameter model is required")
+        return cls.model_validate(kwargs)

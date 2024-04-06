@@ -56,7 +56,7 @@ class Tool(BaseModel):
 class AnthropicChatCompletionRequest(BaseModel):
     model: Text
     messages: List[MessageParam]
-    max_tokens: int
+    max_tokens: int = 800
     metadata: Optional[Metadata] = None
     stop_sequences: Optional[List[Text]] = None
     stream: Optional[bool] = None
