@@ -28,7 +28,7 @@ class AnthropicChatCompletionRequest(BaseModel):
     max_tokens: int = 800
     metadata: Optional[Metadata] = None
     stop_sequences: Optional[List[Text]] = None
-    stream: Optional[bool] = None
+    stream: bool = False
     system: Optional[Text] = None
     temperature: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     top_k: Optional[int] = None

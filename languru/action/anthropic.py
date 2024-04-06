@@ -1,17 +1,15 @@
 import os
-from typing import TYPE_CHECKING, Generator, List, Optional, Text, Union
+import time
+from typing import TYPE_CHECKING, Generator, List, Optional, Text
 
 import anthropic
 
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
+from languru.types.chat.anthropic import AnthropicChatCompletionRequest
+from languru.types.chat.completions import ChatCompletionRequest
 
 if TYPE_CHECKING:
-    from openai.types import (
-        Completion,
-        CreateEmbeddingResponse,
-        ModerationCreateResponse,
-    )
     from openai.types.chat import (
         ChatCompletion,
         ChatCompletionChunk,
@@ -74,25 +72,51 @@ class AnthropicAction(ActionBase):
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> "ChatCompletion":
         model = self.validate_model(model)
+        chat_req = ChatCompletionRequest.from_kwargs(
+            messages=messages, model=model, **kwargs
+        )
+        anthropic_req = (
+            AnthropicChatCompletionRequest.from_openai_chat_completion_request(chat_req)
+        )
+        if anthropic_req.stream is True:
+            logger.warning(
+                f"Chat stream should be False, but got: {anthropic_req.stream}"
+            )
+        res_message = self.client.messages.create(
+            max_tokens=anthropic_req.max_tokens,
+            messages=anthropic_req.messages,
+            model=anthropic_req.model,
+            stream=False,
+            **anthropic_req.model_dump(
+                exclude_none=True, exclude={"max_tokens", "messages", "model", "stream"}
+            ),
+        )
+        return ChatCompletion.model_validate(
+            {
+                "id": res_message.id,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": res_message.role,
+                            "content": res_message.content,
+                        },
+                    }
+                ],
+                "created": int(time.time()),
+                "object": "chat.completion",
+                "usage": {
+                    "completion_tokens": res_message.usage.output_tokens,
+                    "prompt_tokens": res_message.usage.input_tokens,
+                    "total_tokens": res_message.usage.input_tokens
+                    + res_message.usage.output_tokens,
+                },
+            }
+        )
 
     def chat_stream(
         self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
     ) -> Generator["ChatCompletionChunk", None, None]:
         if "stream" in kwargs and not kwargs["stream"]:
             logger.warning(f"Chat stream should be True, but got: {kwargs['stream']}")
-        model = self.validate_model(model)
-
-    def text_completion(
-        self, prompt: Text, *args, model: Text, **kwargs
-    ) -> "Completion":
-        model = self.validate_model(model)
-
-    def text_completion_stream(
-        self, prompt: Text, *args, model: Text, **kwargs
-    ) -> Generator["Completion", None, None]:
-        if "stream" in kwargs and not kwargs["stream"]:
-            logger.warning(
-                f"Text completion stream should be True, but got: {kwargs['stream']}"
-            )
-        kwargs.pop("stream", None)
         model = self.validate_model(model)
