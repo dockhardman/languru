@@ -166,3 +166,46 @@ class OpenaiAction(ActionBase):
         model = self.validate_model(model)
         moderation = self._client.moderations.create(input=input, model=model, **kwargs)
         return moderation
+
+
+class AzureOpenaiAction(OpenaiAction):
+    model_deploys = (
+        ModelDeploy("azure/gpt-35-turbo", "gpt-35-turbo"),
+        ModelDeploy("azure/gpt-35-turbo-16k", "gpt-35-turbo-16k"),
+        ModelDeploy("azure/gpt-35-turbo-instruct", "gpt-35-turbo-instruct"),
+        ModelDeploy("azure/gpt-4", "gpt-4"),
+        ModelDeploy("azure/gpt-4-32k", "gpt-4-32k"),
+        ModelDeploy("azure/text-embedding-3-large", "text-embedding-3-large"),
+        ModelDeploy("azure/text-embedding-3-small", "text-embedding-3-small"),
+        ModelDeploy("azure/text-embedding-ada-002", "text-embedding-ada-002"),
+        ModelDeploy("gpt-35-turbo", "gpt-35-turbo"),
+        ModelDeploy("gpt-35-turbo-16k", "gpt-35-turbo-16k"),
+        ModelDeploy("gpt-35-turbo-instruct", "gpt-35-turbo-instruct"),
+        ModelDeploy("gpt-4", "gpt-4"),
+        ModelDeploy("gpt-4-32k", "gpt-4-32k"),
+        ModelDeploy("text-embedding-3-large", "text-embedding-3-large"),
+        ModelDeploy("text-embedding-3-small", "text-embedding-3-small"),
+        ModelDeploy("text-embedding-ada-002", "text-embedding-ada-002"),
+    )
+
+    def __init__(
+        self,
+        *args,
+        api_key: Optional[Text] = None,
+        api_version: Optional[Text] = None,
+        azure_endpoint: Optional[Text] = None,
+        **kwargs,
+    ):
+        self._model_deploys = self.model_deploys
+
+        __params = {}
+        if api_key is not None:
+            __params["api_key"] = api_key
+        if api_version is not None:
+            __params["api_version"] = api_version
+        if azure_endpoint is not None:
+            __params["azure_endpoint"] = azure_endpoint
+        self._client = openai.AzureOpenAI(**__params)
+
+    def name(self):
+        return "azure_openai_action"
