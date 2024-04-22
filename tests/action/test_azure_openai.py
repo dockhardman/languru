@@ -32,8 +32,7 @@ def test_openai_action_chat_stream():
         ],
         model=test_chat_model_name,
     ):
-        print(chat_chunk)
-        if chat_chunk.choices[0].delta.content:
+        if chat_chunk.id and chat_chunk.choices[0].delta.content:
             answer += chat_chunk.choices[0].delta.content
     assert answer
 
