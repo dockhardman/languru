@@ -170,6 +170,9 @@ class OpenaiAction(ActionBase):
 
 class AzureOpenaiAction(OpenaiAction):
     model_deploys = (
+        ModelDeploy("azure/gpt-3.5-turbo", "gpt-35-turbo"),
+        ModelDeploy("azure/gpt-3.5-turbo-16k", "gpt-35-turbo-16k"),
+        ModelDeploy("azure/gpt-3.5-turbo-instruct", "gpt-35-turbo-instruct"),
         ModelDeploy("azure/gpt-35-turbo", "gpt-35-turbo"),
         ModelDeploy("azure/gpt-35-turbo-16k", "gpt-35-turbo-16k"),
         ModelDeploy("azure/gpt-35-turbo-instruct", "gpt-35-turbo-instruct"),
@@ -178,6 +181,9 @@ class AzureOpenaiAction(OpenaiAction):
         ModelDeploy("azure/text-embedding-3-large", "text-embedding-3-large"),
         ModelDeploy("azure/text-embedding-3-small", "text-embedding-3-small"),
         ModelDeploy("azure/text-embedding-ada-002", "text-embedding-ada-002"),
+        ModelDeploy("gpt-3.5-turbo", "gpt-35-turbo"),
+        ModelDeploy("gpt-3.5-turbo-16k", "gpt-35-turbo-16k"),
+        ModelDeploy("gpt-3.5-turbo-instruct", "gpt-35-turbo-instruct"),
         ModelDeploy("gpt-35-turbo", "gpt-35-turbo"),
         ModelDeploy("gpt-35-turbo-16k", "gpt-35-turbo-16k"),
         ModelDeploy("gpt-35-turbo-instruct", "gpt-35-turbo-instruct"),
@@ -209,3 +215,11 @@ class AzureOpenaiAction(OpenaiAction):
 
     def name(self):
         return "azure_openai_action"
+
+    def health(self) -> bool:
+        try:
+            self._client.models.retrieve(model="gpt-35-turbo")
+            return True
+        except Exception as e:
+            logger.error(f"OpenAI health check failed: {e}")
+            return False
