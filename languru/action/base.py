@@ -1,3 +1,4 @@
+from abc import ABC
 from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
@@ -31,7 +32,39 @@ ModelDeploy = NamedTuple(
 )
 
 
-class ActionBase:
+class ActionText(ABC):
+    def chat(
+        self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
+    ) -> "ChatCompletion":
+        raise NotImplementedError  # pragma: no cover
+
+    def chat_stream(
+        self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
+    ) -> Generator["ChatCompletionChunk", None, None]:
+        raise NotImplementedError  # pragma: no cover
+
+    def text_completion(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> "Completion":
+        raise NotImplementedError  # pragma: no cover
+
+    def text_completion_stream(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> Generator["Completion", None, None]:
+        raise NotImplementedError  # pragma: no cover
+
+    def embeddings(
+        self, input: Union[Text, List[Text]], *args, model: Text, **kwargs
+    ) -> "CreateEmbeddingResponse":
+        raise NotImplementedError  # pragma: no cover
+
+    def moderations(
+        self, input: Text, *args, model: Text, **kwargs
+    ) -> "ModerationCreateResponse":
+        raise NotImplementedError  # pragma: no cover
+
+
+class ActionBase(ActionText):
     model_deploys: Optional[Sequence[ModelDeploy]] = None
 
     default_max_tokens: int = 20
@@ -69,36 +102,6 @@ class ActionBase:
         raise NotImplementedError  # pragma: no cover
 
     def health(self) -> bool:
-        raise NotImplementedError  # pragma: no cover
-
-    def chat(
-        self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
-    ) -> "ChatCompletion":
-        raise NotImplementedError  # pragma: no cover
-
-    def chat_stream(
-        self, messages: List["ChatCompletionMessageParam"], *args, model: Text, **kwargs
-    ) -> Generator["ChatCompletionChunk", None, None]:
-        raise NotImplementedError  # pragma: no cover
-
-    def text_completion(
-        self, prompt: Text, *args, model: Text, **kwargs
-    ) -> "Completion":
-        raise NotImplementedError  # pragma: no cover
-
-    def text_completion_stream(
-        self, prompt: Text, *args, model: Text, **kwargs
-    ) -> Generator["Completion", None, None]:
-        raise NotImplementedError  # pragma: no cover
-
-    def embeddings(
-        self, input: Union[Text, List[Text]], *args, model: Text, **kwargs
-    ) -> "CreateEmbeddingResponse":
-        raise NotImplementedError  # pragma: no cover
-
-    def moderations(
-        self, input: Text, *args, model: Text, **kwargs
-    ) -> "ModerationCreateResponse":
         raise NotImplementedError  # pragma: no cover
 
     @lru_cache
