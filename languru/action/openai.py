@@ -13,7 +13,7 @@ if TYPE_CHECKING:
         CreateEmbeddingResponse,
         ModerationCreateResponse,
     )
-    from openai.types.audio import Transcription
+    from openai.types.audio import Transcription, Translation
     from openai.types.chat import (
         ChatCompletion,
         ChatCompletionChunk,
@@ -181,6 +181,11 @@ class OpenaiAction(ActionBase):
         return self._client.audio.transcriptions.create(
             file=file, model=model, **kwargs
         )
+
+    def audio_translations(
+        self, file: FileTypes, *args, model: Text, **kwargs
+    ) -> "Translation":
+        return self._client.audio.translations.create(file=file, model=model, **kwargs)
 
 
 class AzureOpenaiAction(OpenaiAction):

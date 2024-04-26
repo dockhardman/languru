@@ -22,7 +22,7 @@ if TYPE_CHECKING:
         CreateEmbeddingResponse,
         ModerationCreateResponse,
     )
-    from openai.types.audio import Transcription
+    from openai.types.audio import Transcription, Translation
     from openai.types.chat import (
         ChatCompletion,
         ChatCompletionChunk,
@@ -76,6 +76,11 @@ class ActionAudio(ABC):
     def audio_transcriptions(
         self, file: FileTypes, *args, model: Text, **kwargs
     ) -> "Transcription":
+        raise NotImplementedError
+
+    def audio_translations(
+        self, file: FileTypes, *args, model: Text, **kwargs
+    ) -> "Translation":
         raise NotImplementedError
 
 
