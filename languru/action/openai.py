@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
+        ImagesResponse,
         ModerationCreateResponse,
     )
     from openai.types.audio import Transcription, Translation
@@ -203,6 +204,11 @@ class OpenaiAction(ActionBase):
         self, file: "FileTypes", *args, model: Text, **kwargs
     ) -> "Translation":
         return self._client.audio.translations.create(file=file, model=model, **kwargs)
+
+    def images_generations(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> "ImagesResponse":
+        return self._client.images.generate(prompt=prompt, model=model, **kwargs)
 
 
 class AzureOpenaiAction(OpenaiAction):

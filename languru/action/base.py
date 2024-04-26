@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
+        ImagesResponse,
         ModerationCreateResponse,
     )
     from openai.types.audio import Transcription, Translation
@@ -84,7 +85,14 @@ class ActionAudio(ABC):
         raise NotImplementedError
 
 
-class ActionBase(ActionText, ActionAudio):
+class ActionImage(ABC):
+    def images_generations(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> "ImagesResponse":
+        raise NotImplementedError
+
+
+class ActionBase(ActionText, ActionAudio, ActionImage):
     model_deploys: Optional[Sequence[ModelDeploy]] = None
 
     default_max_tokens: int = 20
