@@ -7,11 +7,13 @@ from languru.config import logger
 
 if TYPE_CHECKING:
     from openai._legacy_response import HttpxBinaryResponseContent
+    from openai._types import FileTypes
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
         ModerationCreateResponse,
     )
+    from openai.types.audio import Transcription
     from openai.types.chat import (
         ChatCompletion,
         ChatCompletionChunk,
@@ -172,6 +174,13 @@ class OpenaiAction(ActionBase):
         self, input: Text, *args, model: Text, **kwargs
     ) -> "HttpxBinaryResponseContent":
         return self._client.audio.speech.create(input=input, model=model, **kwargs)
+
+    def audio_transcriptions(
+        self, file: FileTypes, *args, model: Text, **kwargs
+    ) -> "Transcription":
+        return self._client.audio.transcriptions.create(
+            file=file, model=model, **kwargs
+        )
 
 
 class AzureOpenaiAction(OpenaiAction):
