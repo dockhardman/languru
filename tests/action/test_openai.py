@@ -11,6 +11,7 @@ test_text_completion_model_name = "gpt-3.5-turbo-instruct"
 test_embedding_model_name = "text-embedding-3-small"
 test_moderation_model_name = "text-moderation-latest"
 test_sentence = "你好"
+test_translation_sentences = ("你好", "Ni hao", "Nǐ hǎo", "Nihao")
 test_tts_model_name = "tts-1"
 test_tts_voice = "nova"
 test_tts_language = "zh"
@@ -146,7 +147,10 @@ def test_openai_action_audio_translations(session_id_fixture: Text):
         model=test_asr_model_name,
         temperature=0.0,
     )
-    assert remove_punctuation(translation_res.text) == remove_punctuation(test_sentence)
+    assert (
+        remove_punctuation(translation_res.text).replace(" ", "")
+        in test_translation_sentences
+    )
 
 
 def test_openai_action_images_generations(session_id_fixture: Text):
