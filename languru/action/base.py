@@ -16,11 +16,13 @@ from languru.utils.common import str_strong_casefold
 
 if TYPE_CHECKING:
     from openai._legacy_response import HttpxBinaryResponseContent
+    from openai._types import FileTypes
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
         ModerationCreateResponse,
     )
+    from openai.types.audio import Transcription
     from openai.types.chat import (
         ChatCompletion,
         ChatCompletionChunk,
@@ -69,6 +71,11 @@ class ActionAudio(ABC):
     def audio_speech(
         self, input: Text, *args, model: Text, **kwargs
     ) -> "HttpxBinaryResponseContent":
+        raise NotImplementedError
+
+    def audio_transcriptions(
+        self, file: FileTypes, *args, model: Text, **kwargs
+    ) -> "Transcription":
         raise NotImplementedError
 
 
