@@ -1,5 +1,6 @@
 from typing import Literal, Optional, Text, Union
 
+from openai._types import FileTypes
 from pydantic import BaseModel, Field
 
 
@@ -32,6 +33,45 @@ class ImagesGenerationsRequest(BaseModel):
     style: Optional[Literal["vivid", "natural"]] = Field(
         None,
         description="The style of the generated images. Must be one of `vivid` or `natural`. Vivid causes the model to lean towards generating hyper-real and dramatic images. Natural causes the model to produce more natural, less hyper-real looking images. This param is only supported for `dall-e-3`.",  # noqa: E501
+    )
+    user: Optional[Text] = Field(
+        None,
+        description="A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse. [Learn more](https://platform.openai.com/docs/guides/safety-best-practices/end-user-ids).",  # noqa: E501
+    )
+    timeout: Optional[float] = Field(
+        None,
+        description="Override the client-level default timeout for this request, in seconds.",  # noqa: E501
+    )
+
+
+class ImagesEditRequest(BaseModel):
+    image: FileTypes = Field(
+        ...,
+        description="The image to edit. Must be a valid PNG file, less than 4MB, and square. If mask is not provided, image must have transparency, which will be used as the mask.",  # noqa: E501
+    )
+    prompt: Text = Field(
+        ...,
+        description="A text description of the desired image(s). The maximum length is 1000 characters.",  # noqa: E501
+    )
+    mask: Optional[FileTypes] = Field(
+        None,
+        description="An additional image whose fully transparent areas (e.g. where alpha is zero) indicate where `image` should be edited. Must be a valid PNG file, less than 4MB, and have the same dimensions as `image`.",  # noqa: E501
+    )
+    model: Optional[Union[Text, Literal["dall-e-2"]]] = Field(
+        None,
+        description="The model to use for image generation. Only `dall-e-2` is supported at this time.",  # noqa: E501
+    )
+    n: Optional[int] = Field(
+        None,
+        description="The number of images to generate. Must be between 1 and 10.",  # noqa: E501
+    )
+    response_format: Optional[Literal["url", "b64_json"]] = Field(
+        None,
+        description="The format in which the generated images are returned. Must be one of `url` or `b64_json`. URLs are only valid for 60 minutes after the image has been generated.",  # noqa: E501
+    )
+    size: Optional[Literal["256x256", "512x512", "1024x1024"]] = Field(
+        None,
+        description="The size of the generated images. Must be one of `256x256`, `512x512`, or `1024x1024`.",  # noqa: E501
     )
     user: Optional[Text] = Field(
         None,

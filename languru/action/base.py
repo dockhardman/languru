@@ -91,6 +91,11 @@ class ActionImage(ABC):
     ) -> "ImagesResponse":
         raise NotImplementedError
 
+    def images_edits(
+        self, image: "FileTypes", *args, model: Text, **kwargs
+    ) -> "ImagesResponse":
+        raise NotImplementedError
+
 
 class ActionBase(ActionText, ActionAudio, ActionImage):
     model_deploys: Optional[Sequence[ModelDeploy]] = None

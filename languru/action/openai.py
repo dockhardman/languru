@@ -210,6 +210,11 @@ class OpenaiAction(ActionBase):
     ) -> "ImagesResponse":
         return self._client.images.generate(prompt=prompt, model=model, **kwargs)
 
+    def images_edits(
+        self, image: "FileTypes", *args, model: Text, **kwargs
+    ) -> "ImagesResponse":
+        return self._client.images.edit(image=image, model=model, **kwargs)
+
 
 class AzureOpenaiAction(OpenaiAction):
     model_deploys = (
