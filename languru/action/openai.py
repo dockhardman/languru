@@ -1,4 +1,13 @@
-from typing import TYPE_CHECKING, Generator, List, Optional, Text, Union
+from typing import (
+    TYPE_CHECKING,
+    Generator,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Text,
+    Union,
+)
 
 import openai
 
@@ -6,7 +15,6 @@ from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
 
 if TYPE_CHECKING:
-    from openai._legacy_response import HttpxBinaryResponseContent
     from openai._types import FileTypes
     from openai.types import (
         Completion,
@@ -171,19 +179,28 @@ class OpenaiAction(ActionBase):
         return moderation
 
     def audio_speech(
-        self, input: Text, *args, model: Text, **kwargs
-    ) -> "HttpxBinaryResponseContent":
-        return self._client.audio.speech.create(input=input, model=model, **kwargs)
+        self,
+        input: Text,
+        *args,
+        model: Text,
+        voice: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
+        **kwargs,
+    ) -> Iterator[bytes]:
+        with self._client.audio.speech.with_streaming_response.create(
+            input=input, model=model, voice=voice, **kwargs
+        ) as response:
+            for data in response.iter_bytes():
+                yield data
 
     def audio_transcriptions(
-        self, file: FileTypes, *args, model: Text, **kwargs
+        self, file: "FileTypes", *args, model: Text, **kwargs
     ) -> "Transcription":
         return self._client.audio.transcriptions.create(
             file=file, model=model, **kwargs
         )
 
     def audio_translations(
-        self, file: FileTypes, *args, model: Text, **kwargs
+        self, file: "FileTypes", *args, model: Text, **kwargs
     ) -> "Translation":
         return self._client.audio.translations.create(file=file, model=model, **kwargs)
 

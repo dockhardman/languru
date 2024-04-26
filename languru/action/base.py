@@ -3,6 +3,7 @@ from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Generator,
+    Iterator,
     List,
     NamedTuple,
     Optional,
@@ -15,7 +16,6 @@ from languru.exceptions import ModelNotFound
 from languru.utils.common import str_strong_casefold
 
 if TYPE_CHECKING:
-    from openai._legacy_response import HttpxBinaryResponseContent
     from openai._types import FileTypes
     from openai.types import (
         Completion,
@@ -69,17 +69,17 @@ class ActionText(ABC):
 
 class ActionAudio(ABC):
     def audio_speech(
-        self, input: Text, *args, model: Text, **kwargs
-    ) -> "HttpxBinaryResponseContent":
+        self, input: Text, *args, model: Text, voice: Text, **kwargs
+    ) -> Iterator[bytes]:
         raise NotImplementedError
 
     def audio_transcriptions(
-        self, file: FileTypes, *args, model: Text, **kwargs
+        self, file: "FileTypes", *args, model: Text, **kwargs
     ) -> "Transcription":
         raise NotImplementedError
 
     def audio_translations(
-        self, file: FileTypes, *args, model: Text, **kwargs
+        self, file: "FileTypes", *args, model: Text, **kwargs
     ) -> "Translation":
         raise NotImplementedError
 

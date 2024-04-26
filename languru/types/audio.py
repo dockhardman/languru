@@ -14,8 +14,8 @@ class AudioSpeechRequest(BaseModel):
     model: Union[Text, Literal["tts-1", "tts-1-hd"]] = Field(
         ..., description="One of the available TTS models: `tts-1` or `tts-1-hd`."
     )
-    voice: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"] = Field(
-        ..., description="The voice to use when generating the audio."
+    voice: Union[Text, Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]] = (
+        Field(..., description="The voice to use when generating the audio.")
     )
     response_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = (
         Field(

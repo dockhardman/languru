@@ -1,9 +1,14 @@
+from pathlib import Path
+from typing import Text
+
 from languru.action.openai import OpenaiAction
 
 test_chat_model_name = "gpt-3.5-turbo"
 test_text_completion_model_name = "gpt-3.5-turbo-instruct"
 test_embedding_model_name = "text-embedding-3-small"
 test_moderation_model_name = "text-moderation-latest"
+test_tts_model_name = "tts-1"
+test_tts_voice = "nova"
 
 
 def test_openai_action_health():
@@ -94,3 +99,17 @@ def test_openai_action_moderation():
         assert res.category_scores.harassment < 0.001
         assert res.category_scores.hate < 0.001
         assert res.category_scores.self_harm < 0.001
+
+
+def test_openai_action_audio_speech(session_id_fixture: Text):
+    action = OpenaiAction()
+    audio_filepath = Path(f"data/test_audio_speech_{session_id_fixture}.mp3")
+    audio_filepath.parent.mkdir(parents=True, exist_ok=True)
+    with open(audio_filepath, "wb") as f:
+        for data in action.audio_speech(
+            input="There is no spoon.",
+            model=test_tts_model_name,
+            voice=test_tts_voice,
+        ):
+            f.write(data)
+    assert audio_filepath.exists()
