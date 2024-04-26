@@ -9,6 +9,8 @@ test_embedding_model_name = "text-embedding-3-small"
 test_moderation_model_name = "text-moderation-latest"
 test_tts_model_name = "tts-1"
 test_tts_voice = "nova"
+test_asr_model_name = "whisper-1"
+test_sentence = "There is no spoon."
 
 
 def test_openai_action_health():
@@ -107,9 +109,20 @@ def test_openai_action_audio_speech(session_id_fixture: Text):
     audio_filepath.parent.mkdir(parents=True, exist_ok=True)
     with open(audio_filepath, "wb") as f:
         for data in action.audio_speech(
-            input="There is no spoon.",
+            input=test_sentence,
             model=test_tts_model_name,
             voice=test_tts_voice,
         ):
             f.write(data)
     assert audio_filepath.exists()
+
+
+def test_openai_action_audio_transcriptions(session_id_fixture: Text):
+    action = OpenaiAction()
+    audio_filepath = Path(f"data/test_audio_speech_{session_id_fixture}.mp3")
+    assert audio_filepath.exists()
+    transcription_res = action.audio_transcriptions(
+        file=audio_filepath,
+        model=test_asr_model_name,
+    )
+    assert transcription_res.text == test_sentence
