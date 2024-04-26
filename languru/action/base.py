@@ -15,6 +15,7 @@ from languru.exceptions import ModelNotFound
 from languru.utils.common import str_strong_casefold
 
 if TYPE_CHECKING:
+    from openai._legacy_response import HttpxBinaryResponseContent
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
@@ -64,7 +65,14 @@ class ActionText(ABC):
         raise NotImplementedError  # pragma: no cover
 
 
-class ActionBase(ActionText):
+class ActionAudio(ABC):
+    def audio_speech(
+        self, input: Text, *args, model: Text, **kwargs
+    ) -> "HttpxBinaryResponseContent":
+        raise NotImplementedError
+
+
+class ActionBase(ActionText, ActionAudio):
     model_deploys: Optional[Sequence[ModelDeploy]] = None
 
     default_max_tokens: int = 20

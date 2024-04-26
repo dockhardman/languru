@@ -6,6 +6,7 @@ from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
 
 if TYPE_CHECKING:
+    from openai._legacy_response import HttpxBinaryResponseContent
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
@@ -166,6 +167,11 @@ class OpenaiAction(ActionBase):
         model = self.validate_model(model)
         moderation = self._client.moderations.create(input=input, model=model, **kwargs)
         return moderation
+
+    def audio_speech(
+        self, input: Text, *args, model: Text, **kwargs
+    ) -> "HttpxBinaryResponseContent":
+        return self._client.audio.speech.create(input=input, model=model, **kwargs)
 
 
 class AzureOpenaiAction(OpenaiAction):
