@@ -25,7 +25,9 @@ class ImagesGenerationsRequest(BaseModel):
         description="The format in which the generated images are returned. Must be one of `url` or `b64_json`. URLs are only valid for 60 minutes after the image has been generated.",  # noqa: E501
     )
     size: Optional[
-        Literal["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"]
+        Union[
+            Text, Literal["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"]
+        ]
     ] = Field(
         None,
         description="The size of the generated images. Must be one of `256x256`, `512x512`, or `1024x1024` for `dall-e-2`. Must be one of `1024x1024`, `1792x1024`, or `1024x1792` for `dall-e-3` models.",  # noqa: E501
@@ -69,7 +71,38 @@ class ImagesEditRequest(BaseModel):
         None,
         description="The format in which the generated images are returned. Must be one of `url` or `b64_json`. URLs are only valid for 60 minutes after the image has been generated.",  # noqa: E501
     )
-    size: Optional[Literal["256x256", "512x512", "1024x1024"]] = Field(
+    size: Optional[Union[Text, Literal["256x256", "512x512", "1024x1024"]]] = Field(
+        None,
+        description="The size of the generated images. Must be one of `256x256`, `512x512`, or `1024x1024`.",  # noqa: E501
+    )
+    user: Optional[Text] = Field(
+        None,
+        description="A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse. [Learn more](https://platform.openai.com/docs/guides/safety-best-practices/end-user-ids).",  # noqa: E501
+    )
+    timeout: Optional[float] = Field(
+        None,
+        description="Override the client-level default timeout for this request, in seconds.",  # noqa: E501
+    )
+
+
+class ImagesVariationsRequest(BaseModel):
+    image: FileTypes = Field(
+        ...,
+        description="The image to use as the basis for the variation(s). Must be a valid PNG file, less than 4MB, and square.",  # noqa: E501
+    )
+    model: Optional[Union[Text, Literal["dall-e-2"]]] = Field(
+        None,
+        description="The model to use for image generation. Only `dall-e-2` is supported at this time.",  # noqa: E501
+    )
+    n: Optional[int] = Field(
+        None,
+        description="The number of images to generate. Must be between 1 and 10. For `dall-e-3`, only `n=1` is supported.",  # noqa: E501
+    )
+    response_format: Optional[Literal["url", "b64_json"]] = Field(
+        None,
+        description="The format in which the generated images are returned. Must be one of `url` or `b64_json`. URLs are only valid for 60 minutes after the image has been generated.",  # noqa: E501
+    )
+    size: Optional[Union[Text, Literal["256x256", "512x512", "1024x1024"]]] = Field(
         None,
         description="The size of the generated images. Must be one of `256x256`, `512x512`, or `1024x1024`.",  # noqa: E501
     )

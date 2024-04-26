@@ -215,6 +215,11 @@ class OpenaiAction(ActionBase):
     ) -> "ImagesResponse":
         return self._client.images.edit(image=image, model=model, **kwargs)
 
+    def images_variations(
+        self, image: "FileTypes", *args, model: Text, **kwargs
+    ) -> "ImagesResponse":
+        return self._client.images.create_variation(image=image, model=model, **kwargs)
+
 
 class AzureOpenaiAction(OpenaiAction):
     model_deploys = (
