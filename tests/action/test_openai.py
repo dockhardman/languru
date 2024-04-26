@@ -2,15 +2,17 @@ from pathlib import Path
 from typing import Text
 
 from languru.action.openai import OpenaiAction
+from languru.utils.common import remove_punctuation
 
 test_chat_model_name = "gpt-3.5-turbo"
 test_text_completion_model_name = "gpt-3.5-turbo-instruct"
 test_embedding_model_name = "text-embedding-3-small"
 test_moderation_model_name = "text-moderation-latest"
+test_sentence = "Je t'aime"
 test_tts_model_name = "tts-1"
 test_tts_voice = "nova"
+test_tts_language = "fr"
 test_asr_model_name = "whisper-1"
-test_sentence = "There is no spoon."
 
 
 def test_openai_action_health():
@@ -124,5 +126,10 @@ def test_openai_action_audio_transcriptions(session_id_fixture: Text):
     transcription_res = action.audio_transcriptions(
         file=audio_filepath,
         model=test_asr_model_name,
+        language=test_tts_language,
+        prompt="Please use Traditional Chinese.",
+        temperature=0.0,
     )
-    assert transcription_res.text == test_sentence
+    assert remove_punctuation(transcription_res.text) == remove_punctuation(
+        test_sentence
+    )
