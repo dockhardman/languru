@@ -1,5 +1,10 @@
 import os
+import uuid
+from datetime import datetime
+from typing import Text
 
+import pytest
+import pytz
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,6 +25,16 @@ def set_test_env_vars():
     for k, v in test_env_vars.items():
         os.environ[k] = str(v)
         os.environ[k.upper()] = str(v)
+
+
+@pytest.fixture(scope="session")
+def session_id_fixture() -> Text:
+    """Generate a unique session ID for test sessions."""
+
+    return (
+        datetime.now(tz=pytz.UTC).strftime("%y%m%d%H%M%S")
+        + str(uuid.uuid4()).split("-")[0].upper()
+    )
 
 
 set_test_env_vars()

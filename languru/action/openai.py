@@ -1,4 +1,13 @@
-from typing import TYPE_CHECKING, Generator, List, Optional, Text, Union
+from typing import (
+    TYPE_CHECKING,
+    Generator,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Text,
+    Union,
+)
 
 import openai
 
@@ -6,11 +15,14 @@ from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
 
 if TYPE_CHECKING:
+    from openai._types import FileTypes
     from openai.types import (
         Completion,
         CreateEmbeddingResponse,
+        ImagesResponse,
         ModerationCreateResponse,
     )
+    from openai.types.audio import Transcription, Translation
     from openai.types.chat import (
         ChatCompletion,
         ChatCompletionChunk,
@@ -166,6 +178,47 @@ class OpenaiAction(ActionBase):
         model = self.validate_model(model)
         moderation = self._client.moderations.create(input=input, model=model, **kwargs)
         return moderation
+
+    def audio_speech(
+        self,
+        input: Text,
+        *args,
+        model: Text,
+        voice: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
+        **kwargs,
+    ) -> Iterator[bytes]:
+        with self._client.audio.speech.with_streaming_response.create(
+            input=input, model=model, voice=voice, **kwargs
+        ) as response:
+            for data in response.iter_bytes():
+                yield data
+
+    def audio_transcriptions(
+        self, file: "FileTypes", *args, model: Text, **kwargs
+    ) -> "Transcription":
+        return self._client.audio.transcriptions.create(
+            file=file, model=model, **kwargs
+        )
+
+    def audio_translations(
+        self, file: "FileTypes", *args, model: Text, **kwargs
+    ) -> "Translation":
+        return self._client.audio.translations.create(file=file, model=model, **kwargs)
+
+    def images_generations(
+        self, prompt: Text, *args, model: Text, **kwargs
+    ) -> "ImagesResponse":
+        return self._client.images.generate(prompt=prompt, model=model, **kwargs)
+
+    def images_edits(
+        self, image: "FileTypes", *args, model: Text, **kwargs
+    ) -> "ImagesResponse":
+        return self._client.images.edit(image=image, model=model, **kwargs)
+
+    def images_variations(
+        self, image: "FileTypes", *args, model: Text, **kwargs
+    ) -> "ImagesResponse":
+        return self._client.images.create_variation(image=image, model=model, **kwargs)
 
 
 class AzureOpenaiAction(OpenaiAction):

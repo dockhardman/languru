@@ -1,4 +1,5 @@
 import json
+import string
 from typing import Any, List, Optional, Text, Tuple, TypeVar
 
 from pydantic import BaseModel
@@ -83,3 +84,13 @@ def replace_right(source_str: Text, old: Text, new: Text, occurrence: int = -1) 
 
 def str_strong_casefold(text: Text) -> Text:
     return text.strip().replace("-_. ", "").casefold()
+
+
+def remove_punctuation(input_string: Text, extra_punctuation: Text = "") -> Text:
+    """Remove punctuations from the input string."""
+
+    extended_punctuation = (
+        string.punctuation + "，？！（）【】《》“”‘’；：" + extra_punctuation
+    )
+    translator = str.maketrans("", "", extended_punctuation)
+    return input_string.translate(translator)

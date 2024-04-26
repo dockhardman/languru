@@ -1,9 +1,22 @@
+from pathlib import Path
+from typing import Text
+
+import requests
+
 from languru.action.openai import OpenaiAction
+from languru.utils.common import remove_punctuation
 
 test_chat_model_name = "gpt-3.5-turbo"
 test_text_completion_model_name = "gpt-3.5-turbo-instruct"
 test_embedding_model_name = "text-embedding-3-small"
 test_moderation_model_name = "text-moderation-latest"
+test_sentence = "你好"
+test_translation_sentences = ("你好", "Ni hao", "Nǐ hǎo", "Nihao")
+test_tts_model_name = "tts-1"
+test_tts_voice = "nova"
+test_tts_language = "zh"
+test_asr_model_name = "whisper-1"
+test_image_model_name = "dall-e-2"
 
 
 def test_openai_action_health():
@@ -94,3 +107,64 @@ def test_openai_action_moderation():
         assert res.category_scores.harassment < 0.001
         assert res.category_scores.hate < 0.001
         assert res.category_scores.self_harm < 0.001
+
+
+def test_openai_action_audio_speech(session_id_fixture: Text):
+    action = OpenaiAction()
+    audio_filepath = Path(f"data/test_audio_speech_{session_id_fixture}.mp3")
+    audio_filepath.parent.mkdir(parents=True, exist_ok=True)
+    with open(audio_filepath, "wb") as f:
+        for data in action.audio_speech(
+            input=test_sentence,
+            model=test_tts_model_name,
+            voice=test_tts_voice,
+        ):
+            f.write(data)
+    assert audio_filepath.exists()
+
+
+def test_openai_action_audio_transcriptions(session_id_fixture: Text):
+    action = OpenaiAction()
+    audio_filepath = Path(f"data/test_audio_speech_{session_id_fixture}.mp3")
+    assert audio_filepath.exists()
+    transcription_res = action.audio_transcriptions(
+        file=audio_filepath,
+        model=test_asr_model_name,
+        language=test_tts_language,
+        temperature=0.0,
+    )
+    assert remove_punctuation(transcription_res.text) == remove_punctuation(
+        test_sentence
+    )
+
+
+def test_openai_action_audio_translations(session_id_fixture: Text):
+    action = OpenaiAction()
+    audio_filepath = Path(f"data/test_audio_speech_{session_id_fixture}.mp3")
+    assert audio_filepath.exists()
+    translation_res = action.audio_translations(
+        file=audio_filepath,
+        model=test_asr_model_name,
+        temperature=0.0,
+    )
+    assert (
+        remove_punctuation(translation_res.text).replace(" ", "")
+        in test_translation_sentences
+    )
+
+
+def test_openai_action_images_generations(session_id_fixture: Text):
+    action = OpenaiAction()
+    image_filepath = Path(f"data/test_image_{session_id_fixture}.png")
+    image_filepath.parent.mkdir(parents=True, exist_ok=True)
+    image_res = action.images_generations(
+        prompt="A cute baby sea otter",
+        model=test_image_model_name,
+        size="256x256",
+    )
+    assert image_res.data[0].url is not None
+    # Download image in to file
+    with open(image_filepath, "wb") as f:
+        response = requests.get(image_res.data[0].url, stream=True)
+        response.raise_for_status()
+        f.write(response.content)
