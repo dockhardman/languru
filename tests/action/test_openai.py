@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Text
 
+import requests
+
 from languru.action.openai import OpenaiAction
 from languru.utils.common import remove_punctuation
 
@@ -13,6 +15,7 @@ test_tts_model_name = "tts-1"
 test_tts_voice = "nova"
 test_tts_language = "zh"
 test_asr_model_name = "whisper-1"
+test_image_model_name = "dall-e-2"
 
 
 def test_openai_action_health():
@@ -144,3 +147,20 @@ def test_openai_action_audio_translations(session_id_fixture: Text):
         temperature=0.0,
     )
     assert remove_punctuation(translation_res.text) == remove_punctuation(test_sentence)
+
+
+def test_openai_action_images_generations(session_id_fixture: Text):
+    action = OpenaiAction()
+    image_filepath = Path(f"data/test_image_{session_id_fixture}.png")
+    image_filepath.parent.mkdir(parents=True, exist_ok=True)
+    image_res = action.images_generations(
+        prompt="A cute baby sea otter",
+        model=test_image_model_name,
+        size="256x256",
+    )
+    assert image_res.data[0].url is not None
+    # Download image in to file
+    with open(image_filepath, "wb") as f:
+        response = requests.get(image_res.data[0].url, stream=True)
+        response.raise_for_status()
+        f.write(response.content)
