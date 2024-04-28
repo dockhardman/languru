@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from languru.server.api.v1.audio import router as audio_router
 from languru.server.api.v1.chat import router as chat_router
 from languru.server.api.v1.completions import router as completions_router
 from languru.server.api.v1.embeddings import router as embeddings_router
@@ -14,3 +15,4 @@ router.include_router(router=chat_router, tags=["chat"])
 router.include_router(router=completions_router, tags=["completions"])
 router.include_router(router=embeddings_router, tags=["embeddings"])
 router.include_router(router=moderations_router, tags=["moderations"])
+router.include_router(router=audio_router, tags=["audio"])

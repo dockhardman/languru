@@ -1,7 +1,7 @@
 from typing import List, Literal, Optional, Text, Union
 
 from openai._types import FileTypes
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AudioSpeechRequest(BaseModel):
@@ -44,6 +44,8 @@ class AudioSpeechRequest(BaseModel):
 
 
 class AudioTranscriptionRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     file: FileTypes = Field(
         ...,
         description=(
@@ -108,6 +110,8 @@ class AudioTranscriptionRequest(BaseModel):
 
 
 class AudioTranslationRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     file: FileTypes = Field(
         ...,
         description=(
