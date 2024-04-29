@@ -1,6 +1,15 @@
-from typing import cast
+from typing import Text, cast
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
 from openai.types.audio import Transcription, Translation
 from pyassorted.asyncio.executor import run_func, run_generator
@@ -110,7 +119,7 @@ class AudioTranscriptionHandler:
             settings = cast(LlmSettings, settings)
             return await self.handle_llm(
                 request=request,
-                audio_speech_request=audio_transcription_request,
+                audio_transcription_request=audio_transcription_request,
                 settings=settings,
                 **kwargs,
             )
@@ -119,7 +128,7 @@ class AudioTranscriptionHandler:
             settings = cast(AgentSettings, settings)
             return await self.handle_agent(
                 request=request,
-                audio_speech_request=audio_transcription_request,
+                audio_transcription_request=audio_transcription_request,
                 settings=settings,
                 **kwargs,
             )
@@ -181,7 +190,7 @@ class AudioTranslationHandler:
             settings = cast(LlmSettings, settings)
             return await self.handle_llm(
                 request=request,
-                audio_speech_request=audio_translation_request,
+                audio_translation_request=audio_translation_request,
                 settings=settings,
                 **kwargs,
             )
@@ -190,7 +199,7 @@ class AudioTranslationHandler:
             settings = cast(AgentSettings, settings)
             return await self.handle_agent(
                 request=request,
-                audio_speech_request=audio_translation_request,
+                audio_translation_request=audio_translation_request,
                 settings=settings,
                 **kwargs,
             )
@@ -268,12 +277,30 @@ async def audio_speech(
 @router.post("/audio/transcriptions")
 async def audio_transcriptions(
     request: Request,
-    audio_transcription_request: AudioTranscriptionRequest,
+    file: UploadFile = File(...),
+    model: Text = Form(...),
+    language: Text = Form(None),
+    prompt: Text = Form(None),
+    response_format: Text = Form(None),
+    temperature: float = Form(None),
+    timestamp_granularities: Text = Form(None),
+    timeout: float = Form(None),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> Transcription:
     return await AudioTranscriptionHandler().handle_request(
         request=request,
-        audio_transcription_request=audio_transcription_request,
+        audio_transcription_request=AudioTranscriptionRequest.model_validate(
+            {
+                "file": await file.read(),
+                "model": model,
+                "language": language,
+                "prompt": prompt,
+                "response_format": response_format,
+                "temperature": temperature,
+                "timestamp_granularities": timestamp_granularities,
+                "timeout": timeout,
+            }
+        ),
         settings=settings,
     )
 
