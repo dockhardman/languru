@@ -308,11 +308,27 @@ async def audio_transcriptions(
 @router.post("/audio/translations")
 async def audio_translations(
     request: Request,
-    audio_translation_request: AudioTranslationRequest,
+    file: UploadFile = File(...),
+    model: Text = Form(...),
+    language: Text = Form(None),
+    prompt: Text = Form(None),
+    response_format: Text = Form(None),
+    temperature: float = Form(None),
+    timeout: float = Form(None),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> Translation:
     return await AudioTranslationHandler().handle_request(
         request=request,
-        audio_translation_request=audio_translation_request,
+        audio_translation_request=AudioTranslationRequest.model_validate(
+            {
+                "file": await file.read(),
+                "model": model,
+                "language": language,
+                "prompt": prompt,
+                "response_format": response_format,
+                "temperature": temperature,
+                "timeout": timeout,
+            }
+        ),
         settings=settings,
     )

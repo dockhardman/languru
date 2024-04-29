@@ -181,3 +181,18 @@ class AudioTranslationRequest(BaseModel):
             "Override the client-level default timeout for this request, in seconds."
         ),
     )
+
+    def to_files_form(self) -> Dict[Text, Any]:
+        out = {
+            "file": self.file,
+            "model": (None, self.model),
+        }
+        if self.prompt is not None:
+            out["prompt"] = (None, self.prompt)
+        if self.response_format is not None:
+            out["response_format"] = (None, self.response_format)
+        if self.temperature is not None:
+            out["temperature"] = (None, self.temperature)
+        if self.timeout is not None:
+            out["timeout"] = (None, self.timeout)
+        return out

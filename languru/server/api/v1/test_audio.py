@@ -63,7 +63,7 @@ def mocked_openai_audio_translations_create():
     with patch.object(
         Translations,
         "create",
-        MagicMock(return_value=Translation(text="Transcribed text")),
+        MagicMock(return_value=Translation(text="Translated text")),
     ):
         yield
 
@@ -122,5 +122,21 @@ def test_llm_app_audio_transcriptions(
         )
         response = client.post(
             "/v1/audio/transcriptions", files=request_call.to_files_form()
+        )
+        assert response.status_code == 200
+
+
+def test_llm_app_audio_translations(llm_env, mocked_openai_audio_translations_create):
+    importlib.reload(languru.server.main)
+
+    with TestClient(languru.server.main.app) as client:
+        request_call = AudioTranslationRequest.model_validate(
+            {
+                "file": ("audio.mp3", b"This is a test audio content", "audio/mpeg"),
+                "model": "whisper-1",
+            }
+        )
+        response = client.post(
+            "/v1/audio/translations", files=request_call.to_files_form()
         )
         assert response.status_code == 200
