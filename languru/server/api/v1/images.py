@@ -256,7 +256,7 @@ async def images_generations(
 @router.post("/images/edits")
 async def images_edits(
     request: Request,
-    file: UploadFile = File(...),
+    image: UploadFile = File(...),
     prompt: Text = Form(...),
     mask: UploadFile = File(None),
     model: Text = Form(None),
@@ -271,9 +271,9 @@ async def images_edits(
         request=request,
         images_edit_request=ImagesEditRequest.model_validate(
             {
-                "image": file,
+                "image": await image.read(),
                 "prompt": prompt,
-                "mask": mask,
+                "mask": await mask.read(),
                 "model": model,
                 "n": n,
                 "response_format": response_format,
@@ -289,7 +289,7 @@ async def images_edits(
 @router.post("/images/variations")
 async def images_variations(
     request: Request,
-    file: UploadFile = File(...),
+    image: UploadFile = File(...),
     model: Text = Form(None),
     n: int = Form(None),
     response_format: Text = Form(None),
@@ -302,7 +302,7 @@ async def images_variations(
         request=request,
         images_variations_request=ImagesVariationsRequest.model_validate(
             {
-                "image": file,
+                "image": await image.read(),
                 "model": model,
                 "n": n,
                 "response_format": response_format,

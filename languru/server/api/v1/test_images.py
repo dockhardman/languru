@@ -149,7 +149,10 @@ def test_llm_app_images_variations(llm_env, mocked_openai_images_variation_creat
 
     with TestClient(languru.server.main.app) as client:
         request_call = ImagesVariationsRequest.model_validate(
-            {"image": dummy_png(), "model": "dall-e-2"}
+            {
+                "image": ("otter.png", dummy_png(), "image/png"),
+                "model": "dall-e-2",
+            }
         )
         response = client.post(
             "/v1/images/variations", files=request_call.to_files_form()
