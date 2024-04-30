@@ -3,7 +3,6 @@ from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Generator,
-    Iterator,
     List,
     NamedTuple,
     Optional,
@@ -71,7 +70,7 @@ class ActionText(ABC):
 class ActionAudio(ABC):
     def audio_speech(
         self, input: Text, *args, model: Text, voice: Text, **kwargs
-    ) -> Iterator[bytes]:
+    ) -> Generator[bytes, None, None]:
         raise NotImplementedError
 
     def audio_transcriptions(

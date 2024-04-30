@@ -1,13 +1,4 @@
-from typing import (
-    TYPE_CHECKING,
-    Generator,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    Text,
-    Union,
-)
+from typing import TYPE_CHECKING, Generator, List, Literal, Optional, Text, Union
 
 import openai
 
@@ -186,7 +177,7 @@ class OpenaiAction(ActionBase):
         model: Text,
         voice: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
         **kwargs,
-    ) -> Iterator[bytes]:
+    ) -> Generator[bytes, None, None]:
         with self._client.audio.speech.with_streaming_response.create(
             input=input, model=model, voice=voice, **kwargs
         ) as response:

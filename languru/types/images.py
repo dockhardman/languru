@@ -1,7 +1,7 @@
-from typing import Literal, Optional, Text, Union
+from typing import Any, Dict, Literal, Optional, Text, Union
 
 from openai._types import FileTypes
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ImagesGenerationsRequest(BaseModel):
@@ -47,6 +47,8 @@ class ImagesGenerationsRequest(BaseModel):
 
 
 class ImagesEditRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     image: FileTypes = Field(
         ...,
         description="The image to edit. Must be a valid PNG file, less than 4MB, and square. If mask is not provided, image must have transparency, which will be used as the mask.",  # noqa: E501
@@ -84,8 +86,31 @@ class ImagesEditRequest(BaseModel):
         description="Override the client-level default timeout for this request, in seconds.",  # noqa: E501
     )
 
+    def to_files_form(self) -> Dict[Text, Any]:
+        out = {
+            "image": self.image,
+            "prompt": (None, self.prompt),
+        }
+        if self.mask is not None:
+            out["mask"] = self.mask
+        if self.model is not None:
+            out["model"] = (None, self.model)
+        if self.n is not None:
+            out["n"] = (None, self.n)
+        if self.response_format is not None:
+            out["response_format"] = (None, self.response_format)
+        if self.size is not None:
+            out["size"] = (None, self.size)
+        if self.user is not None:
+            out["user"] = (None, self.user)
+        if self.timeout is not None:
+            out["timeout"] = (None, self.timeout)
+        return out
+
 
 class ImagesVariationsRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     image: FileTypes = Field(
         ...,
         description="The image to use as the basis for the variation(s). Must be a valid PNG file, less than 4MB, and square.",  # noqa: E501
@@ -114,3 +139,21 @@ class ImagesVariationsRequest(BaseModel):
         None,
         description="Override the client-level default timeout for this request, in seconds.",  # noqa: E501
     )
+
+    def to_files_form(self) -> Dict[Text, Any]:
+        out: Dict[Text, Any] = {
+            "image": self.image,
+        }
+        if self.model is not None:
+            out["model"] = (None, self.model)
+        if self.n is not None:
+            out["n"] = (None, self.n)
+        if self.response_format is not None:
+            out["response_format"] = (None, self.response_format)
+        if self.size is not None:
+            out["size"] = (None, self.size)
+        if self.user is not None:
+            out["user"] = (None, self.user)
+        if self.timeout is not None:
+            out["timeout"] = (None, self.timeout)
+        return out
