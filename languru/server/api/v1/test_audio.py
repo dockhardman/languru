@@ -35,7 +35,7 @@ def agent_env(monkeypatch: "MonkeyPatch"):
 
 
 @pytest.fixture
-def mocked_openai_speech_stream_response_create():
+def mocked_openai_speech_response_create():
     httpx_res = Response(200)
     httpx_res._content = b"bytes chunks"
     httpx_binary_res_content = HttpxBinaryResponseContent(httpx_res)
@@ -95,7 +95,7 @@ def mocked_model_discovery_list():
         yield
 
 
-def test_llm_app_audio_speech(llm_env, mocked_openai_speech_stream_response_create):
+def test_llm_app_audio_speech(llm_env, mocked_openai_speech_response_create):
     importlib.reload(languru.server.main)
 
     with TestClient(languru.server.main.app) as client:
