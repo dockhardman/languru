@@ -140,3 +140,55 @@ def test_llm_app_audio_translations(llm_env, mocked_openai_audio_translations_cr
             "/v1/audio/translations", files=request_call.to_files_form()
         )
         assert response.status_code == 200
+
+
+def test_agent_app_audio_speech(
+    agent_env, mocked_openai_speech_response_create, mocked_model_discovery_list
+):
+    importlib.reload(languru.server.main)
+
+    with TestClient(languru.server.main.app) as client:
+        request_call = AudioSpeechRequest.model_validate(
+            {"input": "Hello!", "model": "tts-1", "voice": "alloy"}
+        )
+        response = client.post(
+            "/v1/audio/speech", json=request_call.model_dump(exclude_none=True)
+        )
+        assert response.status_code == 200
+        print(response.text)
+
+
+def test_agent_app_audio_transcriptions(
+    agent_env, mocked_openai_audio_transcriptions_create, mocked_model_discovery_list
+):
+    importlib.reload(languru.server.main)
+
+    with TestClient(languru.server.main.app) as client:
+        request_call = AudioTranscriptionRequest.model_validate(
+            {
+                "file": ("audio.mp3", b"This is a test audio content", "audio/mpeg"),
+                "model": "whisper-1",
+            }
+        )
+        response = client.post(
+            "/v1/audio/transcriptions", files=request_call.to_files_form()
+        )
+        assert response.status_code == 200
+
+
+def test_agent_app_audio_translations(
+    agent_env, mocked_openai_audio_translations_create, mocked_model_discovery_list
+):
+    importlib.reload(languru.server.main)
+
+    with TestClient(languru.server.main.app) as client:
+        request_call = AudioTranslationRequest.model_validate(
+            {
+                "file": ("audio.mp3", b"This is a test audio content", "audio/mpeg"),
+                "model": "whisper-1",
+            }
+        )
+        response = client.post(
+            "/v1/audio/translations", files=request_call.to_files_form()
+        )
+        assert response.status_code == 200
