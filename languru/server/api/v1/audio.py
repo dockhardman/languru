@@ -1,3 +1,7 @@
+import logging
+import math
+import random
+import time
 from typing import Text, cast
 
 from fastapi import (
@@ -33,7 +37,6 @@ router = APIRouter()
 
 
 class AudioSpeechHandler:
-
     async def handle_request(
         self,
         request: "Request",
@@ -101,13 +104,44 @@ class AudioSpeechHandler:
         self,
         request: "Request",
         audio_speech_request: "AudioSpeechRequest",
-        settings: "ServerBaseSettings",
+        settings: "AgentSettings",
         **kwargs,
-    ) -> StreamingResponse: ...
+    ) -> StreamingResponse:
+        from openai import OpenAI
+
+        from languru.resources.model.discovery import ModelDiscovery
+
+        model_discovery: "ModelDiscovery" = get_value_from_app(
+            request.app, key="model_discovery", value_typing=ModelDiscovery
+        )
+        logger = logging.getLogger(settings.APP_NAME)
+
+        # Get model name and model destination
+        models = await run_func(
+            model_discovery.list,
+            id=audio_speech_request.model,
+            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
+        )
+        if len(models) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{audio_speech_request.model}' not found",
+            )
+        model = random.choice(models)
+
+        # Request audio speech
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
+        with client.audio.speech.with_streaming_response.create(
+            **audio_speech_request.model_dump(exclude_none=True)
+        ) as response:
+            return StreamingResponse(
+                response.iter_bytes(),
+                media_type="audio/mpeg",
+            )
 
 
 class AudioTranscriptionHandler:
-
     async def handle_request(
         self,
         request: "Request",
@@ -172,13 +206,41 @@ class AudioTranscriptionHandler:
         self,
         request: "Request",
         audio_transcription_request: "AudioTranscriptionRequest",
-        settings: "ServerBaseSettings",
+        settings: "AgentSettings",
         **kwargs,
-    ) -> Transcription: ...
+    ) -> Transcription:
+        from openai import OpenAI
+
+        from languru.resources.model.discovery import ModelDiscovery
+
+        model_discovery: "ModelDiscovery" = get_value_from_app(
+            request.app, key="model_discovery", value_typing=ModelDiscovery
+        )
+        logger = logging.getLogger(settings.APP_NAME)
+
+        # Get model name and model destination
+        models = await run_func(
+            model_discovery.list,
+            id=audio_transcription_request.model,
+            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
+        )
+        if len(models) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{audio_transcription_request.model}' not found",
+            )
+        model = random.choice(models)
+
+        # Request audio speech
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
+        return await run_func(
+            client.audio.transcriptions.create,
+            **audio_transcription_request.model_dump(exclude_none=True),
+        )
 
 
 class AudioTranslationHandler:
-
     async def handle_request(
         self,
         request: "Request",
@@ -243,9 +305,38 @@ class AudioTranslationHandler:
         self,
         request: "Request",
         audio_translation_request: "AudioTranslationRequest",
-        settings: "ServerBaseSettings",
+        settings: "AgentSettings",
         **kwargs,
-    ) -> Translation: ...
+    ) -> Translation:
+        from openai import OpenAI
+
+        from languru.resources.model.discovery import ModelDiscovery
+
+        model_discovery: "ModelDiscovery" = get_value_from_app(
+            request.app, key="model_discovery", value_typing=ModelDiscovery
+        )
+        logger = logging.getLogger(settings.APP_NAME)
+
+        # Get model name and model destination
+        models = await run_func(
+            model_discovery.list,
+            id=audio_translation_request.model,
+            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
+        )
+        if len(models) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{audio_translation_request.model}' not found",
+            )
+        model = random.choice(models)
+
+        # Request audio speech
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
+        return await run_func(
+            client.audio.translations.create,
+            **audio_translation_request.model_dump(exclude_none=True),
+        )
 
 
 @router.post("/audio/speech")

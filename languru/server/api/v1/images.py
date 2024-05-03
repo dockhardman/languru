@@ -1,3 +1,7 @@
+import logging
+import math
+import random
+import time
 from typing import Text, cast
 
 from fastapi import (
@@ -99,7 +103,36 @@ class ImagesGenerationsHandler:
         images_generations_request: "ImagesGenerationsRequest",
         settings: "AgentSettings",
         **kwargs,
-    ) -> ImagesResponse: ...
+    ) -> ImagesResponse:
+        from openai import OpenAI
+
+        from languru.resources.model.discovery import ModelDiscovery
+
+        model_discovery: "ModelDiscovery" = get_value_from_app(
+            request.app, key="model_discovery", value_typing=ModelDiscovery
+        )
+        logger = logging.getLogger(settings.APP_NAME)
+
+        # Get model name and model destination
+        models = await run_func(
+            model_discovery.list,
+            id=images_generations_request.model,
+            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
+        )
+        if len(models) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{images_generations_request.model}' not found",
+            )
+        model = random.choice(models)
+
+        # Request audio speech
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
+        return await run_func(
+            client.images.generate,
+            **images_generations_request.model_dump(exclude_none=True),
+        )
 
 
 class ImagesEditsHandler:
@@ -161,7 +194,36 @@ class ImagesEditsHandler:
         images_edit_request: "ImagesEditRequest",
         settings: "AgentSettings",
         **kwargs,
-    ) -> ImagesResponse: ...
+    ) -> ImagesResponse:
+        from openai import OpenAI
+
+        from languru.resources.model.discovery import ModelDiscovery
+
+        model_discovery: "ModelDiscovery" = get_value_from_app(
+            request.app, key="model_discovery", value_typing=ModelDiscovery
+        )
+        logger = logging.getLogger(settings.APP_NAME)
+
+        # Get model name and model destination
+        models = await run_func(
+            model_discovery.list,
+            id=images_edit_request.model,
+            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
+        )
+        if len(models) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{images_edit_request.model}' not found",
+            )
+        model = random.choice(models)
+
+        # Request audio speech
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
+        return await run_func(
+            client.images.edit,
+            **images_edit_request.model_dump(exclude_none=True),
+        )
 
 
 class ImagesVariationsHandler:
@@ -224,7 +286,36 @@ class ImagesVariationsHandler:
         images_variations_request: "ImagesVariationsRequest",
         settings: "AgentSettings",
         **kwargs,
-    ) -> ImagesResponse: ...
+    ) -> ImagesResponse:
+        from openai import OpenAI
+
+        from languru.resources.model.discovery import ModelDiscovery
+
+        model_discovery: "ModelDiscovery" = get_value_from_app(
+            request.app, key="model_discovery", value_typing=ModelDiscovery
+        )
+        logger = logging.getLogger(settings.APP_NAME)
+
+        # Get model name and model destination
+        models = await run_func(
+            model_discovery.list,
+            id=images_variations_request.model,
+            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
+        )
+        if len(models) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{images_variations_request.model}' not found",
+            )
+        model = random.choice(models)
+
+        # Request audio speech
+        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
+        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
+        return await run_func(
+            client.images.create_variation,
+            **images_variations_request.model_dump(exclude_none=True),
+        )
 
 
 @router.post("/images/generations")
