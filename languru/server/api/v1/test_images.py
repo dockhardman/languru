@@ -158,3 +158,58 @@ def test_llm_app_images_variations(llm_env, mocked_openai_images_variation_creat
             "/v1/images/variations", files=request_call.to_files_form()
         )
         assert response.status_code == 200
+
+
+def test_agent_app_images_generations(
+    agent_env, mocked_openai_images_generate_create, mocked_model_discovery_list
+):
+    importlib.reload(languru.server.main)
+
+    with TestClient(languru.server.main.app) as client:
+        request_call = ImagesGenerationsRequest.model_validate(
+            {
+                "model": "dall-e-2",
+                "prompt": "A cute baby sea otter",
+                "size": "256x256",
+            }
+        )
+        response = client.post(
+            "/v1/images/generations", json=request_call.model_dump(exclude_none=True)
+        )
+        assert response.status_code == 200
+
+
+def test_agent_app_images_edits(
+    agent_env, mocked_openai_images_edit_create, mocked_model_discovery_list
+):
+    importlib.reload(languru.server.main)
+
+    with TestClient(languru.server.main.app) as client:
+        request_call = ImagesEditRequest.model_validate(
+            {
+                "image": dummy_png(),
+                "prompt": "A cute baby sea otter wearing a beret",
+                "mask": make_png(),
+                "model": "dall-e-2",
+            }
+        )
+        response = client.post("/v1/images/edits", files=request_call.to_files_form())
+        assert response.status_code == 200
+
+
+def test_agent_app_images_variations(
+    agent_env, mocked_openai_images_variation_create, mocked_model_discovery_list
+):
+    importlib.reload(languru.server.main)
+
+    with TestClient(languru.server.main.app) as client:
+        request_call = ImagesVariationsRequest.model_validate(
+            {
+                "image": ("otter.png", dummy_png(), "image/png"),
+                "model": "dall-e-2",
+            }
+        )
+        response = client.post(
+            "/v1/images/variations", files=request_call.to_files_form()
+        )
+        assert response.status_code == 200
