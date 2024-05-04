@@ -1,7 +1,19 @@
 import json
 import string
-from typing import Any, List, Optional, Text, Tuple, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Text,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel
 from rich import box
 from rich import print as rich_print
@@ -9,7 +21,11 @@ from rich.style import StyleType
 from rich.table import Table
 from rich.text import Text as RichText
 
-from languru.config import logger
+from languru.config import console, logger
+from languru.types.chat.completions import Message
+
+if TYPE_CHECKING:
+    from openai.types.chat.chat_completion import ChatCompletion
 
 T = TypeVar("T")
 
@@ -94,3 +110,76 @@ def remove_punctuation(input_string: Text, extra_punctuation: Text = "") -> Text
     )
     translator = str.maketrans("", "", extended_punctuation)
     return input_string.translate(translator)
+
+
+def ensure_openai_chat_completion_content(chat_completion: "ChatCompletion") -> Text:
+    """Ensure that the chat completion response content is returned."""
+
+    chat_answer = chat_completion.choices[0].message.content
+    if chat_answer is None:
+        raise ValueError("Failed to get a response content from the OpenAI API.")
+    return chat_answer
+
+
+def ensure_list(value: Any) -> List:
+    if isinstance(value, Sequence):
+        return list(value)
+    if value is None:
+        return []
+    return [value]
+
+
+def ensure_openai_chat_completion_message_params(
+    messages: Union[
+        Sequence["Message"],
+        Sequence[Dict[Text, Any]],
+        Sequence[ChatCompletionMessageParam],
+    ]
+) -> List[ChatCompletionMessageParam]:
+    """Ensure that the chat completion messages are in the correct format."""
+
+    _messages: List[ChatCompletionMessageParam] = []
+    for m in messages:
+        if isinstance(m, Message):
+            m_dict = m.model_dump()
+            if m_dict.get("role") not in ["user", "assistant", "system"]:
+                raise ValueError(f"Invalid role: {m_dict.get('role')}")
+            _messages.append(m_dict)  # type: ignore
+        elif isinstance(m, Dict):
+            if m.get("role") not in ["user", "assistant", "system"]:
+                raise ValueError(f"Invalid role: {m.get('role')}")
+            _messages.append(m)  # type: ignore
+        elif isinstance(m, ChatCompletionMessageParam.__args__):
+            _messages.append(m)
+        else:
+            raise ValueError(f"Invalid message type: {m}")
+    return _messages
+
+
+def display_messages(
+    messages: Union[
+        Sequence["Message"],
+        Sequence[Dict[Text, Any]],
+        Sequence[ChatCompletionMessageParam],
+    ],
+    is_print: bool = True,
+) -> Text:
+    """Display messages in a human-readable format."""
+
+    if not messages:
+        raise ValueError("No messages to display.")
+
+    _messages = [
+        m.model_dump() if isinstance(m, BaseModel) else dict(m) for m in messages
+    ]
+    out = ""
+    for m in _messages:
+        role = str(m.get("role") or "Unknown").capitalize()
+        content = str(m.get("content") or "n/a")
+        if is_print:
+            console.print(role, style="underline bold cyan")
+            console.print(content)
+            console.print()
+        out += f"\n\n{role.capitalize()}:\n{content}"
+        out = out.strip()
+    return out
