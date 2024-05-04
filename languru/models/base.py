@@ -1,12 +1,12 @@
-from textwrap import dedent
-from typing import List, Optional, Text, TypeVar, Type, Dict, Union
+from typing import Dict, List, Text, Type, TypeVar, Union
 
+import pyjson5
 from openai import OpenAI
-from pydantic import BaseModel, EmailStr, Field
+from pyassorted.string import extract_code_blocks
+from pydantic import BaseModel
+
 from languru.prompts import PromptTemplate
 from languru.prompts.repositories.data_model import prompt_date_model_from_openai
-from pyassorted.string import extract_code_blocks
-import pyjson5
 
 DataModelTypeVar = TypeVar("DataModelTypeVar", bound="DataModel")
 
@@ -67,54 +67,3 @@ class DataModel(BaseModel):
         if len(models) == 0:
             raise ValueError("Could not extract information from content.")
         return models[0]  # Only one model is expected
-
-
-class Tag(DataModel):
-    name: Text
-    description: Optional[Text] = None
-
-
-class User(DataModel):
-    name: Text
-    username: Text
-    email: EmailStr
-    age: Optional[int] = None
-    address: Optional[Text] = None
-    tags: Optional[List[Tag]] = None
-
-
-if __name__ == "__main__":
-    OpenAI()
-    User.model_from_openai(
-        dedent(
-            """
-            User Information
-            Name: John Doe
-            Date of Birth: January 1, 1990
-            Email: johndoe@example.com
-            Phone: (555) 123-4567
-            Address: 123 Main St, Anytown, USA 12345
-
-            Account Details
-            Username: johndoe90
-            Account Number: 1234567890
-            Account Type: Premium
-            Subscription Start Date: May 1, 2023
-            Subscription End Date: April 30, 2024
-
-            Payment Information
-            Payment Method: Visa Credit Card
-            Card Number: **** **** **** 1234
-            Expiration Date: 12/2025
-            Billing Address: 123 Main St, Anytown, USA 12345
-
-            Preferences
-            Language: English
-            Time Zone: Eastern Standard Time (EST)
-            Email Notifications: Enabled
-            SMS Notifications: Disabled
-            Marketing Communications: Opted Out
-            """
-        ).strip(),
-        OpenAI(),
-    )

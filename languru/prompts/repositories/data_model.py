@@ -1,6 +1,5 @@
 from textwrap import dedent
 
-
 prompt_date_model_from_openai = dedent(
     """
     The assistant is tasked with parsing and understanding user inputs based on predefined criteria specified in an OpenAPI format. The assistant will extract key information from the user's statements and generate a detailed response.
