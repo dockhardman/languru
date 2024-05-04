@@ -26,19 +26,20 @@ class DataModel(BaseModel):
         schema = cls.model_json_schema()
         model_schema = {cls.__name__: schema}
         # Prepare prompt
-        prompt_template = PromptTemplate(prompt_date_model_from_openai)
+        user_message = {
+            "role": "user",
+            "content": (
+                "[Model Schema]\n{model_schema}\n[END Model Schema]\n\n{user_says}"
+            ),
+        }
+        prompt_template = PromptTemplate(
+            prompt_date_model_from_openai, messages=[user_message]
+        )
         # Generate response
         chat_res = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": prompt_template.format()},
-                {
-                    "role": "user",
-                    "content": (
-                        f"[Model Schema]\n{model_schema}\n[END Model Schema]\n\n"
-                        + f"{content}"
-                    ),
-                },
-            ],
+            messages=prompt_template.format_messages(
+                prompt_vars={"model_schema": model_schema, "user_says": content}
+            ),
             model=model,
             temperature=0.0,
         )
