@@ -3445,13 +3445,13 @@ pyasn1 = ">=0.4.6,<0.7.0"
 
 [[package]]
 name = "pyassorted"
-version = "0.8.0"
+version = "0.9.0"
 description = "A library has light-weight assorted utils in Prue-Python."
 optional = false
-python-versions = ">=3.7.0,<4.0.0"
+python-versions = "<4.0.0,>=3.10.0"
 files = [
-    {file = "pyassorted-0.8.0-py3-none-any.whl", hash = "sha256:0b205f8c488d02c81e8d4f17d0431a1d4467b9f49a50b055418c3609ff21c53e"},
-    {file = "pyassorted-0.8.0.tar.gz", hash = "sha256:6df4e2b7cc5e8818cff6aef563951d1cafbc810259e90150f08fcf40fb5f3323"},
+    {file = "pyassorted-0.9.0-py3-none-any.whl", hash = "sha256:3b8cef07dfe050be6f78b051b168bd545fd5577aa1e5024a0d30518d4d78df77"},
+    {file = "pyassorted-0.9.0.tar.gz", hash = "sha256:6b5c3a727e9ba94d7b9bceba8d2e119bc4b7754a7fdd7e8c81f415e9e88c6bfb"},
 ]
 
 [package.dependencies]
@@ -5819,4 +5819,4 @@ torch = ["torch", "torchaudio", "torchvision"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "16eeb6ea70be5f1cd0437a90d24a7829037561cba9c028d966c65d96a920d0e4"
+content-hash = "598454c3a25675eeabd16a963b7cb61584b2e02348aaa44feab2ffb118650ad7"
