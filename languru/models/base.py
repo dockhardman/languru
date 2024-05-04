@@ -1,63 +1,72 @@
 from textwrap import dedent
-from typing import List, Optional, Text
+from typing import List, Optional, Text, TypeVar, Type, Dict, Union
 
 from openai import OpenAI
-from pydantic import BaseModel, EmailStr
-from rich import print
+from pydantic import BaseModel, EmailStr, Field
+from languru.prompts import PromptTemplate
+from languru.prompts.repositories.data_model import prompt_date_model_from_openai
+from pyassorted.string import extract_code_blocks
+import pyjson5
+
+DataModelTypeVar = TypeVar("DataModelTypeVar", bound="DataModel")
 
 
 class DataModel(BaseModel):
     @classmethod
-    def model_from_openai(
-        cls, content: Text, client: "OpenAI", model: Text = "gpt-3.5-turbo", **kwargs
-    ):
+    def models_from_openai(
+        cls: Type[DataModelTypeVar],
+        content: Text,
+        client: "OpenAI",
+        model: Text = "gpt-3.5-turbo",
+        **kwargs,
+    ) -> List[DataModelTypeVar]:
+        # Get schema
         schema = cls.model_json_schema()
         model_schema = {cls.__name__: schema}
-        sys_prompt = dedent(
-            """
-            ## Objective
-            The assistant is tasked with parsing and understanding user inputs based on predefined criteria specified in an OpenAPI format. The assistant will extract key information from the user's statements and generate a detailed response.
-
-            ## Input Parsing
-            The assistant should meticulously analyze the user's input to identify and extract the relevant data points specified in the following OpenAPI schema excerpt:
-
-            ```json
-            # Example OpenAPI schema of the data model
-            {"UserData": {"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}, "interests": {"type": "array", "items": {"type": "string"}}}, "required": ["name", "age"]}}
-            ```
-
-            ## Response Format
-            Upon processing the input, the assistant must provide a clear explanation of the user's statement, outlining the identified and extracted data points. The response should culminate in a JSON-formatted block that encapsulates the analysis results, adhering strictly to the format outlined below:
-
-            1. Begin with a brief explanation of the user's input based on the extracted information.
-            2. Present the final result encapsulated in a JSON block.
-
-            ## Example Response
-
-            ```plaintext
-            Based on your input, the assistant has identified the following details: Name, Age, and Interests. Here is the structured representation of the information extracted:
-
-            ```json
-            {"name": "John Doe", "age": 30, "interests": ["reading", "gaming", "hiking"]}
-            ```
-            ```
-
-            ## Instructions
-            The assistant should ensure accuracy in data extraction and maintain a formal and respectful tone throughout the interaction. The JSON block should start with "```json" and end with "```" to clearly demarcate the structured data output.
-            """
-        ).strip()
+        # Prepare prompt
+        prompt_template = PromptTemplate(prompt_date_model_from_openai)
+        # Generate response
         chat_res = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": sys_prompt},
+                {"role": "system", "content": prompt_template.format()},
                 {
                     "role": "user",
-                    "content": f"[Model Schema]\n{model_schema}\n[END Model Schema]\n\n{content}",
+                    "content": (
+                        f"[Model Schema]\n{model_schema}\n[END Model Schema]\n\n"
+                        + f"{content}"
+                    ),
                 },
             ],
             model=model,
             temperature=0.0,
         )
-        print(chat_res.choices[0].message.content)
+        chat_answer = chat_res.choices[0].message.content
+        if chat_answer is None:
+            raise ValueError("Failed to generate a response from the OpenAI API.")
+        # Parse response
+        code_blocks = extract_code_blocks(chat_answer, language="json")
+        if len(code_blocks) == 0:
+            raise ValueError(
+                f"Failed to extract a JSON code block from the response: {chat_answer}"
+            )
+        code_block = code_blocks[0]  # Only one code block is expected
+        json_data: Union[Dict, List[Dict]] = pyjson5.loads(code_block)
+        if isinstance(json_data, Dict):
+            json_data = [json_data]
+        return [cls.model_validate(item) for item in json_data]
+
+    @classmethod
+    def model_from_openai(
+        cls: Type[DataModelTypeVar],
+        content: Text,
+        client: "OpenAI",
+        model: Text = "gpt-3.5-turbo",
+        **kwargs,
+    ) -> DataModelTypeVar:
+        models = cls.models_from_openai(content, client, model, **kwargs)  #
+        if len(models) == 0:
+            raise ValueError("Could not extract information from content.")
+        return models[0]  # Only one model is expected
 
 
 class Tag(DataModel):
