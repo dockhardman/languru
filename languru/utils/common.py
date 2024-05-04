@@ -1,6 +1,6 @@
 import json
 import string
-from typing import Any, List, Optional, Text, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Text, Tuple, TypeVar
 
 from pydantic import BaseModel
 from rich import box
@@ -10,6 +10,9 @@ from rich.table import Table
 from rich.text import Text as RichText
 
 from languru.config import logger
+
+if TYPE_CHECKING:
+    from openai.types.chat.chat_completion import ChatCompletion
 
 T = TypeVar("T")
 
@@ -94,3 +97,18 @@ def remove_punctuation(input_string: Text, extra_punctuation: Text = "") -> Text
     )
     translator = str.maketrans("", "", extended_punctuation)
     return input_string.translate(translator)
+
+
+def ensure_openai_chat_completion_content(chat_completion: "ChatCompletion") -> Text:
+    chat_answer = chat_completion.choices[0].message.content
+    if chat_answer is None:
+        raise ValueError("Failed to get a response content from the OpenAI API.")
+    return chat_answer
+
+
+def ensure_list(value: Any) -> List:
+    if isinstance(value, Sequence):
+        return list(value)
+    if value is None:
+        return []
+    return [value]

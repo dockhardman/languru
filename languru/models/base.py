@@ -1,12 +1,14 @@
-from typing import Dict, List, Text, Type, TypeVar, Union
+from typing import Dict, List, Text, Type, TypeVar
 
 import pyjson5
 from openai import OpenAI
 from pyassorted.string import extract_code_blocks
 from pydantic import BaseModel
+from pydantic_core import ValidationError
 
 from languru.prompts import PromptTemplate
 from languru.prompts.repositories.data_model import prompt_date_model_from_openai
+from languru.utils.common import ensure_list, ensure_openai_chat_completion_content
 
 DataModelTypeVar = TypeVar("DataModelTypeVar", bound="DataModel")
 
@@ -40,9 +42,7 @@ class DataModel(BaseModel):
             model=model,
             temperature=0.0,
         )
-        chat_answer = chat_res.choices[0].message.content
-        if chat_answer is None:
-            raise ValueError("Failed to generate a response from the OpenAI API.")
+        chat_answer = ensure_openai_chat_completion_content(chat_res)
         # Parse response
         code_blocks = extract_code_blocks(chat_answer, language="json")
         if len(code_blocks) == 0:
@@ -50,10 +50,18 @@ class DataModel(BaseModel):
                 f"Failed to extract a JSON code block from the response: {chat_answer}"
             )
         code_block = code_blocks[0]  # Only one code block is expected
-        json_data: Union[Dict, List[Dict]] = pyjson5.loads(code_block)
-        if isinstance(json_data, Dict):
-            json_data = [json_data]
-        return [cls.model_validate(item) for item in json_data]
+        items: List[Dict] = ensure_list(pyjson5.loads(code_block))
+        # Validate models
+        models: List[DataModelTypeVar] = []
+        for item in items:
+            try:
+                _model = cls.model_validate(item)
+            except ValidationError as e:
+                raise ValueError(
+                    f"Failed to validate model '{cls.__name__}' from data: {item}"
+                ) from e
+            models.append(_model)
+        return models
 
     @classmethod
     def model_from_openai(
