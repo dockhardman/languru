@@ -21,7 +21,7 @@ from rich.style import StyleType
 from rich.table import Table
 from rich.text import Text as RichText
 
-from languru.config import logger
+from languru.config import console, logger
 from languru.types.chat.completions import Message
 
 if TYPE_CHECKING:
@@ -154,3 +154,32 @@ def ensure_openai_chat_completion_message_params(
         else:
             raise ValueError(f"Invalid message type: {m}")
     return _messages
+
+
+def display_messages(
+    messages: Union[
+        Sequence["Message"],
+        Sequence[Dict[Text, Any]],
+        Sequence[ChatCompletionMessageParam],
+    ],
+    is_print: bool = True,
+) -> Text:
+    """Display messages in a human-readable format."""
+
+    if not messages:
+        raise ValueError("No messages to display.")
+
+    _messages = [
+        m.model_dump() if isinstance(m, BaseModel) else dict(m) for m in messages
+    ]
+    out = ""
+    for m in _messages:
+        role = str(m.get("role") or "Unknown").capitalize()
+        content = str(m.get("content") or "n/a")
+        if is_print:
+            console.print(role, style="underline bold cyan")
+            console.print(content)
+            console.print()
+        out += f"\n\n{role.capitalize()}:\n{content}"
+        out = out.strip()
+    return out

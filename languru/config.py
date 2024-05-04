@@ -1,6 +1,7 @@
 import logging
 
 from pydantic_settings import BaseSettings
+from rich.console import Console
 
 
 class Settings(BaseSettings):
@@ -11,3 +12,4 @@ class Settings(BaseSettings):
 settings = Settings()
 
 logger = logging.getLogger(settings.logger_name)
+console = Console()
