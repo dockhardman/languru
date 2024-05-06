@@ -38,7 +38,7 @@ pip install flash-attn --no-build-isolation
 poetry install -E <extras> --with dev
 
 # Or just install all dependencies.
-poetry install -E all
+poetry install -E all --with dev --with docs
 ```
 
 Run llm action server:
