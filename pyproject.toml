@@ -10,76 +10,48 @@ repository = "https://github.com/dockhardman/languru"
 version = "0.9.0"
 
 [tool.poetry.dependencies]
-accelerate = { version = "^0.27.2", optional = true, markers = "sys_platform == 'linux'" }
-aiohttp = "^3.9.3"
-anthropic = { version = "<1,>0.21", optional = true }
-bitsandbytes = { version = "^0.42", optional = true, markers = "sys_platform == 'linux'" }
-click = "^8.1.7"
-colorama = "^0.4.6"
-einops = { version = "^0.7.0", optional = true }
+accelerate = { version = "<1,>=0.27.2", optional = true, markers = "sys_platform == 'linux'" }
+aiohttp = "^3"
+anthropic = "<1,>0.21"
+bitsandbytes = { version = "<1,>=0.42", optional = true, markers = "sys_platform == 'linux'" }
+click = "^8"
+colorama = "<1,>=0.4.6"
+einops = { version = "<1,>=0.7.0", optional = true }
 email-validator = "^2"
-fastapi = { extras = ["all"], version = "^0.109.0", optional = true }
+fastapi = { extras = ["all"], version = "<1,>=0.109.0", optional = true }
 flash-attn = { version = "^2", optional = true, markers = "sys_platform == 'linux'" }
-google-cloud-aiplatform = { version = "^1.38", optional = true }
-google-generativeai = { version = "^0.3.2", optional = true }
-groq = { version = "<1,>=0.4.2", optional = true }
+google-cloud-aiplatform = "^1.38"
+google-generativeai = "<1,>=0.3.2"
+groq = "<1,>=0.4.2"
 ninja = { version = "^1.11.1.1", optional = true }
-nvgpu = { version = "^0.10.0", optional = true, markers = "sys_platform == 'linux'" }
+nvgpu = { version = "<1,>=0.10.0", optional = true, markers = "sys_platform == 'linux'" }
 openai = "^1.10.0"
-packaging = "^23.2"
-pyassorted = "^0.9.0"
+packaging = ">=23.2"
+pillow = "^10.0.0"
+pyassorted = "<1,>=0.9.0"
 pydantic = "^2"
 pydantic-settings = "^2"
 pyjson5 = "^1.6"
 python = ">=3.10,<4.0"
 python-dotenv = "^1"
-pytz = "^2024.1"
+pytz = ">=2024.1"
 rich = "^13.7.0"
-sentencepiece = { version = "^0.1.99", optional = true }
+sentencepiece = { version = "<1,>=0.1.99", optional = true }
 sqlalchemy = "^2.0.25"
 torch = { version = "^2.2.0", optional = true }
 torchaudio = { version = "^2.2.0", optional = true }
-torchvision = { version = "^0.17.0", optional = true }
+torchvision = { version = "<1,>=0.17.0", optional = true }
 transformers = { extras = ["torch"], version = "^4.37.2", optional = true }
-typing-extensions = "^4.9.0"
+typing-extensions = ">=4.9.0"
 
 [tool.poetry.scripts]
 languru = "languru.cli.main:app"
 
 [tool.poetry.extras]
-all = ["anthropic", "einops", "fastapi", "google-cloud-aiplatform", "google-generativeai", "groq", "huggingface", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
-anthropic = ["anthropic"]
-cuda = ["accelerate", "bitsandbytes", "flash-attn", "nvgpu"]
-google = ["google-cloud-aiplatform", "google-generativeai"]
-groq = ["groq"]
-huggingface = ["einops", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
-huggingface_cpu = ["transformers"]
+all = ["accelerate", "bitsandbytes", "einops", "fastapi", "flash-attn", "huggingface", "ninja", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+cpu = ["torch", "torchaudio", "torchvision", "transformers"]
+gpu = ["accelerate", "bitsandbytes", "einops", "flash-attn", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
 server = ["fastapi"]
-torch = ["torch", "torchaudio", "torchvision"]
-
-[tool.poetry.group.server.dependencies]
-fastapi = { extras = ["all"], version = "^0.109.0", optional = true }
-
-[tool.poetry.group.torch.dependencies]
-torch = { version = "^2.2.0", optional = true }
-torchaudio = { version = "^2.2.0", optional = true }
-torchvision = { version = "^0.17.0", optional = true }
-
-[tool.poetry.group.huggingface.dependencies]
-einops = { version = "^0.7.0", optional = true }
-ninja = { version = "^1.11.1.1", optional = true }
-nvgpu = { version = "^0.10.0", optional = true }
-sentencepiece = { version = "^0.1.99", optional = true }
-torch = { version = "^2.2.0", optional = true }
-torchaudio = { version = "^2.2.0", optional = true }
-torchvision = { version = "^0.17.0", optional = true }
-transformers = { extras = ["torch"], version = "^4.38.1", optional = true }
-
-[tool.poetry.group.cuda.dependencies]
-accelerate = { version = "^0.27.2", optional = true, markers = "sys_platform == 'linux'" }
-bitsandbytes = { version = "^0.42", optional = true, markers = "sys_platform == 'linux'" }
-flash-attn = { version = "^2", optional = true, markers = "sys_platform == 'linux'" }
-nvgpu = { version = "^0.10.0", optional = true, markers = "sys_platform == 'linux'" }
 
 [tool.poetry.group.docs.dependencies]
 mkdocs-git-authors-plugin = "*"
@@ -93,23 +65,24 @@ mkdocs-render-swagger-plugin = "*"
 neoteroi-mkdocs = "*"
 
 [tool.poetry.group.dev.dependencies]
-Pillow = "^10.0.0"
 black = "*"
 isort = "*"
+mkdocs-git-authors-plugin = "*"
+mkdocs-git-committers-plugin-2 = "*"
+mkdocs-git-revision-date-localized-plugin = "*"
 mkdocs-material = "^9"
+mkdocs-minify-plugin = "*"
+mkdocs-nav-weight = "*"
+mkdocs-redirects = "*"
+mkdocs-render-swagger-plugin = "*"
+neoteroi-mkdocs = "*"
 poetry-plugin-export = "^1.6.0"
 pytest = "^8"
 pytest-asyncio = "*"
 pytest-cov = "^4"
 pytest-xdist = "^3"
-setuptools = "^69"
+setuptools = ">=69"
 
-[tool.poetry.group.test.dependencies]
-Pillow = "^10.0.0"
-pytest = "^8"
-pytest-asyncio = "*"
-pytest-cov = "^4"
-pytest-xdist = "^3"
 
 [tool.isort]
 profile = "black"
