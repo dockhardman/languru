@@ -73,7 +73,6 @@ def chat_interactive(
         assistant_says = chat_res.choices[0].message.content
         messages.append({"role": "assistant", "content": assistant_says})
         console.print(f"Assistant: {assistant_says}")
-        console.print()
 
         # Tokens per second
         res_total_tokens = (
@@ -82,6 +81,7 @@ def chat_interactive(
         console.print(
             f"{res_total_tokens / chat_timecost:.3f} tokens/s", style="italic blue"
         )
+        console.print()
 
 
 class ActionText(ABC):
