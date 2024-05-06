@@ -24,8 +24,22 @@ Documentation: [Github Pages](https://dockhardman.github.io/languru/)
 Install Languru:
 
 ```shell
+# Install For LLM deployment.
 pip install languru[server]
-pip install languru[all]  # Or install all dependencies (include `torch`, `transformers`, ...)
+
+# Install huggingface transformers and torch dependencies in CPU mode.
+pip install languru[cpu]
+# Install huggingface transformers and torch dependencies in GPU mode with CUDA acceleration.
+pip install languru[gpu]
+
+# Install development dependencies.
+pip install languru[<extras>] --with dev
+
+# Install documentation dependencies only.
+pip install languru --with doc
+
+# Or just install all dependencies.
+pip install languru[all] --with dev
 ```
 
 Run llm action server:
