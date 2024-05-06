@@ -52,10 +52,7 @@ if TYPE_CHECKING:
 class TransformersAction(ActionBase):
     # Model configuration
     MODEL_NAME: Text = (os.getenv("HF_MODEL_NAME") or os.getenv("MODEL_NAME")) or ""
-    model_deploys = (
-        ModelDeploy(MODEL_NAME, MODEL_NAME),
-        ModelDeploy(MODEL_NAME.split("/")[-1], MODEL_NAME),
-    )
+    model_deploys = ()
 
     # Model Quantization configuration
     use_quantization: bool = bool(
@@ -95,6 +92,20 @@ class TransformersAction(ActionBase):
         self.model_name = self.read_model_name(**kwargs)
         # Model and tokenizer
         self.model, self.tokenizer = self.load_model_and_tokenizer(**kwargs)
+
+        # Register model deploys
+        _model_deploys_dict = {
+            d.model_deploy_name: d.model_name for d in self.model_deploys or ()
+        }
+        _model_deploys_dict[self.model_name] = self.model_name
+        if self.model_name.split("/")[-1]:
+            _model_deploys_dict[self.model_name.split("/")[-1]] = self.model_name
+        self.model_deploys = tuple(
+            [
+                ModelDeploy(model_deploy_name=k, model_name=v)
+                for k, v in _model_deploys_dict.items()
+            ]
+        )
 
     def name(self):
         return "transformers_action"
@@ -194,6 +205,7 @@ class TransformersAction(ActionBase):
         # Validate parameters
         if not prompt:
             raise ValueError("The `prompt` cannot be empty")
+        model = self.validate_model(model=model)
         if model != self.model_name:
             logger.warning(
                 f"The model `{model}` is not the same as the action's model "
