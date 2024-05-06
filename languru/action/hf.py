@@ -41,7 +41,13 @@ from transformers.tokenization_utils_base import PreTokenizedInput
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
 from languru.utils.calculation import mean_pooling, tensor_to_np
-from languru.utils.common import must_list, replace_right, should_str_or_none
+from languru.utils.common import (
+    json_dumps,
+    must_list,
+    named_tuples_to_dicts,
+    replace_right,
+    should_str_or_none,
+)
 from languru.utils.device import validate_device, validate_dtype
 from languru.utils.hf import StopAtWordsStoppingCriteria, remove_special_tokens
 
@@ -52,7 +58,7 @@ if TYPE_CHECKING:
 class TransformersAction(ActionBase):
     # Model configuration
     MODEL_NAME: Text = (os.getenv("HF_MODEL_NAME") or os.getenv("MODEL_NAME")) or ""
-    model_deploys = ()
+    model_deploys: Sequence[ModelDeploy] = ()
 
     # Model Quantization configuration
     use_quantization: bool = bool(
@@ -100,11 +106,24 @@ class TransformersAction(ActionBase):
         _model_deploys_dict[self.model_name] = self.model_name
         if self.model_name.split("/")[-1]:
             _model_deploys_dict[self.model_name.split("/")[-1]] = self.model_name
+        _model_deploys_dict.update(
+            {k.casefold(): v for k, v in _model_deploys_dict.items()}
+        )
         self.model_deploys = tuple(
             [
                 ModelDeploy(model_deploy_name=k, model_name=v)
                 for k, v in _model_deploys_dict.items()
             ]
+        )
+
+        # Debug logs
+        logger.debug(
+            f"Model '{self.model_name}' deploys: "
+            + f"{json_dumps(named_tuples_to_dicts(self.model_deploys))}"
+        )
+        logger.debug(
+            f"Model '{self.model_name}' config: "
+            + f"{json_dumps(self.model.config.to_dict())}"
         )
 
     def name(self):
