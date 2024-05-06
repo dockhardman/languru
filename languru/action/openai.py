@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING, Generator, List, Literal, Optional, Text, Union
 
 import openai
@@ -253,6 +254,10 @@ class AzureOpenaiAction(OpenaiAction):
             __params["api_key"] = api_key
         if api_version is not None:
             __params["api_version"] = api_version
+        elif os.getenv("AZURE_OPENAI_API_VERSION"):
+            __params["api_version"] = os.getenv("AZURE_OPENAI_API_VERSION")
+        else:
+            __params["api_version"] = "2024-02-01"
         if azure_endpoint is not None:
             __params["azure_endpoint"] = azure_endpoint
         self._client = openai.AzureOpenAI(**__params)
