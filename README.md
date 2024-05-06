@@ -31,15 +31,14 @@ pip install languru[server]
 pip install languru[cpu]
 # Install huggingface transformers and torch dependencies in GPU mode with CUDA acceleration.
 pip install languru[gpu]
+# Install flash-attn dependently if you want to use it.
+pip install flash-attn --no-build-isolation
 
 # Install development dependencies.
-pip install languru[<extras>] --with dev
-
-# Install documentation dependencies only.
-pip install languru --with doc
+poetry install -E <extras> --with dev
 
 # Or just install all dependencies.
-pip install languru[all] --with dev
+poetry install -E all
 ```
 
 Run llm action server:

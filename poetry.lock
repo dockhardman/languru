@@ -5887,12 +5887,12 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy", "pytest-ruff (>=0.2.1)"]
 
 [extras]
-all = ["accelerate", "bitsandbytes", "einops", "fastapi", "flash-attn", "ninja", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+all = ["accelerate", "bitsandbytes", "einops", "fastapi", "ninja", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
 cpu = ["torch", "torchaudio", "torchvision", "transformers"]
-gpu = ["accelerate", "bitsandbytes", "einops", "flash-attn", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+gpu = ["accelerate", "bitsandbytes", "einops", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
 server = ["fastapi"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "e44026c2cd77a72bafc0bbd8bc6b71536b381d26609f885254c7f6dccdb06be3"
+content-hash = "4832542526507d8ab6919fbd989b8bc27c3bb7ca8805f4daeaedeb7b50228070"
