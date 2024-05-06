@@ -259,9 +259,9 @@ class TransformersAction(ActionBase):
             logger.warning(
                 "The input tokens length is already greater than max_length, "
                 + f"{inputs_tokens_length} >= {max_length}, "
-                + f"resetting max_length to {inputs_tokens_length + 20}"
+                + f"resetting max_length to {inputs_tokens_length + 200}"
             )
-            kwargs["max_length"] = max_length = inputs_tokens_length + 20
+            kwargs["max_length"] = max_length = inputs_tokens_length + 200
 
         # Generate text completion
         outputs = self.model.generate(input_ids, **kwargs)
