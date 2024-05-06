@@ -3,11 +3,22 @@ from typing import Text
 from languru.action.base import chat_interactive
 from languru.action.hf import TransformersAction
 
-MODEL_NAME = "google/gemma-7b-it"  # "google/gemma-2b-it"
+
+class GoogleGemma7bChatAction(TransformersAction):
+    MODEL_NAME = "google/gemma-7b-it"
+
+    def name(self) -> Text:
+        return "google_gemma_7b_chat_action"
 
 
-class GoogleGemmaChatAction(TransformersAction):
-    MODEL_NAME = MODEL_NAME
+class GoogleGemma2bChatAction(TransformersAction):
+    MODEL_NAME = "google/gemma-2b-it"
+
+    def name(self) -> Text:
+        return "google_gemma_2b_chat_action"
+
+
+class GoogleGemmaChatAction(GoogleGemma7bChatAction):
 
     def name(self) -> Text:
         return "google_gemma_chat_action"
@@ -16,10 +27,14 @@ class GoogleGemmaChatAction(TransformersAction):
 if __name__ == "__main__":
     from rich import print
 
-    print(f"Loading {MODEL_NAME} ...")
+    print(f"Loading {GoogleGemmaChatAction.MODEL_NAME} ...")
     action = GoogleGemmaChatAction()
-    print(f'Loaded model "{MODEL_NAME}" Health: {action.health()}')
+    print(
+        f'Loaded Model "{GoogleGemmaChatAction.MODEL_NAME}" Health: {action.health()}'
+    )
     print()
 
     # Chat
-    chat_interactive(action=action, model=MODEL_NAME, max_tokens=800)
+    chat_interactive(
+        action=action, model=GoogleGemmaChatAction.MODEL_NAME, max_tokens=800
+    )
