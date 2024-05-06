@@ -18,6 +18,26 @@ class GoogleGemma2bChatAction(TransformersAction):
         return "google_gemma_2b_chat_action"
 
 
+class GoogleGemma7b4bitChatAction(TransformersAction):
+    MODEL_NAME = "google/gemma-7b-it"
+
+    use_quantization = True
+    load_in_4bit = True
+
+    def name(self) -> Text:
+        return "google_gemma_7b_4bit_chat_action"
+
+
+class GoogleGemma2b4bitChatAction(TransformersAction):
+    MODEL_NAME = "google/gemma-2b-it"
+
+    use_quantization = True
+    load_in_4bit = True
+
+    def name(self) -> Text:
+        return "google_gemma_2b_4bit_chat_action"
+
+
 class GoogleGemmaChatAction(GoogleGemma7bChatAction):
 
     def name(self) -> Text:
