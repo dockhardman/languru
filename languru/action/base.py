@@ -1,7 +1,9 @@
+import time
 from abc import ABC
 from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
+    Dict,
     Generator,
     List,
     NamedTuple,
@@ -11,6 +13,10 @@ from typing import (
     Union,
 )
 
+from rich.console import Console
+from rich.prompt import Prompt
+
+from languru.config import console as languru_console
 from languru.exceptions import ModelNotFound
 from languru.utils.common import str_strong_casefold
 
@@ -33,6 +39,49 @@ if TYPE_CHECKING:
 ModelDeploy = NamedTuple(
     "ModelDeploy", [("model_deploy_name", Text), ("model_name", Text)]
 )
+
+
+def chat_interactive(
+    action: "ActionBase",
+    *,
+    model: Text,
+    console: Optional["Console"] = None,
+    max_tokens: int = 200,
+) -> None:
+    console = console or languru_console
+
+    messages: List[Dict] = []
+    while True:
+        user_says = Prompt.ask("User", console=console).strip()
+        if not user_says:
+            continue
+        if user_says.casefold() in ("exit", "quit", "q"):
+            break
+        console.print()
+
+        # Chat
+        messages.append({"role": "user", "content": user_says})
+        chat_params = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+        chat_start = time.time()
+        chat_res = action.chat(**chat_params)
+        chat_timecost = time.time() - chat_start
+        assert len(chat_res.choices) > 0 and chat_res.choices[0].message.content
+        assistant_says = chat_res.choices[0].message.content
+        messages.append({"role": "assistant", "content": assistant_says})
+        console.print(f"Assistant: {assistant_says}")
+
+        # Tokens per second
+        res_total_tokens = (
+            0.0 if chat_res.usage is None else chat_res.usage.total_tokens
+        )
+        console.print(
+            f"{res_total_tokens / chat_timecost:.3f} tokens/s", style="italic blue"
+        )
+        console.print()
 
 
 class ActionText(ABC):

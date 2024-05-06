@@ -5,6 +5,7 @@ from typing import (
     Any,
     Dict,
     List,
+    NamedTuple,
     Optional,
     Sequence,
     Text,
@@ -183,3 +184,13 @@ def display_messages(
         out += f"\n\n{role.capitalize()}:\n{content}"
         out = out.strip()
     return out
+
+
+def named_tuples_to_dicts(named_tuples: Sequence[NamedTuple]) -> List[Dict]:
+    """Convert named tuples to dictionaries."""
+
+    return [nt._asdict() for nt in named_tuples]
+
+
+def json_dumps(data: Any, indent: Optional[Union[int, Text]] = None) -> Text:
+    return json.dumps(data, indent=indent, ensure_ascii=False)

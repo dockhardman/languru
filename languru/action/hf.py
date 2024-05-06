@@ -41,7 +41,13 @@ from transformers.tokenization_utils_base import PreTokenizedInput
 from languru.action.base import ActionBase, ModelDeploy
 from languru.config import logger
 from languru.utils.calculation import mean_pooling, tensor_to_np
-from languru.utils.common import must_list, replace_right, should_str_or_none
+from languru.utils.common import (
+    json_dumps,
+    must_list,
+    named_tuples_to_dicts,
+    replace_right,
+    should_str_or_none,
+)
 from languru.utils.device import validate_device, validate_dtype
 from languru.utils.hf import StopAtWordsStoppingCriteria, remove_special_tokens
 
@@ -52,10 +58,7 @@ if TYPE_CHECKING:
 class TransformersAction(ActionBase):
     # Model configuration
     MODEL_NAME: Text = (os.getenv("HF_MODEL_NAME") or os.getenv("MODEL_NAME")) or ""
-    model_deploys = (
-        ModelDeploy(MODEL_NAME, MODEL_NAME),
-        ModelDeploy(MODEL_NAME.split("/")[-1], MODEL_NAME),
-    )
+    model_deploys: Sequence[ModelDeploy] = ()
 
     # Model Quantization configuration
     use_quantization: bool = bool(
@@ -95,6 +98,33 @@ class TransformersAction(ActionBase):
         self.model_name = self.read_model_name(**kwargs)
         # Model and tokenizer
         self.model, self.tokenizer = self.load_model_and_tokenizer(**kwargs)
+
+        # Register model deploys
+        _model_deploys_dict = {
+            d.model_deploy_name: d.model_name for d in self.model_deploys or ()
+        }
+        _model_deploys_dict[self.model_name] = self.model_name
+        if self.model_name.split("/")[-1]:
+            _model_deploys_dict[self.model_name.split("/")[-1]] = self.model_name
+        _model_deploys_dict.update(
+            {k.casefold(): v for k, v in _model_deploys_dict.items()}
+        )
+        self.model_deploys = tuple(
+            [
+                ModelDeploy(model_deploy_name=k, model_name=v)
+                for k, v in _model_deploys_dict.items()
+            ]
+        )
+
+        # Debug logs
+        logger.debug(
+            f"Model '{self.model_name}' deploys: "
+            + f"{json_dumps(named_tuples_to_dicts(self.model_deploys))}"
+        )
+        logger.debug(
+            f"Model '{self.model_name}' config: "
+            + f"{json_dumps(self.model.config.to_dict())}"
+        )
 
     def name(self):
         return "transformers_action"
@@ -194,6 +224,7 @@ class TransformersAction(ActionBase):
         # Validate parameters
         if not prompt:
             raise ValueError("The `prompt` cannot be empty")
+        model = self.validate_model(model=model)
         if model != self.model_name:
             logger.warning(
                 f"The model `{model}` is not the same as the action's model "
@@ -247,9 +278,9 @@ class TransformersAction(ActionBase):
             logger.warning(
                 "The input tokens length is already greater than max_length, "
                 + f"{inputs_tokens_length} >= {max_length}, "
-                + f"resetting max_length to {inputs_tokens_length + 20}"
+                + f"resetting max_length to {inputs_tokens_length + 200}"
             )
-            kwargs["max_length"] = max_length = inputs_tokens_length + 20
+            kwargs["max_length"] = max_length = inputs_tokens_length + 200
 
         # Generate text completion
         outputs = self.model.generate(input_ids, **kwargs)
