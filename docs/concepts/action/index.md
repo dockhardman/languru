@@ -84,21 +84,21 @@ These methods provide a high-level interface for interacting with the loaded mod
 
 ### OpenAI and AzureOpenAI Actions
 
-- OpenaiAction
-- AzureOpenaiAction
+- [OpenaiAction](openai.md)
+- [AzureOpenaiAction](openai.md)
 
 ### Anthropic Claude Actions
 
-- AnthropicAction
+- [AnthropicAction](anthropic.md)
 
 ### Google Actions
 
-- GoogleGenaiAction
+- [GoogleGenaiAction](google.md)
 
 ### Groq Actions
 
-- GroqAction
-- GroqOpenaiAction
+- [GroqAction](groq.md)
+- [GroqOpenaiAction](groq.md)
 
 ### Hugging Face Actions
 
