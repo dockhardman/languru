@@ -6,46 +6,10 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 from yarl import URL
 
-from languru.config import logger
+from languru.resources.model_discovery.base import ModelDiscovery
 from languru.types.model import Model
 from languru.types.model.orm import Base as SQL_Base
 from languru.types.model.orm import ModelOrm
-
-
-class ModelDiscovery:
-
-    @classmethod
-    def from_url(cls, url: Text | URL):
-        url_str: Text = str(url).strip()
-        if (
-            url_str.startswith("sqlite")
-            or url_str.startswith("postgresql")
-            or url_str.startswith("postgres")
-            or url_str.startswith("mysql")
-        ):
-            return SqlModelDiscovery(url)
-        else:
-            logger.error(f"Unsupported discovery url: {url_str}")
-            raise ValueError(f"Unsupported discovery url: {url_str}")
-
-    def touch(self) -> bool:
-        raise NotImplementedError  # pragma: no cover
-
-    def register(self, model: Model) -> Model:
-        raise NotImplementedError  # pragma: no cover
-
-    def retrieve(self, id: Text) -> Model | None:
-        raise NotImplementedError  # pragma: no cover
-
-    def list(
-        self,
-        id: Optional[Text] = None,
-        owned_by: Optional[Text] = None,
-        created_from: Optional[int] = None,
-        created_to: Optional[int] = None,
-        limit: int = 20,
-    ) -> list[Model]:
-        raise NotImplementedError  # pragma: no cover
 
 
 class SqlModelDiscovery(ModelDiscovery):
@@ -80,7 +44,7 @@ class SqlModelDiscovery(ModelDiscovery):
                     )
                     .one()
                 )
-                model_orm.created = created
+                model_orm.created = created  # type: ignore
             except NoResultFound:
                 # create one
                 model_orm = ModelOrm(

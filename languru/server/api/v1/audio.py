@@ -109,7 +109,7 @@ class AudioSpeechHandler:
     ) -> StreamingResponse:
         from openai import OpenAI
 
-        from languru.resources.model_discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
@@ -211,7 +211,7 @@ class AudioTranscriptionHandler:
     ) -> Transcription:
         from openai import OpenAI
 
-        from languru.resources.model_discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
@@ -310,7 +310,7 @@ class AudioTranslationHandler:
     ) -> Translation:
         from openai import OpenAI
 
-        from languru.resources.model_discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery

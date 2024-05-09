@@ -74,7 +74,7 @@ class ModelsHandler:
         created_to: Optional[int],
         settings: "AgentSettings",
     ) -> "SyncPage[Model]":
-        from languru.resources.model_discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
@@ -155,7 +155,7 @@ class RetrieveModelHandler:
         model: Text,
         settings: "AgentSettings",
     ) -> Model:
-        from languru.resources.model_discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
@@ -223,7 +223,7 @@ class ModelRegisterHandler:
     async def handle_model_register_agent(
         self, request: "Request", model: Model, settings: "AgentSettings"
     ) -> Dict[Text, Any]:
-        from languru.resources.model_discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
