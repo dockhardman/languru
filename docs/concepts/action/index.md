@@ -102,8 +102,8 @@ These methods provide a high-level interface for interacting with the loaded mod
 
 ### Hugging Face Actions
 
-- TransformersAction
+- [TransformersAction](hugging_face.md)
 
 ### Perplexity Actions
 
-- PerplexityAction
+- [PerplexityAction](perplexity.md)
