@@ -1,7 +1,3 @@
----
-weight: 100
----
-
 # Overview
 
 The `Action` module is designed to provide a simple way to interact with the models or external services.
