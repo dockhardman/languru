@@ -2,7 +2,7 @@
 weight: 100
 ---
 
-# Concepts
+# Overview
 
 The `Action` module is designed to provide a simple way to interact with the models or external services.
 It is a base class that provides a common interface for all the actions.
