@@ -12,19 +12,19 @@ To use the GoogleGenaiAction class, you need to follow these steps:
 
 1. Import the necessary modules:
 
-```python
-import google.generativeai as genai
-from languru.action.base import ActionBase, ModelDeploy
-from languru.config import logger
-```
+    ```python
+    import google.generativeai as genai
+    from languru.action.base import ActionBase, ModelDeploy
+    from languru.config import logger
+    ```
 
 2. Create an instance of the GoogleGenaiAction class:
 
-```python
-action = GoogleGenaiAction(api_key="YOUR_API_KEY")
-```
+    ```python
+    action = GoogleGenaiAction(api_key="YOUR_API_KEY")
+    ```
 
-Make sure to provide a valid Google GenAI API key when creating the instance. You can either pass it directly or set it as an environment variable named `GOOGLE_API_KEY` or `GOOGLE_GENAI_API_KEY`.
+    Make sure to provide a valid Google GenAI API key when creating the instance. You can either pass it directly or set it as an environment variable named `GOOGLE_API_KEY` or `GOOGLE_GENAI_API_KEY`.
 
 3. Use the available methods to perform different tasks:
 
@@ -32,18 +32,18 @@ Make sure to provide a valid Google GenAI API key when creating the instance. Yo
    - `text_completion(prompt, model)`: Generates a text completion based on the given prompt and model.
    - `embeddings(input, model)`: Generates embeddings for the provided input using the specified model.
 
-Here's an example of how to use the `chat` method:
+    Here's an example of how to use the `chat` method:
 
-```python
-messages = [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "What is the capital of France?"}
-]
-model = "models/chat-bison-001"
+    ```python
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "What is the capital of France?"}
+    ]
+    model = "models/chat-bison-001"
 
-chat_completion = action.chat(messages, model=model)
-print(chat_completion)
-```
+    chat_completion = action.chat(messages, model=model)
+    print(chat_completion)
+    ```
 
 ## Available Models
 
