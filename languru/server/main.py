@@ -81,7 +81,7 @@ async def app_lifespan(app: FastAPI):
                     )
                 )
     if isinstance(settings, AgentSettings):
-        from languru.resources.model.discovery import ModelDiscovery
+        from languru.resources.model_discovery import ModelDiscovery
 
         # Touch database
         model_discovery = ModelDiscovery.from_url(settings.url_model_discovery)

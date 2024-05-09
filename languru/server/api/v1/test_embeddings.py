@@ -39,7 +39,7 @@ def mocked_openai_embeddings_create():
 
 @pytest.fixture
 def mocked_model_discovery_list():
-    from languru.resources.model.discovery import ModelDiscovery, SqlModelDiscovery
+    from languru.resources.model_discovery import ModelDiscovery, SqlModelDiscovery
     from languru.types.model import Model
 
     return_model_discovery_list = [

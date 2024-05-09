@@ -1,4 +1,4 @@
-from languru.models.base import DataModel
+from languru.models.data_model import DataModel
 from languru.prompts.base import PromptTemplate
 from languru.types.audio import (
     AudioSpeechRequest,
