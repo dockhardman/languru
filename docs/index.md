@@ -45,7 +45,9 @@ for choice in res.choices:
 
 ## Concepts
 
-- [Action](concepts/action.md)
+- [Action](concepts/action/index.md)
+- [Data Model](concepts/data_model/index.md)
+- [Prompts](concepts/prompts/prompt_template.md)
 - [LLM Server](concepts/llm_server.md)
 - [Agent Server](concepts/agent_server.md)
 - [Docker](concepts/docker.md)
