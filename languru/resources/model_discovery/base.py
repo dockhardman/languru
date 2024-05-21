@@ -27,12 +27,13 @@ class ModelDiscovery:
 
         # Local
         elif (
-            url_str.startswith("local")
+            url_str.startswith("diskcache")
+            or url_str.startswith("local")
             or url_str.startswith("localhost")
             or url_str.startswith("file")
             or url_str.startswith("fs")
         ):
-            return LocalModelDiscovery(url)
+            return DiskCacheModelDiscovery(url)
 
         # Undefined
         else:
@@ -59,7 +60,7 @@ class ModelDiscovery:
         raise NotImplementedError  # pragma: no cover
 
 
-class LocalModelDiscovery(ModelDiscovery):
+class DiskCacheModelDiscovery(ModelDiscovery):
     def __init__(self, url: Text | URL):
         self.url = URL(url)
         self.file_root = f"{self.url.host}{self.url.path}"
@@ -105,9 +106,9 @@ class LocalModelDiscovery(ModelDiscovery):
                     continue
                 if owned_by is not None and model.owned_by != owned_by:
                     continue
-                if created_from is not None and model.created >= created_from:
+                if created_from is not None and model.created < created_from:
                     continue
-                if created_to is not None and model.created <= created_to:
+                if created_to is not None and model.created > created_to:
                     continue
                 models.append(model)
             except (TypeError, EOFError):
