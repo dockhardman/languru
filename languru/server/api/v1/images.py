@@ -106,7 +106,7 @@ class ImagesGenerationsHandler:
     ) -> ImagesResponse:
         from openai import OpenAI
 
-        from languru.resources.model.discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
@@ -197,7 +197,7 @@ class ImagesEditsHandler:
     ) -> ImagesResponse:
         from openai import OpenAI
 
-        from languru.resources.model.discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery
@@ -289,7 +289,7 @@ class ImagesVariationsHandler:
     ) -> ImagesResponse:
         from openai import OpenAI
 
-        from languru.resources.model.discovery import ModelDiscovery
+        from languru.resources.model_discovery.base import ModelDiscovery
 
         model_discovery: "ModelDiscovery" = get_value_from_app(
             request.app, key="model_discovery", value_typing=ModelDiscovery

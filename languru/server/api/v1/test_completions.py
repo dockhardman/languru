@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
 
 
+test_model_name = "gpt-3.5-turbo-instruct"
+
+
 @pytest.fixture
 def llm_env(monkeypatch: "MonkeyPatch"):
     monkeypatch.setenv("APP_TYPE", AppType.llm)
@@ -54,22 +57,18 @@ def mocked_openai_text_completion_create_stream():
 
 @pytest.fixture
 def mocked_model_discovery_list():
-    from languru.resources.model.discovery import ModelDiscovery, SqlModelDiscovery
+    from languru.resources.model_discovery.base import DiskCacheModelDiscovery as MD
     from languru.types.model import Model
 
     return_model_discovery_list = [
         Model(
-            id="gpt-3.5-turbo",
+            id=test_model_name,
             created=int(time.time()) - 1,
             object="model",
             owned_by="http://0.0.0.0:8682/v1",
         )
     ]
-    with patch.object(
-        ModelDiscovery, "list", MagicMock(return_value=return_model_discovery_list)
-    ), patch.object(
-        SqlModelDiscovery, "list", MagicMock(return_value=return_model_discovery_list)
-    ):
+    with patch.object(MD, "list", MagicMock(return_value=return_model_discovery_list)):
         yield
 
 
@@ -78,7 +77,7 @@ def test_llm_app_text_completions(llm_env, mocked_openai_text_completion_create)
 
     with TestClient(languru.server.main.app) as client:
         completion_call = {
-            "model": "gpt-3.5-turbo-instruct",
+            "model": test_model_name,
             "prompt": "Say this is a test",
             "max_tokens": 7,
             "temperature": 0,
@@ -95,7 +94,7 @@ def test_llm_app_text_completions_stream(
 
     with TestClient(languru.server.main.app) as client:
         completion_call = {
-            "model": "gpt-3.5-turbo-instruct",
+            "model": test_model_name,
             "prompt": "Say this is a test",
             "max_tokens": 7,
             "temperature": 0,
@@ -121,7 +120,7 @@ def test_agent_app_chat(
 
     with TestClient(languru.server.main.app) as client:
         completion_call = {
-            "model": "gpt-3.5-turbo-instruct",
+            "model": test_model_name,
             "prompt": "Say this is a test",
             "max_tokens": 7,
             "temperature": 0,
@@ -137,7 +136,7 @@ def test_agent_app_chat_stream(
 
     with TestClient(languru.server.main.app) as client:
         completion_call = {
-            "model": "gpt-3.5-turbo-instruct",
+            "model": test_model_name,
             "prompt": "Say this is a test",
             "max_tokens": 7,
             "temperature": 0,

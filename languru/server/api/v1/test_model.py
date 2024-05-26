@@ -26,24 +26,18 @@ def agent_env(monkeypatch: "MonkeyPatch"):
 @pytest.fixture
 def mocked_model_discovery_list():
     from languru.examples.return_values._openai import return_model
-    from languru.resources.model.discovery import ModelDiscovery, SqlModelDiscovery
+    from languru.resources.model_discovery.base import DiskCacheModelDiscovery as MD
 
-    with patch.object(
-        ModelDiscovery, "list", MagicMock(return_value=[return_model])
-    ), patch.object(SqlModelDiscovery, "list", MagicMock(return_value=[return_model])):
+    with patch.object(MD, "list", MagicMock(return_value=[return_model])):
         yield
 
 
 @pytest.fixture
 def mocked_model_discovery_retrieve():
     from languru.examples.return_values._openai import return_model
-    from languru.resources.model.discovery import ModelDiscovery, SqlModelDiscovery
+    from languru.resources.model_discovery.base import DiskCacheModelDiscovery as MD
 
-    with patch.object(
-        ModelDiscovery, "retrieve", MagicMock(return_value=return_model)
-    ), patch.object(
-        SqlModelDiscovery, "retrieve", MagicMock(return_value=return_model)
-    ):
+    with patch.object(MD, "retrieve", MagicMock(return_value=return_model)):
         yield
 
 

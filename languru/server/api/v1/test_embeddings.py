@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
 
 
+test_model_name = "text-embedding-ada-002"
+
+
 @pytest.fixture
 def llm_env(monkeypatch: "MonkeyPatch"):
     monkeypatch.setenv("APP_TYPE", AppType.llm)
@@ -39,22 +42,18 @@ def mocked_openai_embeddings_create():
 
 @pytest.fixture
 def mocked_model_discovery_list():
-    from languru.resources.model.discovery import ModelDiscovery, SqlModelDiscovery
+    from languru.resources.model_discovery.base import DiskCacheModelDiscovery as MD
     from languru.types.model import Model
 
     return_model_discovery_list = [
         Model(
-            id="gpt-3.5-turbo",
+            id=test_model_name,
             created=int(time.time()) - 1,
             object="model",
             owned_by="http://0.0.0.0:8682/v1",
         )
     ]
-    with patch.object(
-        ModelDiscovery, "list", MagicMock(return_value=return_model_discovery_list)
-    ), patch.object(
-        SqlModelDiscovery, "list", MagicMock(return_value=return_model_discovery_list)
-    ):
+    with patch.object(MD, "list", MagicMock(return_value=return_model_discovery_list)):
         yield
 
 
@@ -64,7 +63,7 @@ def test_llm_app_embedding(llm_env):
     with TestClient(languru.server.main.app) as client:
         embedding_call = {
             "input": ["Hello", "world!"],
-            "model": "text-embedding-ada-002",
+            "model": test_model_name,
             "encoding_format": "float",
         }
         response = client.post("/v1/embeddings", json=embedding_call)
@@ -80,7 +79,7 @@ def test_agent_app_embedding(
     with TestClient(languru.server.main.app) as client:
         embedding_call = {
             "input": ["Hello", "world!"],
-            "model": "text-embedding-ada-002",
+            "model": test_model_name,
             "encoding_format": "float",
         }
         response = client.post("/v1/embeddings", json=embedding_call)

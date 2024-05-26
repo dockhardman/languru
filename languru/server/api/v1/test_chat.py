@@ -54,7 +54,7 @@ def mocked_openai_chat_completion_create_stream():
 
 @pytest.fixture
 def mocked_model_discovery_list():
-    from languru.resources.model.discovery import ModelDiscovery, SqlModelDiscovery
+    from languru.resources.model_discovery.base import DiskCacheModelDiscovery as MD
     from languru.types.model import Model
 
     return_model_discovery_list = [
@@ -65,11 +65,7 @@ def mocked_model_discovery_list():
             owned_by="http://0.0.0.0:8682/v1",
         )
     ]
-    with patch.object(
-        ModelDiscovery, "list", MagicMock(return_value=return_model_discovery_list)
-    ), patch.object(
-        SqlModelDiscovery, "list", MagicMock(return_value=return_model_discovery_list)
-    ):
+    with patch.object(MD, "list", MagicMock(return_value=return_model_discovery_list)):
         yield
 
 
