@@ -10,10 +10,15 @@ from languru.types.model import Model
 
 
 class ModelDiscovery:
+    url: URL
+
+    def __str__(self) -> Text:
+        url: Text = str(self.url) if getattr(self, "url", None) else "NotSet"
+        return f"{self.__class__.__name__}({url})"
 
     @classmethod
     def from_url(cls, url: Text | URL):
-        url_str: Text = str(url).strip()
+        url_str: Text = str(URL(url))
         # SQL
         if (
             url_str.startswith("sqlite")
@@ -63,7 +68,7 @@ class ModelDiscovery:
 class DiskCacheModelDiscovery(ModelDiscovery):
     def __init__(self, url: Text | URL):
         self.url = URL(url)
-        self.file_root = f"{self.url.host}{self.url.path}"
+        self.file_root = f"{self.url.host or ''}{self.url.path}"
         self.query_params = self.url.query
         self.cache = Cache(self.file_root, size_limit=50 * 1024 * 1024)
         self.global_expire: int = 60 * 60
