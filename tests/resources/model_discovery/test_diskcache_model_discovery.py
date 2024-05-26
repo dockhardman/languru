@@ -25,14 +25,14 @@ def test_diskcache_model_discovery_builder(url: Text):
 
 
 def test_diskcache_model_discovery_init(session_id_fixture: Text):
-    url = f"file:///tmp/{session_id_fixture}.db"
+    url = f"file:///tmp/{session_id_fixture}"
     model_discovery = ModelDiscovery.from_url(url)
     assert isinstance(model_discovery, DiskCacheModelDiscovery)
     model_discovery.touch()
 
 
 def test_diskcache_model_discovery_operation(session_id_fixture: Text):
-    url = f"file:///tmp/{session_id_fixture}.db"
+    url = f"file:///tmp/{session_id_fixture}"
     model_discovery = ModelDiscovery.from_url(url)
     assert isinstance(model_discovery, DiskCacheModelDiscovery)
     model_discovery.touch()
