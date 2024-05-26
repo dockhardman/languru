@@ -34,10 +34,14 @@ graph LR
         Claude[Claude LM Server]
         SelfHost[Self-Host LLM]
         Other[Other LLM]
+        OpenAI -.- Gemini
+        Gemini -.- Claude
+        Claude -.- SelfHost
+        SelfHost -.- Other
     end
     user -->|Requests| agent_services
+    user --->|Requests| llm_services
     agent_services -->|Routes to| llm_services
-    user -->|Requests| llm_services
 ```
 
 ## Getting Started
