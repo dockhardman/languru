@@ -86,7 +86,7 @@ class AgentSettings(ServerBaseSettings):
 
     # Model discovery configuration
     MODEL_REGISTER_PERIOD: int = 10
-    url_model_discovery: Text = f"sqlite:///{DATA_DIR}/languru_model_discovery.db"
+    url_model_discovery: Text = f"fs://{DATA_DIR}/languru_model_discovery"
 
 
 class IsoDatetimeFormatter(logging.Formatter):

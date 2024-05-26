@@ -85,6 +85,7 @@ async def app_lifespan(app: FastAPI):
 
         # Touch database
         model_discovery = ModelDiscovery.from_url(settings.url_model_discovery)
+        logger.debug(f"Connecting Model discovery: {model_discovery}")
         model_discovery.touch()
         app.state.model_discovery = model_discovery
 
