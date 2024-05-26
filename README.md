@@ -19,6 +19,27 @@ The general-purpose LLM app stacks deploy AI services quickly and (stupidly) sim
 
 Documentation: [Github Pages](https://dockhardman.github.io/languru/)
 
+```mermaid
+graph LR
+    user[User]
+    subgraph agent_services[Agent Services]
+        agent[Agent Server]
+        md[Models Discovery]
+        agent -->|Registers| md
+    end
+    subgraph llm_services[LLM Services]
+        direction TB
+        OpenAI[OpenAI LM Server]
+        Gemini[Gemini LM Server]
+        Claude[Claude LM Server]
+        SelfHost[Self-Host LLM]
+        Other[Other LLM]
+    end
+    user -->|Requests| agent_services
+    agent_services -->|Routes to| llm_services
+    user -->|Requests| llm_services
+```
+
 ## Getting Started
 
 Install Languru:
