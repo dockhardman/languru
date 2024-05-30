@@ -20,6 +20,7 @@ def test_google_openai_chat_completion_create():
             ]
         ),
         model=test_model_name,
+        temperature=2.0,
     )
     chat_res = cast(ChatCompletion, chat_res)
     assert chat_res.choices and chat_res.choices[0].message

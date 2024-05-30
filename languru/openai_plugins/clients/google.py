@@ -5,6 +5,7 @@ from typing import Dict, Iterable, List, Literal, Optional, Text, Union
 
 import google.generativeai as genai
 import httpx
+from google.generativeai.types import generation_types
 from google.generativeai.types.content_types import ContentDict
 from openai import OpenAI
 from openai import resources as OpenAIResources
@@ -176,7 +177,12 @@ class GoogleChatCompletions(Completions):
         # Generate the chat response
         latest_content = contents.pop()
         chat_session = genai_model.start_chat(history=contents or None)
-        response = chat_session.send_message(latest_content)
+        send_message_kwargs = dict()
+        if temperature is not None and not isinstance(temperature, NotGiven):
+            send_message_kwargs["generation_config"] = (
+                generation_types.GenerationConfigDict(temperature=temperature)
+            )
+        response = chat_session.send_message(latest_content, **send_message_kwargs)
         out_tokens = genai_model.count_tokens(response.parts).total_tokens
 
         # Parse the response
