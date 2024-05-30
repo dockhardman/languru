@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Sequence, Text
 from openai.types.chat import ChatCompletionMessageParam
 
 
-def ensure_chat_completion_message_param(
+def ensure_chat_completion_message_params(
     messages: (
         Sequence[ChatCompletionMessageParam]
         | Sequence[Dict[Text, Any]]
