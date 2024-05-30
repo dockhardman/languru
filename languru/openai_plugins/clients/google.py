@@ -162,7 +162,12 @@ class GoogleChatCompletions(Completions):
         # pop out the last message
         genai_model = genai.GenerativeModel(model)
         contents: List[ContentDict] = [
-            ContentDict(role=m["role"], parts=[m["content"]])
+            ContentDict(
+                role=(
+                    "model" if m["role"] == "assistant" else "user"
+                ),  # Gemini roles: user, model
+                parts=[m["content"]],
+            )
             for m in messages
             if "content" in m and m["content"]
         ]
