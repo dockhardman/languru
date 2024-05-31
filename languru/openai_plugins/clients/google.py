@@ -1,17 +1,22 @@
 import os
 import time
 import uuid
-from typing import Dict, Iterable, List, Literal, Optional, Text, Union
+from typing import Dict, Generator, Iterable, List, Literal, Optional, Text, Union
 
 import google.generativeai as genai
 import httpx
+import openai
+from google.api_core.exceptions import NotFound as GoogleNotFound
+from google.generativeai.types import generation_types
 from google.generativeai.types.content_types import ContentDict
+from httpx._transports.default import ResponseStream
 from openai import OpenAI
 from openai import resources as OpenAIResources
 from openai._compat import cached_property
 from openai._streaming import Stream
 from openai._types import NOT_GIVEN, Body, Headers, NotGiven, Query
 from openai._utils import required_args
+from openai.pagination import SyncPage
 from openai.resources.chat.completions import Completions
 from openai.types.chat import completion_create_params
 from openai.types.chat.chat_completion import ChatCompletion
@@ -25,8 +30,12 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 )
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.chat_model import ChatModel
+from openai.types.create_embedding_response import CreateEmbeddingResponse
+from openai.types.model import Model
 
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
+from languru.utils.openai_utils import rand_chat_completion_id
+from languru.utils.sse import simple_encode_sse
 
 
 class GoogleChatCompletions(Completions):
@@ -153,6 +162,8 @@ class GoogleChatCompletions(Completions):
         timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
         **kwargs,
     ) -> ChatCompletion:
+        """Create a chat completion. This method is not implemented for Google GenAI."""
+
         if not messages:
             raise ValueError("The `messages` must not be empty")
         messages = list(messages)
@@ -176,7 +187,12 @@ class GoogleChatCompletions(Completions):
         # Generate the chat response
         latest_content = contents.pop()
         chat_session = genai_model.start_chat(history=contents or None)
-        response = chat_session.send_message(latest_content)
+        send_message_kwargs = dict()
+        if temperature is not None and not isinstance(temperature, NotGiven):
+            send_message_kwargs["generation_config"] = (
+                generation_types.GenerationConfigDict(temperature=temperature)
+            )
+        response = chat_session.send_message(latest_content, **send_message_kwargs)
         out_tokens = genai_model.count_tokens(response.parts).total_tokens
 
         # Parse the response
@@ -236,7 +252,100 @@ class GoogleChatCompletions(Completions):
         timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
         **kwargs,
     ) -> Stream[ChatCompletionChunk]:
-        raise NotImplementedError
+        """Create a chat completion stream.
+        This method is not implemented for Google GenAI.
+        Stream the chat completion response in chunks.
+        """
+
+        if not messages:
+            raise ValueError("The `messages` must not be empty")
+        messages = list(messages)
+        if len(list(messages)) == 0:
+            raise ValueError("The `messages` must not be empty")
+
+        # pop out the last message
+        genai_model = genai.GenerativeModel(model)
+        contents: List[ContentDict] = [
+            ContentDict(
+                role=(
+                    "model" if m["role"] == "assistant" else "user"
+                ),  # Gemini roles: user, model
+                parts=[m["content"]],
+            )
+            for m in messages
+            if "content" in m and m["content"]
+        ]
+
+        # Generate the chat response
+        latest_content = contents.pop()
+        chat_session = genai_model.start_chat(history=contents or None)
+        send_message_kwargs = dict()
+        if temperature is not None and not isinstance(temperature, NotGiven):
+            send_message_kwargs["generation_config"] = (
+                generation_types.GenerationConfigDict(temperature=temperature)
+            )
+        genai_response = chat_session.send_message(
+            latest_content, **send_message_kwargs
+        )
+        httpx_response_stream = ResponseStream(
+            self.generator_generate_content_chunks(genai_response, model=model)
+        )
+        httpx_response = httpx.Response(
+            status_code=200,
+            headers={"content-type": "text/plain"},
+            stream=httpx_response_stream,
+        )
+        return Stream(
+            cast_to=ChatCompletionChunk, response=httpx_response, client=self._client
+        )
+
+    def generator_generate_content_chunks(
+        self,
+        generate_content_response: "generation_types.GenerateContentResponse",
+        *,
+        model: Text,
+        encoding: Text = "utf-8",
+        created: Optional[int] = None,
+        chat_completion_id: Optional[Text] = None,
+    ) -> Generator[bytes, None, None]:
+        chat_completion_id = chat_completion_id or rand_chat_completion_id()
+        created = created or int(time.time())
+
+        # Generate the chat response
+        for generate_content_chunk in generate_content_response:
+            parts_content = "\n".join(
+                p.text for p in generate_content_chunk.candidates[0].content.parts
+            )
+            chunk = ChatCompletionChunk.model_validate(
+                {
+                    "id": chat_completion_id,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {"content": parts_content, "role": "assistant"},
+                        }
+                    ],
+                    "created": created,
+                    "model": model,
+                    "object": "chat.completion.chunk",
+                }
+            )
+            yield simple_encode_sse(chunk, encoding=encoding)
+
+        # Send the final chunk with finish_reason
+        chunk = ChatCompletionChunk.model_validate(
+            {
+                "id": chat_completion_id,
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                "created": created,
+                "model": model,
+                "object": "chat.completion.chunk",
+            }
+        )
+        yield simple_encode_sse(chunk, encoding=encoding)
+
+        # End the stream
+        yield simple_encode_sse("[DONE]", encoding=encoding)
 
 
 class GoogleChat(OpenAIResources.Chat):
@@ -245,8 +354,99 @@ class GoogleChat(OpenAIResources.Chat):
         return GoogleChatCompletions(self._client)
 
 
+class GoogleModels(OpenAIResources.Models):
+    def retrieve(
+        self,
+        model: str,
+        *,
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        **kwargs,
+    ) -> "Model":
+        try:
+            google_model = genai.get_model(model)
+        except GoogleNotFound as e:
+            error_message = str(e)
+            raise openai.NotFoundError(
+                error_message,
+                response=httpx.Response(status_code=404, text=error_message),
+                body=None,
+            ) from e
+        return Model.model_validate(
+            {
+                "id": google_model.name,
+                "created": int(time.time()),
+                "object": "model",
+                "owned_by": "google",
+            }
+        )
+
+    def list(
+        self,
+        *,
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        **kwargs,
+    ) -> "SyncPage[Model]":
+        models = [
+            Model.model_validate(
+                {
+                    "id": model.name,
+                    "created": int(time.time()),
+                    "object": "model",
+                    "owned_by": "google",
+                }
+            )
+            for model in list(genai.list_models())
+        ]
+        return SyncPage(data=models, object="list")
+
+
+class GoogleEmbeddings(OpenAIResources.Embeddings):
+    def create(
+        self,
+        *,
+        input: Union[str, List[str], Iterable[int], Iterable[Iterable[int]]],
+        model: Text,
+        dimensions: int | NotGiven = NOT_GIVEN,
+        encoding_format: Literal["float", "base64"] | NotGiven = NOT_GIVEN,
+        user: str | NotGiven = NOT_GIVEN,
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+    ) -> CreateEmbeddingResponse:
+        input = [input] if isinstance(input, Text) else input
+        embedding_res = genai.embed_content(model=model, content=input)
+        embeddings: List[List[float]] = embedding_res.get("embedding", [])
+        return CreateEmbeddingResponse.model_validate(
+            {
+                "data": [
+                    {
+                        "embedding": emb,
+                        "index": idx,
+                        "object": "embedding",
+                    }
+                    for idx, emb in enumerate(embeddings)
+                ],
+                "model": model,
+                "object": "list",
+                "usage": {
+                    "prompt_tokens": 0,
+                    "total_tokens": 0,
+                },
+            }
+        )
+
+
 class GoogleOpenAI(OpenAI):
     chat: GoogleChat
+    models: GoogleModels
+    embeddings: GoogleEmbeddings
 
     def __init__(self, *, api_key: Optional[Text] = None, **kwargs):
         api_key = (
@@ -265,3 +465,5 @@ class GoogleOpenAI(OpenAI):
         genai.configure(api_key=api_key)
 
         self.chat = GoogleChat(self)
+        self.models = GoogleModels(self)
+        self.embeddings = GoogleEmbeddings(self)
