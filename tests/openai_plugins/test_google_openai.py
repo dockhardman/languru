@@ -7,7 +7,8 @@ from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from languru.openai_plugins.clients.google import GoogleOpenAI
 from languru.utils.prompt import ensure_chat_completion_message_params
 
-test_model_name = "models/gemini-1.5-flash"
+test_chat_model_name = "models/gemini-1.5-flash"
+test_emb_model_name = "models/text-embedding-004"
 
 
 google_openai = GoogleOpenAI()
@@ -21,7 +22,7 @@ def test_google_openai_chat_completions_create():
                 {"role": "user", "content": "Why sky is blue"},
             ]
         ),
-        model=test_model_name,
+        model=test_chat_model_name,
         temperature=2.0,
     )
     chat_res = cast(ChatCompletion, chat_res)
@@ -36,7 +37,7 @@ def test_google_openai_chat_completions_create_stream():
                 {"role": "user", "content": "Say Hi!"},
             ]
         ),
-        model=test_model_name,
+        model=test_chat_model_name,
         temperature=0.0,
         stream=True,
     )
@@ -49,10 +50,18 @@ def test_google_openai_chat_completions_create_stream():
 
 
 def test_google_openai_models_retrieve():
-    model = google_openai.models.retrieve(model=test_model_name)
-    assert model.id == test_model_name
+    model = google_openai.models.retrieve(model=test_chat_model_name)
+    assert model.id == test_chat_model_name
 
 
 def test_google_openai_models_list():
     model = google_openai.models.list()
     assert len(model.data) > 0
+
+
+def test_google_openai_embeddings_create():
+    emb_res = google_openai.embeddings.create(
+        input="Hello, my name is John.",
+        model=test_emb_model_name,
+    )
+    assert emb_res.data and emb_res.data[0].embedding

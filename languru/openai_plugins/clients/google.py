@@ -30,6 +30,7 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 )
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.chat_model import ChatModel
+from openai.types.create_embedding_response import CreateEmbeddingResponse
 from openai.types.model import Model
 
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
@@ -405,9 +406,47 @@ class GoogleModels(OpenAIResources.Models):
         return SyncPage(data=models, object="list")
 
 
+class GoogleEmbeddings(OpenAIResources.Embeddings):
+    def create(
+        self,
+        *,
+        input: Union[str, List[str], Iterable[int], Iterable[Iterable[int]]],
+        model: Text,
+        dimensions: int | NotGiven = NOT_GIVEN,
+        encoding_format: Literal["float", "base64"] | NotGiven = NOT_GIVEN,
+        user: str | NotGiven = NOT_GIVEN,
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+    ) -> CreateEmbeddingResponse:
+        input = [input] if isinstance(input, Text) else input
+        embedding_res = genai.embed_content(model=model, content=input)
+        embeddings: List[List[float]] = embedding_res.get("embedding", [])
+        return CreateEmbeddingResponse.model_validate(
+            {
+                "data": [
+                    {
+                        "embedding": emb,
+                        "index": idx,
+                        "object": "embedding",
+                    }
+                    for idx, emb in enumerate(embeddings)
+                ],
+                "model": model,
+                "object": "list",
+                "usage": {
+                    "prompt_tokens": 0,
+                    "total_tokens": 0,
+                },
+            }
+        )
+
+
 class GoogleOpenAI(OpenAI):
     chat: GoogleChat
     models: GoogleModels
+    embeddings: GoogleEmbeddings
 
     def __init__(self, *, api_key: Optional[Text] = None, **kwargs):
         api_key = (
@@ -427,3 +466,4 @@ class GoogleOpenAI(OpenAI):
 
         self.chat = GoogleChat(self)
         self.models = GoogleModels(self)
+        self.embeddings = GoogleEmbeddings(self)
