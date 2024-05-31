@@ -454,6 +454,7 @@ class GoogleOpenAI(OpenAI):
             or os.getenv("GOOGLE_GENAI_API_KEY")
             or os.getenv("GOOGLE_AI_API_KEY")
             or os.getenv("GOOGLE_API_KEY")
+            or os.getenv("OPENAI_API_KEY")
         )
         if not api_key:
             raise ValueError("Google GenAI API key is not provided")
