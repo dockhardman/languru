@@ -26,6 +26,7 @@ class PerplexityModels(OpenAIResources.Models):
             "mixtral-8x7b-instruct",
         ]
     )
+    temperature_span = (0.0, 1.99)
 
     def retrieve(
         self,
