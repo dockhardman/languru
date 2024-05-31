@@ -13,7 +13,7 @@ test_model_name = "models/gemini-1.5-flash"
 google_openai = GoogleOpenAI()
 
 
-def test_google_openai_chat_completion_create():
+def test_google_openai_chat_completions_create():
     chat_res = google_openai.chat.completions.create(
         messages=ensure_chat_completion_message_params(
             [
@@ -28,7 +28,7 @@ def test_google_openai_chat_completion_create():
     assert chat_res.choices and chat_res.choices[0].message
 
 
-def test_google_openai_chat_completion_create_stream():
+def test_google_openai_chat_completions_create_stream():
     chat_stream = google_openai.chat.completions.create(
         messages=ensure_chat_completion_message_params(
             [
@@ -46,3 +46,13 @@ def test_google_openai_chat_completion_create_stream():
             pass
         else:
             assert chunk.choices and chunk.choices[0].delta.content
+
+
+def test_google_openai_models_retrieve():
+    model = google_openai.models.retrieve(model=test_model_name)
+    assert model.id == test_model_name
+
+
+def test_google_openai_models_list():
+    model = google_openai.models.list()
+    assert len(model.data) > 0

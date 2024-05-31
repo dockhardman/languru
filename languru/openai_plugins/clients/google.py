@@ -5,6 +5,8 @@ from typing import Dict, Generator, Iterable, List, Literal, Optional, Text, Uni
 
 import google.generativeai as genai
 import httpx
+import openai
+from google.api_core.exceptions import NotFound as GoogleNotFound
 from google.generativeai.types import generation_types
 from google.generativeai.types.content_types import ContentDict
 from httpx._transports.default import ResponseStream
@@ -14,6 +16,7 @@ from openai._compat import cached_property
 from openai._streaming import Stream
 from openai._types import NOT_GIVEN, Body, Headers, NotGiven, Query
 from openai._utils import required_args
+from openai.pagination import SyncPage
 from openai.resources.chat.completions import Completions
 from openai.types.chat import completion_create_params
 from openai.types.chat.chat_completion import ChatCompletion
@@ -27,6 +30,7 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 )
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.chat_model import ChatModel
+from openai.types.model import Model
 
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
 from languru.utils.openai_utils import rand_chat_completion_id
@@ -349,8 +353,61 @@ class GoogleChat(OpenAIResources.Chat):
         return GoogleChatCompletions(self._client)
 
 
+class GoogleModels(OpenAIResources.Models):
+    def retrieve(
+        self,
+        model: str,
+        *,
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        **kwargs,
+    ) -> "Model":
+        try:
+            google_model = genai.get_model(model)
+        except GoogleNotFound as e:
+            error_message = str(e)
+            raise openai.NotFoundError(
+                error_message,
+                response=httpx.Response(status_code=404, text=error_message),
+                body=None,
+            ) from e
+        return Model.model_validate(
+            {
+                "id": google_model.name,
+                "created": int(time.time()),
+                "object": "model",
+                "owned_by": "google",
+            }
+        )
+
+    def list(
+        self,
+        *,
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        **kwargs,
+    ) -> "SyncPage[Model]":
+        models = [
+            Model.model_validate(
+                {
+                    "id": model.name,
+                    "created": int(time.time()),
+                    "object": "model",
+                    "owned_by": "google",
+                }
+            )
+            for model in list(genai.list_models())
+        ]
+        return SyncPage(data=models, object="list")
+
+
 class GoogleOpenAI(OpenAI):
     chat: GoogleChat
+    models: GoogleModels
 
     def __init__(self, *, api_key: Optional[Text] = None, **kwargs):
         api_key = (
@@ -369,3 +426,4 @@ class GoogleOpenAI(OpenAI):
         genai.configure(api_key=api_key)
 
         self.chat = GoogleChat(self)
+        self.models = GoogleModels(self)
