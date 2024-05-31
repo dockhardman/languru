@@ -1,12 +1,13 @@
 import os
 import time
 import uuid
-from typing import Dict, Iterable, List, Literal, Optional, Text, Union
+from typing import Dict, Generator, Iterable, List, Literal, Optional, Text, Union
 
 import google.generativeai as genai
 import httpx
 from google.generativeai.types import generation_types
 from google.generativeai.types.content_types import ContentDict
+from httpx._transports.default import ResponseStream
 from openai import OpenAI
 from openai import resources as OpenAIResources
 from openai._compat import cached_property
@@ -28,6 +29,8 @@ from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.chat_model import ChatModel
 
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
+from languru.utils.openai_utils import rand_chat_completion_id
+from languru.utils.sse import simple_encode_sse
 
 
 class GoogleChatCompletions(Completions):
@@ -242,7 +245,95 @@ class GoogleChatCompletions(Completions):
         timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
         **kwargs,
     ) -> Stream[ChatCompletionChunk]:
-        raise NotImplementedError
+        if not messages:
+            raise ValueError("The `messages` must not be empty")
+        messages = list(messages)
+        if len(list(messages)) == 0:
+            raise ValueError("The `messages` must not be empty")
+
+        # pop out the last message
+        genai_model = genai.GenerativeModel(model)
+        contents: List[ContentDict] = [
+            ContentDict(
+                role=(
+                    "model" if m["role"] == "assistant" else "user"
+                ),  # Gemini roles: user, model
+                parts=[m["content"]],
+            )
+            for m in messages
+            if "content" in m and m["content"]
+        ]
+
+        # Generate the chat response
+        latest_content = contents.pop()
+        chat_session = genai_model.start_chat(history=contents or None)
+        send_message_kwargs = dict()
+        if temperature is not None and not isinstance(temperature, NotGiven):
+            send_message_kwargs["generation_config"] = (
+                generation_types.GenerationConfigDict(temperature=temperature)
+            )
+        genai_response = chat_session.send_message(
+            latest_content, **send_message_kwargs
+        )
+        httpx_response_stream = ResponseStream(
+            self.generator_generate_content_chunks(genai_response, model=model)
+        )
+        httpx_response = httpx.Response(
+            status_code=200,
+            headers={"content-type": "text/plain"},
+            stream=httpx_response_stream,
+        )
+        return Stream(
+            cast_to=ChatCompletionChunk, response=httpx_response, client=self._client
+        )
+
+    def generator_generate_content_chunks(
+        self,
+        generate_content_response: "generation_types.GenerateContentResponse",
+        *,
+        model: Text,
+        encoding: Text = "utf-8",
+        created: Optional[int] = None,
+        chat_completion_id: Optional[Text] = None,
+    ) -> Generator[bytes, None, None]:
+        chat_completion_id = chat_completion_id or rand_chat_completion_id()
+        created = created or int(time.time())
+
+        # Generate the chat response
+        for generate_content_chunk in generate_content_response:
+            parts_content = "\n".join(
+                p.text for p in generate_content_chunk.candidates[0].content.parts
+            )
+            chunk = ChatCompletionChunk.model_validate(
+                {
+                    "id": chat_completion_id,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {"content": parts_content, "role": "assistant"},
+                        }
+                    ],
+                    "created": created,
+                    "model": model,
+                    "object": "chat.completion.chunk",
+                }
+            )
+            yield simple_encode_sse(chunk, encoding=encoding)
+
+        # Send the final chunk with finish_reason
+        chunk = ChatCompletionChunk.model_validate(
+            {
+                "id": chat_completion_id,
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                "created": created,
+                "model": model,
+                "object": "chat.completion.chunk",
+            }
+        )
+        yield simple_encode_sse(chunk, encoding=encoding)
+
+        # End the stream
+        yield simple_encode_sse("[DONE]", encoding=encoding)
 
 
 class GoogleChat(OpenAIResources.Chat):
