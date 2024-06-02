@@ -1,14 +1,11 @@
 import os
 import time
-import uuid
 from typing import Dict, Generator, Iterable, List, Literal, Optional, Text, Union
 
-import google.generativeai as genai
+import anthropic
 import httpx
 import openai
-from google.api_core.exceptions import NotFound as GoogleNotFound
-from google.generativeai.types import generation_types
-from google.generativeai.types.content_types import ContentDict
+from anthropic.lib.streaming._messages import MessageStream as AnthropicMessageStream
 from httpx._transports.default import ResponseStream
 from openai import OpenAI
 from openai import resources as OpenAIResources
@@ -30,15 +27,20 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 )
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.chat_model import ChatModel
-from openai.types.create_embedding_response import CreateEmbeddingResponse
 from openai.types.model import Model
 
+from languru.config import logger
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
+from languru.types.chat.anthropic import AnthropicChatCompletionRequest
+from languru.types.chat.completions import ChatCompletionRequest
 from languru.utils.openai_utils import rand_chat_completion_id
 from languru.utils.sse import simple_encode_sse
 
 
-class GoogleChatCompletions(Completions):
+class AnthropicChatCompletions(Completions):
+
+    _client: "AnthropicOpenAI"
+
     @required_args(["messages", "model"], ["messages", "model", "stream"])
     def create(
         self,
@@ -170,55 +172,53 @@ class GoogleChatCompletions(Completions):
         if len(list(messages)) == 0:
             raise ValueError("The `messages` must not be empty")
 
-        # pop out the last message
-        genai_model = genai.GenerativeModel(model)
-        contents: List[ContentDict] = [
-            ContentDict(
-                role=(
-                    "model" if m["role"] == "assistant" else "user"
-                ),  # Gemini roles: user, model
-                parts=[m["content"]],
-            )
-            for m in messages
-            if "content" in m and m["content"]
-        ]
-        input_tokens = genai_model.count_tokens(contents).total_tokens
-
-        # Generate the chat response
-        latest_content = contents.pop()
-        chat_session = genai_model.start_chat(history=contents or None)
-        send_message_kwargs = dict()
-        if temperature is not None and not isinstance(temperature, NotGiven):
-            send_message_kwargs["generation_config"] = (
-                generation_types.GenerationConfigDict(temperature=temperature)
-            )
-        response = chat_session.send_message(latest_content, **send_message_kwargs)
-        out_tokens = genai_model.count_tokens(response.parts).total_tokens
-
-        # Parse the response
-        chat_completion = ChatCompletion.model_validate(
-            dict(
-                id=str(uuid.uuid4()),
-                choices=[
-                    dict(
-                        finish_reason="stop",
-                        index=idx,
-                        message=dict(content=part.text, role="assistant"),
-                    )
-                    for idx, part in enumerate(response.parts)
-                    if part.text
-                ],
-                created=int(time.time()),
-                model=model,
-                object="chat.completion",
-                usage=dict(
-                    completion_tokens=out_tokens,
-                    prompt_tokens=input_tokens,
-                    total_tokens=input_tokens + out_tokens,
-                ),
+        anthropic_req = (
+            AnthropicChatCompletionRequest.from_openai_chat_completion_request(
+                ChatCompletionRequest.from_kwargs(
+                    messages=messages, model=model, **kwargs
+                )
             )
         )
-        return chat_completion
+
+        # Send request
+        res_message = self._client.anthropic_client.messages.create(
+            **anthropic_req.model_dump(exclude_none=True)
+        )
+        total_tokens = res_message.usage.input_tokens + res_message.usage.output_tokens
+        finish_reason = "stop"
+        if res_message.stop_reason == "end_turn":
+            finish_reason = "stop"
+        elif res_message.stop_reason == "max_tokens":
+            finish_reason = "length"
+        elif res_message.stop_reason == "stop_sequence":
+            finish_reason = "stop"
+        else:
+            logger.warning(f"Unknown stop reason: {res_message.stop_reason}")
+
+        # Return response
+        return ChatCompletion.model_validate(
+            {
+                "id": res_message.id,
+                "choices": [
+                    {
+                        "finish_reason": finish_reason,
+                        "index": 0,
+                        "message": {
+                            "role": res_message.role,
+                            "content": res_message.content[0].text,
+                        },
+                    }
+                ],
+                "created": int(time.time()),
+                "model": res_message.model,
+                "object": "chat.completion",
+                "usage": {
+                    "completion_tokens": res_message.usage.output_tokens,
+                    "prompt_tokens": res_message.usage.input_tokens,
+                    "total_tokens": total_tokens,
+                },
+            }
+        )
 
     def _create_stream(
         self,
@@ -263,32 +263,25 @@ class GoogleChatCompletions(Completions):
         if len(list(messages)) == 0:
             raise ValueError("The `messages` must not be empty")
 
-        # pop out the last message
-        genai_model = genai.GenerativeModel(model)
-        contents: List[ContentDict] = [
-            ContentDict(
-                role=(
-                    "model" if m["role"] == "assistant" else "user"
-                ),  # Gemini roles: user, model
-                parts=[m["content"]],
+        anthropic_req = (
+            AnthropicChatCompletionRequest.from_openai_chat_completion_request(
+                ChatCompletionRequest.from_kwargs(
+                    messages=messages, model=model, **kwargs
+                )
             )
-            for m in messages
-            if "content" in m and m["content"]
-        ]
-
-        # Generate the chat response
-        latest_content = contents.pop()
-        chat_session = genai_model.start_chat(history=contents or None)
-        send_message_kwargs = dict()
-        if temperature is not None and not isinstance(temperature, NotGiven):
-            send_message_kwargs["generation_config"] = (
-                generation_types.GenerationConfigDict(temperature=temperature)
-            )
-        genai_response = chat_session.send_message(
-            latest_content, **send_message_kwargs
         )
+
+        # Send request
+        message_stream_manager = self._client.anthropic_client.messages.stream(
+            **anthropic_req.model_dump(exclude_none=True, exclude={"stream"})
+        )
+        # Get the message stream, witch is considered name mangled.
+        message_stream: AnthropicMessageStream = message_stream_manager.__dict__[
+            "_MessageStreamManager__api_request"
+        ]()
+
         httpx_response_stream = ResponseStream(
-            self.generator_generate_content_chunks(genai_response, model=model)
+            self.generator_generate_content_chunks(message_stream, model=model)
         )
         httpx_response = httpx.Response(
             status_code=200,
@@ -296,54 +289,56 @@ class GoogleChatCompletions(Completions):
             stream=httpx_response_stream,
         )
         return Stream(
-            cast_to=ChatCompletionChunk, response=httpx_response, client=self._client
+            cast_to=ChatCompletionChunk,
+            response=httpx_response,
+            client=self._client,
         )
 
     def generator_generate_content_chunks(
         self,
-        generate_content_response: "generation_types.GenerateContentResponse",
+        message_stream: "AnthropicMessageStream",
         *,
         model: Text,
         encoding: Text = "utf-8",
         created: Optional[int] = None,
         chat_completion_id: Optional[Text] = None,
     ) -> Generator[bytes, None, None]:
-        """Generate the chat completion response in chunks.
+        """Generate the chat completion chunks from the message stream.
 
         Parameters
         ----------
-        generate_content_response : generation_types.GenerateContentResponse
-            The response from the GenAI model.
+        message_stream : AnthropicMessageStream
+            The message stream object from the Anthropics API.
         model : Text
             The model name.
         encoding : Text, optional
-            The encoding format, by default "utf-8".
+            The encoding of the content, by default "utf-8".
         created : Optional[int], optional
-            The timestamp when the chat completion was created, by default None.
+            The timestamp of the chat completion, by default None.
         chat_completion_id : Optional[Text], optional
             The chat completion ID, by default None.
 
         Yields
         ------
         Generator[bytes, None, None]
-            The chat completion response in chunks.
+            The generator yielding the chat completion chunks.
         """
 
         chat_completion_id = chat_completion_id or rand_chat_completion_id()
         created = created or int(time.time())
 
         # Generate the chat response
-        for generate_content_chunk in generate_content_response:
-            parts_content = "\n".join(
-                p.text for p in generate_content_chunk.candidates[0].content.parts
-            )
+        for text in message_stream.text_stream:
             chunk = ChatCompletionChunk.model_validate(
                 {
                     "id": chat_completion_id,
                     "choices": [
                         {
                             "index": 0,
-                            "delta": {"content": parts_content, "role": "assistant"},
+                            "delta": {
+                                "content": text,
+                                "role": "assistant",
+                            },
                         }
                     ],
                     "created": created,
@@ -369,13 +364,22 @@ class GoogleChatCompletions(Completions):
         yield simple_encode_sse("[DONE]", encoding=encoding)
 
 
-class GoogleChat(OpenAIResources.Chat):
+class AnthropicChat(OpenAIResources.Chat):
     @cached_property
-    def completions(self) -> GoogleChatCompletions:
-        return GoogleChatCompletions(self._client)
+    def completions(self) -> AnthropicChatCompletions:
+        return AnthropicChatCompletions(self._client)
 
 
-class GoogleModels(OpenAIResources.Models):
+class AnthropicModels(OpenAIResources.Models):
+
+    supported_models = frozenset(
+        [
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+        ]
+    )
+
     def retrieve(
         self,
         model: str,
@@ -386,23 +390,24 @@ class GoogleModels(OpenAIResources.Models):
         timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
         **kwargs,
     ) -> "Model":
-        try:
-            google_model = genai.get_model(model)
-        except GoogleNotFound as e:
-            error_message = str(e)
+        if model in self.supported_models:
+            return Model.model_validate(
+                {
+                    "id": model,
+                    "created": int(time.time()),
+                    "object": "model",
+                    "owned_by": "anthropic",
+                }
+            )
+        else:
+            error_message = (
+                f"Model {model} not found. Supported models are {self.supported_models}"
+            )
             raise openai.NotFoundError(
                 error_message,
                 response=httpx.Response(status_code=404, text=error_message),
                 body=None,
-            ) from e
-        return Model.model_validate(
-            {
-                "id": google_model.name,
-                "created": int(time.time()),
-                "object": "model",
-                "owned_by": "google",
-            }
-        )
+            )
 
     def list(
         self,
@@ -413,79 +418,42 @@ class GoogleModels(OpenAIResources.Models):
         timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
         **kwargs,
     ) -> "SyncPage[Model]":
+        created = int(time.time())
         models = [
             Model.model_validate(
                 {
-                    "id": model.name,
-                    "created": int(time.time()),
+                    "id": model,
+                    "created": created,
                     "object": "model",
-                    "owned_by": "google",
+                    "owned_by": "anthropic",
                 }
             )
-            for model in list(genai.list_models())
+            for model in self.supported_models
         ]
         return SyncPage(data=models, object="list")
 
 
-class GoogleEmbeddings(OpenAIResources.Embeddings):
-    def create(
-        self,
-        *,
-        input: Union[str, List[str], Iterable[int], Iterable[Iterable[int]]],
-        model: Text,
-        dimensions: int | NotGiven = NOT_GIVEN,
-        encoding_format: Literal["float", "base64"] | NotGiven = NOT_GIVEN,
-        user: str | NotGiven = NOT_GIVEN,
-        extra_headers: Headers | None = None,
-        extra_query: Query | None = None,
-        extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
-    ) -> CreateEmbeddingResponse:
-        input = [input] if isinstance(input, Text) else input
-        embedding_res = genai.embed_content(model=model, content=input)
-        embeddings: List[List[float]] = embedding_res.get("embedding", [])
-        return CreateEmbeddingResponse.model_validate(
-            {
-                "data": [
-                    {
-                        "embedding": emb,
-                        "index": idx,
-                        "object": "embedding",
-                    }
-                    for idx, emb in enumerate(embeddings)
-                ],
-                "model": model,
-                "object": "list",
-                "usage": {
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
-                },
-            }
-        )
+class AnthropicOpenAI(OpenAI):
+    chat: AnthropicChat
+    models: AnthropicModels
 
-
-class GoogleOpenAI(OpenAI):
-    chat: GoogleChat
-    models: GoogleModels
-    embeddings: GoogleEmbeddings
+    anthropic_client: anthropic.Anthropic
 
     def __init__(self, *, api_key: Optional[Text] = None, **kwargs):
         api_key = (
             api_key
-            or os.getenv("GOOGLE_GENAI_API_KEY")
-            or os.getenv("GOOGLE_AI_API_KEY")
-            or os.getenv("GOOGLE_API_KEY")
+            or os.getenv("ANTHROPIC_API_KEY")
+            or os.getenv("CLAUDE_API_KEY")
             or os.getenv("OPENAI_API_KEY")
         )
         if not api_key:
-            raise ValueError("Google GenAI API key is not provided")
+            raise ValueError("Anthropic API key is not provided")
         kwargs["api_key"] = api_key
         kwargs = {k: v for k, v in kwargs.items() if k in openai_init_parameter_keys}
 
         super().__init__(**kwargs)
 
-        genai.configure(api_key=api_key)
+        self.chat = AnthropicChat(self)
+        self.models = AnthropicModels(self)
 
-        self.chat = GoogleChat(self)
-        self.models = GoogleModels(self)
-        self.embeddings = GoogleEmbeddings(self)
+        self.anthropic_client = anthropic.Anthropic(api_key=api_key)

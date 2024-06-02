@@ -1,39 +1,25 @@
-from enum import Enum
-from typing import List, Optional, Text, Union
+from typing import List, Literal, Optional, Text, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from languru.config import logger
 from languru.types.chat.completions import ChatCompletionRequest
 
 
-class Role(str, Enum):
-    USER = "user"
-    ASSISTANT = "assistant"
-
-
-class ContentType(str, Enum):
-    TEXT = "text"
-    IMAGE = "image"
-
-
-class SourceType(str, Enum):
-    BASE64 = "base64"
-
-
 class Source(BaseModel):
-    type: SourceType
+    type: Literal["base64"]
     media_type: str
     data: str
 
 
 class ContentBlock(BaseModel):
-    type: ContentType
+    type: Literal["text", "image"]
     text: Optional[str] = None
     source: Optional[Source] = None
 
 
 class MessageParam(BaseModel):
-    role: Role
+    role: Literal["user", "assistant"]
     content: Union[str, List[ContentBlock]]
 
 
@@ -70,14 +56,37 @@ class AnthropicChatCompletionRequest(BaseModel):
         cls, request: "ChatCompletionRequest"
     ) -> "AnthropicChatCompletionRequest":
         request = request.model_copy(deep=True)
-        sys_message = None
-        sys_message_idx = None
+
+        system: Optional[Text] = None
+        sys_message_indexes: List[int] = []
+        messages: List[MessageParam] = []
+        temperature: float = 1.0 if request.temperature is None else request.temperature
+
         for idx, m in enumerate(request.messages):
             if m.role == "system":
-                sys_message_idx = idx
-                break
-        if sys_message_idx is not None:
-            sys_message = request.messages.pop(sys_message_idx)
-        params = request.model_dump(exclude_none=True)
-        params["system"] = sys_message.content if sys_message is not None else None
-        return cls.model_validate(params)
+                sys_message_indexes.append(idx)
+            elif m.role == "user":
+                messages.append(MessageParam(role="user", content=m.content))
+            elif m.role == "assistant":
+                messages.append(MessageParam(role="assistant", content=m.content))
+            else:
+                logger.warning(f"Unknown role: {m.role}")
+
+        system = "\n\n".join(
+            [request.messages[sys_idx].content for sys_idx in sys_message_indexes]
+        )
+
+        return cls.model_validate(
+            {
+                "model": request.model,
+                "messages": messages,
+                "max_tokens": request.max_tokens or 800,
+                "metadata": None,
+                "stop_sequences": request.stop,
+                "stream": request.stream or False,
+                "system": system.strip() or None,
+                "temperature": min(max(temperature, 0.0), 1.0),
+                "top_k": None,
+                "top_p": request.top_p,
+            }
+        )

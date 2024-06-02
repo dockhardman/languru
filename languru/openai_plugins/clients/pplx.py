@@ -86,7 +86,10 @@ class PerplexityOpenAI(OpenAI):
 
     def __init__(self, *, api_key: Optional[Text] = None, **kwargs):
         api_key = (
-            api_key or os.getenv("PPLX_API_KEY") or os.getenv("PERPLEXITY_API_KEY")
+            api_key
+            or os.getenv("PPLX_API_KEY")
+            or os.getenv("PERPLEXITY_API_KEY")
+            or os.getenv("OPENAI_API_KEY")
         )
         if not api_key:
             raise ValueError("Perplexity API key is not provided")
