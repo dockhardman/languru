@@ -1,15 +1,11 @@
 import os
 import time
-import uuid
 from typing import Dict, Generator, Iterable, List, Literal, Optional, Text, Union
 
 import anthropic
-import google.generativeai as genai
 import httpx
 import openai
-from google.api_core.exceptions import NotFound as GoogleNotFound
-from google.generativeai.types import generation_types
-from google.generativeai.types.content_types import ContentDict
+from anthropic.lib.streaming._messages import MessageStream as AnthropicMessageStream
 from httpx._transports.default import ResponseStream
 from openai import OpenAI
 from openai import resources as OpenAIResources
@@ -33,12 +29,18 @@ from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.chat_model import ChatModel
 from openai.types.model import Model
 
+from languru.config import logger
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
+from languru.types.chat.anthropic import AnthropicChatCompletionRequest
+from languru.types.chat.completions import ChatCompletionRequest
 from languru.utils.openai_utils import rand_chat_completion_id
 from languru.utils.sse import simple_encode_sse
 
 
 class AnthropicChatCompletions(Completions):
+
+    _client: "AnthropicOpenAI"
+
     @required_args(["messages", "model"], ["messages", "model", "stream"])
     def create(
         self,
@@ -170,7 +172,53 @@ class AnthropicChatCompletions(Completions):
         if len(list(messages)) == 0:
             raise ValueError("The `messages` must not be empty")
 
-        pass
+        anthropic_req = (
+            AnthropicChatCompletionRequest.from_openai_chat_completion_request(
+                ChatCompletionRequest.from_kwargs(
+                    messages=messages, model=model, **kwargs
+                )
+            )
+        )
+
+        # Send request
+        res_message = self._client.anthropic_client.messages.create(
+            **anthropic_req.model_dump(exclude_none=True)
+        )
+        total_tokens = res_message.usage.input_tokens + res_message.usage.output_tokens
+        finish_reason = "stop"
+        if res_message.stop_reason == "end_turn":
+            finish_reason = "stop"
+        elif res_message.stop_reason == "max_tokens":
+            finish_reason = "length"
+        elif res_message.stop_reason == "stop_sequence":
+            finish_reason = "stop"
+        else:
+            logger.warning(f"Unknown stop reason: {res_message.stop_reason}")
+
+        # Return response
+        return ChatCompletion.model_validate(
+            {
+                "id": res_message.id,
+                "choices": [
+                    {
+                        "finish_reason": finish_reason,
+                        "index": 0,
+                        "message": {
+                            "role": res_message.role,
+                            "content": res_message.content[0].text,
+                        },
+                    }
+                ],
+                "created": int(time.time()),
+                "model": res_message.model,
+                "object": "chat.completion",
+                "usage": {
+                    "completion_tokens": res_message.usage.output_tokens,
+                    "prompt_tokens": res_message.usage.input_tokens,
+                    "total_tokens": total_tokens,
+                },
+            }
+        )
 
     def _create_stream(
         self,
@@ -215,7 +263,79 @@ class AnthropicChatCompletions(Completions):
         if len(list(messages)) == 0:
             raise ValueError("The `messages` must not be empty")
 
-        pass
+        anthropic_req = (
+            AnthropicChatCompletionRequest.from_openai_chat_completion_request(
+                ChatCompletionRequest.from_kwargs(
+                    messages=messages, model=model, **kwargs
+                )
+            )
+        )
+
+        # Send request
+        with self._client.anthropic_client.messages.stream(
+            **anthropic_req.model_dump(exclude_none=True, exclude={"stream"})
+        ) as message_stream:
+            httpx_response_stream = ResponseStream(
+                self.generator_generate_content_chunks(message_stream, model=model)
+            )
+            httpx_response = httpx.Response(
+                status_code=200,
+                headers={"content-type": "text/plain"},
+                stream=httpx_response_stream,
+            )
+            return Stream(
+                cast_to=ChatCompletionChunk,
+                response=httpx_response,
+                client=self._client,
+            )
+
+    def generator_generate_content_chunks(
+        self,
+        message_stream: "AnthropicMessageStream",
+        *,
+        model: Text,
+        encoding: Text = "utf-8",
+        created: Optional[int] = None,
+        chat_completion_id: Optional[Text] = None,
+    ) -> Generator[bytes, None, None]:
+        chat_completion_id = chat_completion_id or rand_chat_completion_id()
+        created = created or int(time.time())
+
+        # Generate the chat response
+        for text in message_stream.text_stream:
+            chunk = ChatCompletionChunk.model_validate(
+                {
+                    "id": chat_completion_id,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {
+                                "content": text,
+                                "role": "assistant",
+                            },
+                        }
+                    ],
+                    "created": created,
+                    "model": model,
+                    "object": "chat.completion.chunk",
+                }
+            )
+            yield simple_encode_sse(chunk, encoding=encoding)
+
+        # Send the final chunk with finish_reason
+        chunk = ChatCompletionChunk.model_validate(
+            {
+                "id": chat_completion_id,
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                "created": created,
+                "model": model,
+                "object": "chat.completion.chunk",
+            }
+        )
+        yield simple_encode_sse(chunk, encoding=encoding)
+
+        # End the stream
+        yield simple_encode_sse("[DONE]", encoding=encoding)
 
 
 class AnthropicChat(OpenAIResources.Chat):
@@ -290,6 +410,8 @@ class AnthropicModels(OpenAIResources.Models):
 class AnthropicOpenAI(OpenAI):
     chat: AnthropicChat
     models: AnthropicModels
+
+    anthropic_client: anthropic.Anthropic
 
     def __init__(self, *, api_key: Optional[Text] = None, **kwargs):
         api_key = (
