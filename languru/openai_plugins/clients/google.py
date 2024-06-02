@@ -308,6 +308,27 @@ class GoogleChatCompletions(Completions):
         created: Optional[int] = None,
         chat_completion_id: Optional[Text] = None,
     ) -> Generator[bytes, None, None]:
+        """Generate the chat completion response in chunks.
+
+        Parameters
+        ----------
+        generate_content_response : generation_types.GenerateContentResponse
+            The response from the GenAI model.
+        model : Text
+            The model name.
+        encoding : Text, optional
+            The encoding format, by default "utf-8".
+        created : Optional[int], optional
+            The timestamp when the chat completion was created, by default None.
+        chat_completion_id : Optional[Text], optional
+            The chat completion ID, by default None.
+
+        Yields
+        ------
+        Generator[bytes, None, None]
+            The chat completion response in chunks.
+        """
+
         chat_completion_id = chat_completion_id or rand_chat_completion_id()
         created = created or int(time.time())
 
