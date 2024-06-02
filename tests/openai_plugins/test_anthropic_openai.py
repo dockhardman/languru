@@ -40,22 +40,21 @@ def test_claude_openai_chat_completions_create():
     assert chat_res.choices and chat_res.choices[0].message
 
 
-# def test_claude_openai_chat_completions_create_stream():
-#     chat_stream = claude_openai.chat.completions.create(
-#         messages=ensure_chat_completion_message_params(
-#             [
-#                 {"role": "system", "content": "Respond simple and concise."},
-#                 {"role": "user", "content": "Say Hi!"},
-#             ]
-#         ),
-#         model=test_chat_model_name,
-#         temperature=0.0,
-#         stream=True,
-#     )
-#     chat_stream = cast(Stream[ChatCompletionChunk], chat_stream)
-#     for chunk in chat_stream:
-#         print(chunk)
-#         if chunk.choices[0].finish_reason == "stop":
-#             pass
-#         else:
-#             assert chunk.choices and chunk.choices[0].delta.content
+def test_claude_openai_chat_completions_create_stream():
+    chat_stream = claude_openai.chat.completions.create(
+        messages=ensure_chat_completion_message_params(
+            [
+                {"role": "system", "content": "Respond simple and concise."},
+                {"role": "user", "content": "Say Hi!"},
+            ]
+        ),
+        model=test_chat_model_name,
+        temperature=0.0,
+        stream=True,
+    )
+    chat_stream = cast(Stream[ChatCompletionChunk], chat_stream)
+    for chunk in chat_stream:
+        if chunk.choices[0].finish_reason == "stop":
+            pass
+        else:
+            assert chunk.choices and chunk.choices[0].delta.content

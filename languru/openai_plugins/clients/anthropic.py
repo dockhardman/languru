@@ -272,22 +272,27 @@ class AnthropicChatCompletions(Completions):
         )
 
         # Send request
-        with self._client.anthropic_client.messages.stream(
+        message_stream_manager = self._client.anthropic_client.messages.stream(
             **anthropic_req.model_dump(exclude_none=True, exclude={"stream"})
-        ) as message_stream:
-            httpx_response_stream = ResponseStream(
-                self.generator_generate_content_chunks(message_stream, model=model)
-            )
-            httpx_response = httpx.Response(
-                status_code=200,
-                headers={"content-type": "text/plain"},
-                stream=httpx_response_stream,
-            )
-            return Stream(
-                cast_to=ChatCompletionChunk,
-                response=httpx_response,
-                client=self._client,
-            )
+        )
+        # Get the message stream, witch is considered name mangled.
+        message_stream: AnthropicMessageStream = message_stream_manager.__dict__[
+            "_MessageStreamManager__api_request"
+        ]()
+
+        httpx_response_stream = ResponseStream(
+            self.generator_generate_content_chunks(message_stream, model=model)
+        )
+        httpx_response = httpx.Response(
+            status_code=200,
+            headers={"content-type": "text/plain"},
+            stream=httpx_response_stream,
+        )
+        return Stream(
+            cast_to=ChatCompletionChunk,
+            response=httpx_response,
+            client=self._client,
+        )
 
     def generator_generate_content_chunks(
         self,
@@ -298,6 +303,27 @@ class AnthropicChatCompletions(Completions):
         created: Optional[int] = None,
         chat_completion_id: Optional[Text] = None,
     ) -> Generator[bytes, None, None]:
+        """Generate the chat completion chunks from the message stream.
+
+        Parameters
+        ----------
+        message_stream : AnthropicMessageStream
+            The message stream object from the Anthropics API.
+        model : Text
+            The model name.
+        encoding : Text, optional
+            The encoding of the content, by default "utf-8".
+        created : Optional[int], optional
+            The timestamp of the chat completion, by default None.
+        chat_completion_id : Optional[Text], optional
+            The chat completion ID, by default None.
+
+        Yields
+        ------
+        Generator[bytes, None, None]
+            The generator yielding the chat completion chunks.
+        """
+
         chat_completion_id = chat_completion_id or rand_chat_completion_id()
         created = created or int(time.time())
 
