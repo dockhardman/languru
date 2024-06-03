@@ -5,7 +5,14 @@ from typing import Dict, Generator, Iterable, List, Literal, Optional, Text, Uni
 import anthropic
 import httpx
 import openai
-from anthropic.lib.streaming._messages import MessageStream as AnthropicMessageStream
+from anthropic.types.raw_content_block_delta_event import RawContentBlockDeltaEvent
+from anthropic.types.raw_content_block_start_event import RawContentBlockStartEvent
+from anthropic.types.raw_content_block_stop_event import RawContentBlockStopEvent
+from anthropic.types.raw_message_delta_event import RawMessageDeltaEvent
+from anthropic.types.raw_message_start_event import RawMessageStartEvent
+from anthropic.types.raw_message_stop_event import RawMessageStopEvent
+from anthropic.types.raw_message_stream_event import RawMessageStreamEvent
+from anthropic.types.text_delta import TextDelta
 from httpx._transports.default import ResponseStream
 from openai import OpenAI
 from openai import resources as OpenAIResources
@@ -164,7 +171,9 @@ class AnthropicChatCompletions(Completions):
         timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
         **kwargs,
     ) -> ChatCompletion:
-        """Create a chat completion. This method is not implemented for Google GenAI."""
+        """Create a chat completion. This method is not implemented for
+        Anthropic client.
+        """
 
         if not messages:
             raise ValueError("The `messages` must not be empty")
@@ -253,7 +262,7 @@ class AnthropicChatCompletions(Completions):
         **kwargs,
     ) -> Stream[ChatCompletionChunk]:
         """Create a chat completion stream.
-        This method is not implemented for Google GenAI.
+        This method is not implemented for Anthropic client.
         Stream the chat completion response in chunks.
         """
 
@@ -272,16 +281,21 @@ class AnthropicChatCompletions(Completions):
         )
 
         # Send request
+        input_output_tokens = {"input_tokens": 0, "output_tokens": 0}
         message_stream_manager = self._client.anthropic_client.messages.stream(
             **anthropic_req.model_dump(exclude_none=True, exclude={"stream"})
         )
-        # Get the message stream, witch is considered name mangled.
-        message_stream: AnthropicMessageStream = message_stream_manager.__dict__[
-            "_MessageStreamManager__api_request"
-        ]()
 
+        # Get the message stream, witch is considered name mangled.
+        message_stream_event: "anthropic.Stream[RawMessageStreamEvent]" = (
+            message_stream_manager.__dict__["_MessageStreamManager__api_request"]()
+        )
         httpx_response_stream = ResponseStream(
-            self.generator_generate_content_chunks(message_stream, model=model)
+            self.generator_generate_content_chunks(
+                message_stream_event,
+                model=model,
+                input_output_tokens=input_output_tokens,
+            )
         )
         httpx_response = httpx.Response(
             status_code=200,
@@ -296,19 +310,21 @@ class AnthropicChatCompletions(Completions):
 
     def generator_generate_content_chunks(
         self,
-        message_stream: "AnthropicMessageStream",
+        message_stream_event: "anthropic.Stream[RawMessageStreamEvent]",
         *,
         model: Text,
         encoding: Text = "utf-8",
         created: Optional[int] = None,
         chat_completion_id: Optional[Text] = None,
+        input_output_tokens: Optional[Dict[Text, int]] = None,
+        **kwargs,
     ) -> Generator[bytes, None, None]:
         """Generate the chat completion chunks from the message stream.
 
         Parameters
         ----------
-        message_stream : AnthropicMessageStream
-            The message stream object from the Anthropics API.
+        message_stream_event : "anthropic.Stream[RawMessageStreamEvent]"
+            The message stream event.
         model : Text
             The model name.
         encoding : Text, optional
@@ -317,6 +333,8 @@ class AnthropicChatCompletions(Completions):
             The timestamp of the chat completion, by default None.
         chat_completion_id : Optional[Text], optional
             The chat completion ID, by default None.
+        input_output_tokens : Optional[Dict[Text, int]], optional
+            The input and output tokens, by default None.
 
         Yields
         ------
@@ -326,33 +344,63 @@ class AnthropicChatCompletions(Completions):
 
         chat_completion_id = chat_completion_id or rand_chat_completion_id()
         created = created or int(time.time())
+        input_output_tokens = input_output_tokens or {
+            "input_tokens": 0,
+            "output_tokens": 0,
+        }
+        finish_reason: Text = "stop"
 
         # Generate the chat response
-        for text in message_stream.text_stream:
-            chunk = ChatCompletionChunk.model_validate(
-                {
-                    "id": chat_completion_id,
-                    "choices": [
+        for event in message_stream_event:
+            if isinstance(event, RawMessageStartEvent):
+                chat_completion_id = event.message.id
+                input_output_tokens["input_tokens"] = event.message.usage.input_tokens
+            elif isinstance(event, RawContentBlockStartEvent):
+                pass
+            elif isinstance(event, RawContentBlockDeltaEvent):
+                if isinstance(event.delta, TextDelta):
+                    chunk = ChatCompletionChunk.model_validate(
                         {
-                            "index": 0,
-                            "delta": {
-                                "content": text,
-                                "role": "assistant",
-                            },
+                            "id": chat_completion_id,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {
+                                        "content": event.delta.text,
+                                        "role": "assistant",
+                                    },
+                                }
+                            ],
+                            "created": created,
+                            "model": model,
+                            "object": "chat.completion.chunk",
                         }
-                    ],
-                    "created": created,
-                    "model": model,
-                    "object": "chat.completion.chunk",
-                }
-            )
-            yield simple_encode_sse(chunk, encoding=encoding)
+                    )
+                    yield simple_encode_sse(chunk, encoding=encoding)
+                else:
+                    logger.warning(f"Unhandled delta type: {event.delta} yet.")
+            elif isinstance(event, RawContentBlockStopEvent):
+                pass
+            elif isinstance(event, RawMessageDeltaEvent):
+                input_output_tokens["output_tokens"] = event.usage.output_tokens
+                if event.delta.stop_reason == "end_turn":
+                    finish_reason = "stop"
+                elif event.delta.stop_reason == "max_tokens":
+                    finish_reason = "length"
+                elif event.delta.stop_reason == "stop_sequence":
+                    finish_reason = "stop"
+                else:
+                    logger.warning(f"Unknown stop reason: {event.delta.stop_reason}")
+            elif isinstance(event, RawMessageStopEvent):
+                pass
+            else:
+                logger.warning(f"Unhandled event type: {event} yet.")
 
         # Send the final chunk with finish_reason
         chunk = ChatCompletionChunk.model_validate(
             {
                 "id": chat_completion_id,
-                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                "choices": [{"delta": {}, "finish_reason": finish_reason, "index": 0}],
                 "created": created,
                 "model": model,
                 "object": "chat.completion.chunk",
