@@ -164,7 +164,9 @@ class AnthropicChatCompletions(Completions):
         timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
         **kwargs,
     ) -> ChatCompletion:
-        """Create a chat completion. This method is not implemented for Google GenAI."""
+        """Create a chat completion. This method is not implemented for
+        Anthropic client.
+        """
 
         if not messages:
             raise ValueError("The `messages` must not be empty")
@@ -253,7 +255,7 @@ class AnthropicChatCompletions(Completions):
         **kwargs,
     ) -> Stream[ChatCompletionChunk]:
         """Create a chat completion stream.
-        This method is not implemented for Google GenAI.
+        This method is not implemented for Anthropic client.
         Stream the chat completion response in chunks.
         """
 
