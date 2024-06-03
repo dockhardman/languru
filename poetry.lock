@@ -6038,4 +6038,4 @@ server = ["fastapi"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "41183037e6cb34597d952c0622a561732b6921f4cbf12738d08671ee267ee650"
+content-hash = "7152b71c1f1a712b4b1f4fceb54debccefaffb0d83a8d256c8b8474644abb3bf"

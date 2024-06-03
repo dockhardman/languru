@@ -12,7 +12,7 @@ version = "0.10.0"
 [tool.poetry.dependencies]
 accelerate = { version = "<1,>=0.27.2", optional = true, markers = "sys_platform == 'linux'" }
 aiohttp = "^3"
-anthropic = "<1,>0.21"
+anthropic = "<1,>0.27"
 bitsandbytes = { version = "<1,>=0.42", optional = true, markers = "sys_platform == 'linux'" }
 click = "^8"
 colorama = "<1,>=0.4.6"
