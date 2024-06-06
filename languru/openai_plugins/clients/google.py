@@ -284,6 +284,7 @@ class GoogleChatCompletions(Completions):
             send_message_kwargs["generation_config"] = (
                 generation_types.GenerationConfigDict(temperature=temperature)
             )
+        send_message_kwargs["stream"] = True
         genai_response = chat_session.send_message(
             latest_content, **send_message_kwargs
         )
