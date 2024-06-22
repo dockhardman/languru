@@ -2,7 +2,7 @@ from logging import Logger
 from typing import Any, Optional, Text, Union
 
 from fastapi import Body, Query, Request
-from openai import AzureOpenAI, OpenAI
+from openai import AzureOpenAI, OpenAI, OpenAIError
 
 from languru.config import logger as languru_logger
 from languru.exceptions import OrganizationNotFound
@@ -17,13 +17,42 @@ from languru.types.organizations import OrganizationType, to_org_type
 
 class OpenaiClients:
     def __init__(self):
-        self._oai_client = OpenAI()
-        self._aoai_client = AzureOpenAI()
-        self._ant_client = AnthropicOpenAI()
-        self._gg_client = GoogleOpenAI()
-        self._gq_client = GroqOpenAI()
-        self._pplx_client = PerplexityOpenAI()
-        self._vg_client = VoyageOpenAI()
+        self._oai_client: Optional["OpenAI"] = None
+        self._aoai_client: Optional["AzureOpenAI"] = None
+        self._ant_client: Optional["AnthropicOpenAI"] = None
+        self._gg_client: Optional["GoogleOpenAI"] = None
+        self._gq_client: Optional["GroqOpenAI"] = None
+        self._pplx_client: Optional["PerplexityOpenAI"] = None
+        self._vg_client: Optional["VoyageOpenAI"] = None
+
+        try:
+            self._oai_client = OpenAI()
+        except OpenAIError:
+            languru_logger.warning("OpenAI client not initialized.")
+        try:
+            self._aoai_client = AzureOpenAI()
+        except OpenAIError:
+            languru_logger.warning("Azure OpenAI client not initialized.")
+        try:
+            self._ant_client = AnthropicOpenAI()
+        except OrganizationNotFound:
+            languru_logger.warning("Anthropic OpenAI client not initialized.")
+        try:
+            self._gg_client = GoogleOpenAI()
+        except OrganizationNotFound:
+            languru_logger.warning("Google OpenAI client not initialized.")
+        try:
+            self._gq_client = GroqOpenAI()
+        except OrganizationNotFound:
+            languru_logger.warning("Groq OpenAI client not initialized.")
+        try:
+            self._pplx_client = PerplexityOpenAI()
+        except OrganizationNotFound:
+            languru_logger.warning("Perplexity OpenAI client not initialized.")
+        try:
+            self._vg_client = VoyageOpenAI()
+        except OrganizationNotFound:
+            languru_logger.warning("Voyage OpenAI client not initialized.")
 
     def depends_openai_client(
         self,
@@ -68,14 +97,19 @@ class OpenaiClients:
                 self._pplx_client,
                 self._vg_client,
             ):
+                if _c is None:
+                    continue
                 if hasattr(_c, "models") and hasattr(_c.models, "supported_models"):
                     if model in _c.models.supported_models:  # type: ignore
                         return _c
 
         # Return the OpenAI client based on the organization_type
-        _client = self._oai_client
         if organization_type is None:
             logger.warning("No organization type specified. Using OpenAI by default.")
+            if self._oai_client is None:
+                raise OrganizationNotFound("OpenAI client not initialized.")
+            else:
+                _client = self._oai_client
         else:
             _client = self._org_to_openai_client(organization_type)
         return _client
@@ -86,18 +120,25 @@ class OpenaiClients:
         """Returns the OpenAI client based on the organization type."""
 
         org = to_org_type(org)
+        _client: Optional["OpenAI"] = None
         if org == OrganizationType.OPENAI:
-            return self._oai_client
-        if org == OrganizationType.AZURE:
-            return self._aoai_client
-        if org == OrganizationType.ANTHROPIC:
-            return self._ant_client
-        if org == OrganizationType.GOOGLE:
-            return self._gg_client
-        if org == OrganizationType.GROQ:
-            return self._gq_client
-        if org == OrganizationType.PERPLEXITY:
-            return self._pplx_client
-        if org == OrganizationType.VOYAGE:
-            return self._vg_client
-        raise OrganizationNotFound(f"Unknown organization: '{org}'.")
+            _client = self._oai_client
+        elif org == OrganizationType.AZURE:
+            _client = self._aoai_client
+        elif org == OrganizationType.ANTHROPIC:
+            _client = self._ant_client
+        elif org == OrganizationType.GOOGLE:
+            _client = self._gg_client
+        elif org == OrganizationType.GROQ:
+            _client = self._gq_client
+        elif org == OrganizationType.PERPLEXITY:
+            _client = self._pplx_client
+        elif org == OrganizationType.VOYAGE:
+            _client = self._vg_client
+        else:
+            raise OrganizationNotFound(f"Unknown organization: '{org}'.")
+        if _client is None:
+            raise OrganizationNotFound(
+                f"Organization '{org}' client not not initialized."
+            )
+        return _client

@@ -4,3 +4,7 @@ class ModelNotFound(Exception):
 
 class OrganizationNotFound(Exception):
     pass
+
+
+class CredentialsNotProvided(Exception):
+    pass

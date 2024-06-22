@@ -37,6 +37,7 @@ from openai.types.chat_model import ChatModel
 from openai.types.model import Model
 
 from languru.config import logger
+from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
 from languru.types.chat.anthropic import AnthropicChatCompletionRequest
 from languru.types.chat.completions import ChatCompletionRequest
@@ -495,7 +496,7 @@ class AnthropicOpenAI(OpenAI):
             or os.getenv("OPENAI_API_KEY")
         )
         if not api_key:
-            raise ValueError("Anthropic API key is not provided")
+            raise CredentialsNotProvided("Anthropic API key is not provided")
         kwargs["api_key"] = api_key
         kwargs = {k: v for k, v in kwargs.items() if k in openai_init_parameter_keys}
 

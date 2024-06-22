@@ -33,6 +33,7 @@ from openai.types.chat_model import ChatModel
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 from openai.types.model import Model
 
+from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
 from languru.utils.openai_utils import rand_chat_completion_id
 from languru.utils.sse import simple_encode_sse
@@ -479,7 +480,7 @@ class GoogleOpenAI(OpenAI):
             or os.getenv("OPENAI_API_KEY")
         )
         if not api_key:
-            raise ValueError("Google GenAI API key is not provided")
+            raise CredentialsNotProvided("Google GenAI API key is not provided")
         kwargs["api_key"] = api_key
         kwargs = {k: v for k, v in kwargs.items() if k in openai_init_parameter_keys}
 

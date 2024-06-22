@@ -10,6 +10,7 @@ from openai._types import NOT_GIVEN, Body, Headers, NotGiven, Query
 from openai.pagination import SyncPage
 from openai.types.model import Model
 
+from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
 
 
@@ -92,7 +93,7 @@ class PerplexityOpenAI(OpenAI):
             or os.getenv("OPENAI_API_KEY")
         )
         if not api_key:
-            raise ValueError("Perplexity API key is not provided")
+            raise CredentialsNotProvided("Perplexity API key is not provided")
         kwargs["api_key"] = api_key
         kwargs["base_url"] = "https://api.perplexity.ai"
         kwargs = {k: v for k, v in kwargs.items() if k in openai_init_parameter_keys}
