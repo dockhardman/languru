@@ -2,7 +2,6 @@ import logging
 import logging.config
 import os
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Text
 
