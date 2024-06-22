@@ -10,23 +10,16 @@ repository = "https://github.com/dockhardman/languru"
 version = "0.10.0"
 
 [tool.poetry.dependencies]
-accelerate = { version = "<1,>=0.27.2", optional = true, markers = "sys_platform == 'linux'" }
 aiohttp = "^3"
 anthropic = "<1,>0.27"
-bitsandbytes = { version = "<1,>=0.42", optional = true, markers = "sys_platform == 'linux'" }
 click = "^8"
 colorama = "<1,>=0.4.6"
 diskcache = "^5"
-einops = { version = "<1,>=0.7.0", optional = true }
 email-validator = "^2"
 fastapi = { extras = ["all"], version = "<1,>=0.109.0", optional = true }
-flash-attn = { version = "^2", optional = true, markers = "sys_platform == 'linux'" }
 google-cloud-aiplatform = "^1.38"
 google-generativeai = "<1,>=0.3.2"
 groq = "<1,>=0.4.2"
-huggingface-hub = { version = "<1,>=0.20.0", optional = true }
-ninja = { version = "^1.11.1.1", optional = true }
-nvgpu = { version = "<1,>=0.10.0", optional = true, markers = "sys_platform == 'linux'" }
 openai = "^1.10.0"
 packaging = ">=23"
 pillow = "^10.0.0"
@@ -40,10 +33,7 @@ pytz = ">=2024.1"
 rich = "^13"
 sentencepiece = { version = "<1,>=0.1.99", optional = true }
 sqlalchemy = "^2"
-torch = { version = "^2.2.0", optional = true }
-torchaudio = { version = "^2.2.0", optional = true }
-torchvision = { version = "<1,>=0.17.0", optional = true }
-transformers = { extras = ["torch"], version = "^4.37.2", optional = true }
+tiktoken = { version = ">=0.3,<1", optional = true }
 typing-extensions = "^4"
 voyageai = "^0"
 
@@ -51,9 +41,7 @@ voyageai = "^0"
 languru = "languru.cli.main:app"
 
 [tool.poetry.extras]
-all = ["accelerate", "bitsandbytes", "einops", "fastapi", "huggingface-hub", "ninja", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
-cpu = ["huggingface-hub", "torch", "torchaudio", "torchvision", "transformers"]
-gpu = ["accelerate", "bitsandbytes", "einops", "huggingface-hub", "ninja", "nvgpu", "sentencepiece", "torch", "torchaudio", "torchvision", "transformers"]
+all = ["fastapi", "sentencepiece", "tiktoken"]
 server = ["fastapi"]
 
 [tool.poetry.group.docs.dependencies]
