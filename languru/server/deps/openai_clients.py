@@ -142,3 +142,6 @@ class OpenaiClients:
                 f"Organization '{org}' client not not initialized."
             )
         return _client
+
+
+openai_clients = OpenaiClients()
