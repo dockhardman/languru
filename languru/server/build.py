@@ -11,6 +11,7 @@ from languru.server.config import (
     init_paths,
     pretty_print_app_routes,
 )
+from languru.server.deps.openai_clients import OpenaiClients
 from languru.server.utils.common import get_value_from_app
 
 
@@ -32,6 +33,7 @@ def create_app(settings: "ServerBaseSettings", **kwargs):
     app.state.languru_settings = app.extra["languru_settings"] = languru_settings
     app.state.settings = app.extra["settings"] = settings
     app.state.logger = app.extra["logger"] = logging.getLogger(settings.APP_NAME)
+    app.state.openai_clients = app.extra["openai_clients"] = OpenaiClients()
 
     @app.get("/health")
     async def health():

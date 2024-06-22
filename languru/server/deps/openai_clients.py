@@ -16,7 +16,7 @@ from languru.types.organizations import OrganizationType, to_org_type
 
 
 class OpenaiClients:
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self._oai_client: Optional["OpenAI"] = None
         self._aoai_client: Optional["AzureOpenAI"] = None
         self._ant_client: Optional["AnthropicOpenAI"] = None
