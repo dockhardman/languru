@@ -23,7 +23,7 @@ class ServerBaseSettings(BaseSettings):
     """Settings for the server."""
 
     # Server
-    APP_NAME: Text = "languru"
+    APP_NAME: Text = "languru-server"
     SERVICE_NAME: Text = APP_NAME
     APP_VERSION: Text = VERSION
     is_production: bool = False
