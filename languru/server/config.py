@@ -20,12 +20,6 @@ if TYPE_CHECKING:
 console = Console()
 
 
-# string enum
-class AppType(str, Enum):
-    llm = "llm"
-    agent = "agent"
-
-
 class ServerBaseSettings(BaseSettings):
     """Settings for the server."""
 
