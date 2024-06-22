@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Optional, Text
+from typing import TYPE_CHECKING, Text
 
 import pytz
 from colorama import Fore, Style, init
@@ -33,7 +33,6 @@ class ServerBaseSettings(BaseSettings):
     APP_NAME: Text = "languru"
     SERVICE_NAME: Text = APP_NAME
     APP_VERSION: Text = VERSION
-    APP_TYPE: Optional[Literal[AppType.llm, AppType.agent]] = None
     is_production: bool = False
     is_development: bool = True
     is_testing: bool = False
@@ -41,8 +40,7 @@ class ServerBaseSettings(BaseSettings):
     logging_level: Text = "DEBUG"
     logs_dir: Text = "logs"
     HOST: Text = "0.0.0.0"
-    DEFAULT_PORT: int
-    PORT: Optional[int] = None
+    PORT: int = 8680
     WORKERS: int = 1
     RELOAD: bool = True
     LOG_LEVEL: Text = "debug"
@@ -52,41 +50,6 @@ class ServerBaseSettings(BaseSettings):
 
     # Resources configuration
     openai_available: bool = True if os.environ.get("OPENAI_API_KEY") else False
-
-
-class LlmSettings(ServerBaseSettings):
-    APP_NAME: Text = "languru-llm"
-    SERVICE_NAME: Text = APP_NAME
-    APP_TYPE: Literal[AppType.llm] = AppType.llm
-    DEFAULT_PORT: int = 8682
-
-    # LLM Server Configuration
-    LLM_BASE_URL: Text = "http://0.0.0.0:8682/v1"
-    ACTION_BASE_URL: Text = LLM_BASE_URL  # Deprecated, use LLM_BASE_URL instead
-    ACTION_ENDPOINT_URL: Text = LLM_BASE_URL  # Deprecated, use LLM_BASE_URL instead
-    AGENT_BASE_URL: Optional[Text] = None
-    MODEL_REGISTER_PERIOD: int = 8
-    MODEL_REGISTER_FAIL_PERIOD: int = 60
-
-    # Hardware device configuration
-    device: Optional[Text] = None
-    dtype: Optional[Text] = None
-
-    # LLM action configuration
-    action: Text = "languru.action.openai.OpenaiAction"
-
-
-class AgentSettings(ServerBaseSettings):
-    # Server
-    APP_NAME: Text = "languru-agent"
-    SERVICE_NAME: Text = APP_NAME
-    APP_TYPE: Literal[AppType.agent] = AppType.agent
-    DEFAULT_PORT: int = 8680
-    DATA_DIR: Text = str(Path("./data").absolute())
-
-    # Model discovery configuration
-    MODEL_REGISTER_PERIOD: int = 10
-    url_model_discovery: Text = f"fs://{DATA_DIR}/languru_model_discovery"
 
 
 class IsoDatetimeFormatter(logging.Formatter):
