@@ -75,8 +75,9 @@ class ChatCompletionHandler:
         return StreamingResponse(
             run_generator(
                 simple_sse_encode(
-                    openai_client.chat.completions.create,  # type: ignore
-                    **params,
+                    await run_func(
+                        openai_client.chat.completions.create, **params
+                    ),  # type: ignore
                 )
             ),
             media_type="application/stream+json",

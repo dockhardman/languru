@@ -1,28 +1,14 @@
-import logging
-import math
-import random
-import time
-from typing import TYPE_CHECKING, cast
-
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import StreamingResponse
+from openai import OpenAI
 from openai.types.completion import Completion
 from pyassorted.asyncio.executor import run_func, run_generator
 
-from languru.exceptions import ModelNotFound
-from languru.server.config import (
-    AgentSettings,
-    AppType,
-    LlmSettings,
-    ServerBaseSettings,
-)
+from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
-from languru.server.utils.common import get_value_from_app
+from languru.server.deps.openai_clients import openai_clients
 from languru.types.completions import CompletionRequest
 from languru.utils.http import simple_sse_encode
-
-if TYPE_CHECKING:
-    from openai import Stream
 
 router = APIRouter()
 
@@ -32,121 +18,68 @@ class TextCompletionHandler:
     async def handle_request(
         self,
         request: "Request",
+        *args,
         completion_request: "CompletionRequest",
+        openai_client: "OpenAI",
         settings: "ServerBaseSettings",
         **kwargs,
     ) -> Completion | StreamingResponse:
-        if settings.APP_TYPE == AppType.llm:
-            settings = cast(LlmSettings, settings)
-            return await self.handle_llm(
+        # Stream
+        if completion_request.stream is True:
+            return await self.handle_stream(
                 request=request,
                 completion_request=completion_request,
+                openai_client=openai_client,
+                settings=settings,
+                **kwargs,
+            )
+        # Normal
+        else:
+            return await self.handle_normal(
+                request=request,
+                completion_request=completion_request,
+                openai_client=openai_client,
                 settings=settings,
                 **kwargs,
             )
 
-        if settings.APP_TYPE == AppType.agent:
-            settings = cast(AgentSettings, settings)
-            return await self.handle_agent(
-                request=request,
-                completion_request=completion_request,
-                settings=settings,
-                **kwargs,
-            )
+    async def handle_normal(
+        self,
+        request: "Request",
+        *args,
+        completion_request: "CompletionRequest",
+        openai_client: "OpenAI",
+        settings: "ServerBaseSettings",
+        **kwargs,
+    ) -> Completion:
+        return await run_func(
+            openai_client.completions.create,
+            completion_request.model_dump(exclude_none=True),
+        )
 
-        # Not implemented or unknown app server type
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Unknown app server type: {settings.APP_TYPE}"
-                if settings.APP_TYPE
-                else "App server type not implemented"
+    async def handle_stream(
+        self,
+        request: "Request",
+        *args,
+        completion_request: "CompletionRequest",
+        openai_client: "OpenAI",
+        settings: "ServerBaseSettings",
+        **kwargs,
+    ) -> StreamingResponse:
+        completion_stream_params = completion_request.model_dump(exclude_none=True)
+        completion_stream_params.pop("stream", None)
+        return StreamingResponse(
+            run_generator(
+                simple_sse_encode(
+                    await run_func(
+                        openai_client.completions.create,
+                        **completion_stream_params,
+                        stream=True,
+                    )  # type: ignore
+                )
             ),
+            media_type="application/stream+json",
         )
-
-    async def handle_llm(
-        self,
-        request: "Request",
-        completion_request: "CompletionRequest",
-        settings: "LlmSettings",
-        **kwargs,
-    ) -> Completion | StreamingResponse:
-        from languru.action.base import ActionBase
-
-        action: "ActionBase" = get_value_from_app(
-            request.app, key="action", value_typing=ActionBase
-        )
-
-        try:
-            completion_request.model = action.get_model_name(completion_request.model)
-        except ModelNotFound as e:
-            raise HTTPException(status_code=404, detail=str(e))
-
-        # Stream
-        if completion_request.stream is True:
-            return StreamingResponse(
-                run_generator(
-                    action.text_completion_stream_sse,
-                    **completion_request.model_dump(exclude_none=True),
-                ),
-                media_type="application/stream+json",
-            )
-        # Normal
-        else:
-            completion = await run_func(
-                action.text_completion,
-                **completion_request.model_dump(exclude_none=True),
-            )
-            return completion
-
-    async def handle_agent(
-        self,
-        request: "Request",
-        completion_request: "CompletionRequest",
-        settings: "AgentSettings",
-        **kwargs,
-    ) -> Completion | StreamingResponse:
-        from openai import OpenAI
-
-        from languru.resources.model_discovery.base import ModelDiscovery
-
-        model_discovery: "ModelDiscovery" = get_value_from_app(
-            request.app, key="model_discovery", value_typing=ModelDiscovery
-        )
-        logger = logging.getLogger(settings.APP_NAME)
-
-        models = await run_func(
-            model_discovery.list,
-            id=completion_request.model,
-            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
-        )
-        if len(models) == 0:
-            raise HTTPException(
-                status_code=404, detail=f"Model '{completion_request.model}' not found"
-            )
-
-        model = random.choice(models)
-
-        # Request completion
-        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
-        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
-        # Stream
-        if completion_request.stream is True:
-            completion_stream_params = completion_request.model_dump(exclude_none=True)
-            completion_stream_params.pop("stream", None)
-            text_completion_stream: "Stream[Completion]" = await run_func(
-                client.completions.create, **completion_stream_params, stream=True
-            )
-            return StreamingResponse(
-                simple_sse_encode(text_completion_stream, logger=settings.APP_NAME),
-                media_type="application/stream+json",
-            )
-        # Normal
-        else:
-            return await run_func(
-                client.completions.create,
-                completion_request.model_dump(exclude_none=True),
-            )
 
 
 @router.post("/completions")
@@ -167,10 +100,12 @@ async def text_completions(
             },
         },
     ),
+    openai_client=Depends(openai_clients.depends_openai_client),
     settings: ServerBaseSettings = Depends(app_settings),
 ):  # openai.types.Completion
     return await TextCompletionHandler().handle_request(
         request=request,
         completion_request=completion_request,
+        openai_client=openai_client,
         settings=settings,
     )
