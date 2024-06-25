@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Body, Depends, Request
+from typing import Optional, Tuple
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from openai.types.completion import Completion
@@ -8,9 +10,38 @@ from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.openai_clients import openai_clients
 from languru.types.completions import CompletionRequest
+from languru.types.organizations import OrganizationType
 from languru.utils.http import simple_sse_encode
 
 router = APIRouter()
+
+
+def depends_openai_client_completion_request(
+    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
+    completion_request: CompletionRequest = Body(
+        ...,
+        openapi_examples={
+            "Quick text completion": {
+                "summary": "Quick text completion",
+                "description": "Text completion request",
+                "value": {
+                    "model": "gpt-3.5-turbo-instruct",
+                    "prompt": "Say this is a test",
+                    "max_tokens": 7,
+                    "temperature": 0,
+                },
+            },
+        },
+    ),
+) -> Tuple[OpenAI, CompletionRequest]:
+    if org_type is None:
+        org_type = openai_clients.org_from_model(completion_request.model)
+
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
+    else:
+        openai_client = openai_clients.org_to_openai_client(org_type)
+        return (openai_client, completion_request)
 
 
 class TextCompletionHandler:
@@ -70,13 +101,12 @@ class TextCompletionHandler:
         completion_stream_params.pop("stream", None)
         return StreamingResponse(
             run_generator(
-                simple_sse_encode(
-                    await run_func(
-                        openai_client.completions.create,
-                        **completion_stream_params,
-                        stream=True,
-                    )  # type: ignore
-                )
+                simple_sse_encode,
+                await run_func(
+                    openai_client.completions.create,
+                    **completion_stream_params,
+                    stream=True,
+                ),
             ),
             media_type="application/stream+json",
         )
@@ -85,27 +115,14 @@ class TextCompletionHandler:
 @router.post("/completions")
 async def text_completions(
     request: Request,
-    completion_request: CompletionRequest = Body(
-        ...,
-        openapi_examples={
-            "Quick text completion": {
-                "summary": "Quick text completion",
-                "description": "Text completion request",
-                "value": {
-                    "model": "gpt-3.5-turbo-instruct",
-                    "prompt": "Say this is a test",
-                    "max_tokens": 7,
-                    "temperature": 0,
-                },
-            },
-        },
+    openai_client_completion_request: Tuple[OpenAI, CompletionRequest] = Depends(
+        depends_openai_client_completion_request
     ),
-    openai_client=Depends(openai_clients.depends_openai_client),
     settings: ServerBaseSettings = Depends(app_settings),
 ):  # openai.types.Completion
     return await TextCompletionHandler().handle_request(
         request=request,
-        completion_request=completion_request,
-        openai_client=openai_client,
+        completion_request=openai_client_completion_request[1],
+        openai_client=openai_client_completion_request[0],
         settings=settings,
     )
