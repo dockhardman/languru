@@ -28,3 +28,75 @@ MODELS_OPENAI = (
     "whisper-1",
 )
 MODELS_AZURE_OPENAI = (m.replace(".", "") for m in MODELS_OPENAI)
+MODELS_ANTHROPIC = (
+    "claude-3-5-sonnet-20240620",
+    "claude-3-opus-20240229",
+    "claude-3-sonnet-20240229",
+    "claude-3-haiku-20240307",
+)
+MODELS_GOOGLE = (
+    "models/chat-bison-001",
+    "models/text-bison-001",
+    "models/embedding-gecko-001",
+    "models/gemini-1.0-pro",
+    "models/gemini-1.0-pro-001",
+    "models/gemini-1.0-pro-latest",
+    "models/gemini-1.0-pro-vision-latest",
+    "models/gemini-1.5-flash",
+    "models/gemini-1.5-flash-001",
+    "models/gemini-1.5-flash-latest",
+    "models/gemini-1.5-pro",
+    "models/gemini-1.5-pro-001",
+    "models/gemini-1.5-pro-latest",
+    "models/gemini-pro",
+    "models/gemini-pro-vision",
+    "models/embedding-001",
+    "models/text-embedding-004",
+    "models/aqa",
+)
+MODELS_GROQ = (
+    "llama3-8b-8192",
+    "llama3-70b-8192",
+    "mixtral-8x7b-32768",
+    "gemma-7b-it",
+    "whisper-large-v3",
+)
+MODELS_PERPLEXITY = (
+    "llama-3-sonar-small-32k-chat",
+    "llama-3-sonar-small-32k-online",
+    "llama-3-sonar-large-32k-chat",
+    "llama-3-sonar-large-32k-online",
+    "llama-3-8b-instruct",
+    "llama-3-70b-instruct",
+    "mixtral-8x7b-instruct",
+)
+MODELS_VOYAGE = (
+    "voyage-large-2-instruct",
+    "voyage-finance-2",
+    "voyage-multilingual-2",
+    "voyage-law-2",
+    "voyage-code-2",
+    "voyage-large-2",
+    "voyage-2",
+)
+ALL_MODELS = (
+    *MODELS_OPENAI,
+    *MODELS_AZURE_OPENAI,
+    *MODELS_ANTHROPIC,
+    *MODELS_GOOGLE,
+    *MODELS_GROQ,
+    *MODELS_PERPLEXITY,
+    *MODELS_VOYAGE,
+)
+
+
+__all__ = (
+    "MODELS_OPENAI",
+    "MODELS_AZURE_OPENAI",
+    "MODELS_ANTHROPIC",
+    "MODELS_GOOGLE",
+    "MODELS_GROQ",
+    "MODELS_PERPLEXITY",
+    "MODELS_VOYAGE",
+    "ALL_MODELS",
+)

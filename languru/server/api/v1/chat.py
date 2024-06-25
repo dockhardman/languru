@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import Optional, Tuple
 
 from fastapi import APIRouter, Body, Depends, Request
 from fastapi.exceptions import HTTPException

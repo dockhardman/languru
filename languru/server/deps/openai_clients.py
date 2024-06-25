@@ -1,8 +1,11 @@
+import time
 from logging import Logger
-from typing import Any, Optional, Text, Union
+from typing import Any, List, Optional, Text, Union
 
+import httpx
 from fastapi import Query, Request
-from openai import AzureOpenAI, OpenAI, OpenAIError
+from openai import AzureOpenAI, NotFoundError, OpenAI, OpenAIError
+from openai.types import Model
 
 from languru.config import logger as languru_logger
 from languru.exceptions import OrganizationNotFound
@@ -12,7 +15,15 @@ from languru.openai_plugins.clients.groq import GroqOpenAI
 from languru.openai_plugins.clients.pplx import PerplexityOpenAI
 from languru.openai_plugins.clients.voyage import VoyageOpenAI
 from languru.server.utils.common import get_value_from_app
-from languru.types.models import MODELS_AZURE_OPENAI, MODELS_OPENAI
+from languru.types.models import (
+    MODELS_ANTHROPIC,
+    MODELS_AZURE_OPENAI,
+    MODELS_GOOGLE,
+    MODELS_GROQ,
+    MODELS_OPENAI,
+    MODELS_PERPLEXITY,
+    MODELS_VOYAGE,
+)
 from languru.types.organizations import OrganizationType, to_org_type
 
 
@@ -25,33 +36,126 @@ class OpenaiClients:
         self._gq_client: Optional["GroqOpenAI"] = None
         self._pplx_client: Optional["PerplexityOpenAI"] = None
         self._vg_client: Optional["VoyageOpenAI"] = None
+        self._models: List["Model"] = []
 
+        _created = int(time.time())
         try:
             self._oai_client = OpenAI()
+            self._models.extend(
+                [
+                    Model.model_validate(
+                        {
+                            "id": m,
+                            "created": _created,
+                            "object": "model",
+                            "owned_by": OrganizationType.OPENAI.value,
+                        }
+                    )
+                    for m in MODELS_OPENAI
+                ]
+            )
         except OpenAIError:
             languru_logger.warning("OpenAI client not initialized.")
         try:
             self._aoai_client = AzureOpenAI(api_version="2024-02-01")
+            self._models.extend(
+                [
+                    Model.model_validate(
+                        {
+                            "id": m,
+                            "created": _created,
+                            "object": "model",
+                            "owned_by": OrganizationType.AZURE.value,
+                        }
+                    )
+                    for m in MODELS_AZURE_OPENAI
+                ]
+            )
         except OpenAIError:
             languru_logger.warning("Azure OpenAI client not initialized.")
         try:
             self._ant_client = AnthropicOpenAI()
+            self._models.extend(
+                [
+                    Model.model_validate(
+                        {
+                            "id": m,
+                            "created": _created,
+                            "object": "model",
+                            "owned_by": OrganizationType.ANTHROPIC.value,
+                        }
+                    )
+                    for m in MODELS_ANTHROPIC
+                ]
+            )
         except OrganizationNotFound:
             languru_logger.warning("Anthropic OpenAI client not initialized.")
         try:
             self._gg_client = GoogleOpenAI()
+            self._models.extend(
+                [
+                    Model.model_validate(
+                        {
+                            "id": m,
+                            "created": _created,
+                            "object": "model",
+                            "owned_by": OrganizationType.GOOGLE.value,
+                        }
+                    )
+                    for m in MODELS_GOOGLE
+                ]
+            )
         except OrganizationNotFound:
             languru_logger.warning("Google OpenAI client not initialized.")
         try:
             self._gq_client = GroqOpenAI()
+            self._models.extend(
+                [
+                    Model.model_validate(
+                        {
+                            "id": m,
+                            "created": _created,
+                            "object": "model",
+                            "owned_by": OrganizationType.GROQ.value,
+                        }
+                    )
+                    for m in MODELS_GROQ
+                ]
+            )
         except OrganizationNotFound:
             languru_logger.warning("Groq OpenAI client not initialized.")
         try:
             self._pplx_client = PerplexityOpenAI()
+            self._models.extend(
+                [
+                    Model.model_validate(
+                        {
+                            "id": m,
+                            "created": _created,
+                            "object": "model",
+                            "owned_by": OrganizationType.PERPLEXITY.value,
+                        }
+                    )
+                    for m in MODELS_PERPLEXITY
+                ]
+            )
         except OrganizationNotFound:
             languru_logger.warning("Perplexity OpenAI client not initialized.")
         try:
             self._vg_client = VoyageOpenAI()
+            self._models.extend(
+                [
+                    Model.model_validate(
+                        {
+                            "id": m,
+                            "created": _created,
+                            "object": "model",
+                            "owned_by": OrganizationType.VOYAGE.value,
+                        }
+                    )
+                    for m in MODELS_VOYAGE
+                ]
+            )
         except OrganizationNotFound:
             languru_logger.warning("Voyage OpenAI client not initialized.")
 
@@ -163,6 +267,32 @@ class OpenaiClients:
             )
         return _client
 
+    def models(self, model: Optional[Text] = None) -> List[Model]:
+        """Returns the supported models based on the organization type."""
+
+        if model is not None:
+            for m in self._models:
+                if m.id == model:
+                    return [m.model_copy()]
+            else:
+                err_body = {
+                    "error": {
+                        "message": f"The model '{model}' does not exist",
+                        "type": "invalid_request_error",
+                        "param": "model",
+                        "code": "model_not_found",
+                    }
+                }
+                err_res = httpx.Response(404, json=err_body)
+                raise NotFoundError(
+                    f"Error code: {err_res.status_code} - {err_body}",
+                    response=err_res,
+                    body=err_body,
+                )
+
+        else:
+            return [m.model_copy() for m in self._models]
+
     def default_openai_client(self) -> "OpenAI":
         """Returns the default OpenAI client."""
 
@@ -173,3 +303,17 @@ class OpenaiClients:
 
 
 openai_clients = OpenaiClients()
+
+
+# class Model(BaseModel):
+#     id: str
+#     """The model identifier, which can be referenced in the API endpoints."""
+
+#     created: int
+#     """The Unix timestamp (in seconds) when the model was created."""
+
+#     object: Literal["model"]
+#     """The object type, which is always "model"."""
+
+#     owned_by: str
+#     """The organization that owns the model."""
