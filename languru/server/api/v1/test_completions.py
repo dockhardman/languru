@@ -43,7 +43,7 @@ def mocked_openai_text_completion_create_stream():
         yield
 
 
-def test_llm_app_text_completions(test_client, mocked_openai_text_completion_create):
+def test_app_text_completions(test_client, mocked_openai_text_completion_create):
     completion_call = {
         "model": test_model_name,
         "prompt": "Say this is a test",

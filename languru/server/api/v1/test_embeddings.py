@@ -1,29 +1,17 @@
-import importlib
-import time
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-import languru.server.main
-from languru.server.config import AppType
-
-if TYPE_CHECKING:
-    from _pytest.monkeypatch import MonkeyPatch
-
-
 test_model_name = "text-embedding-ada-002"
 
 
-@pytest.fixture
-def llm_env(monkeypatch: "MonkeyPatch"):
-    monkeypatch.setenv("APP_TYPE", AppType.llm)
+@pytest.fixture(scope="module")
+def test_client():
+    import languru.server.app
 
-
-@pytest.fixture
-def agent_env(monkeypatch: "MonkeyPatch"):
-    monkeypatch.setenv("APP_TYPE", AppType.agent)
+    with TestClient(languru.server.app.app) as client:
+        yield client
 
 
 @pytest.fixture
@@ -40,47 +28,12 @@ def mocked_openai_embeddings_create():
         yield
 
 
-@pytest.fixture
-def mocked_model_discovery_list():
-    from languru.resources.model_discovery.base import DiskCacheModelDiscovery as MD
-    from languru.types.model import Model
-
-    return_model_discovery_list = [
-        Model(
-            id=test_model_name,
-            created=int(time.time()) - 1,
-            object="model",
-            owned_by="http://0.0.0.0:8682/v1",
-        )
-    ]
-    with patch.object(MD, "list", MagicMock(return_value=return_model_discovery_list)):
-        yield
-
-
-def test_llm_app_embedding(llm_env):
-    importlib.reload(languru.server.main)
-
-    with TestClient(languru.server.main.app) as client:
-        embedding_call = {
-            "input": ["Hello", "world!"],
-            "model": test_model_name,
-            "encoding_format": "float",
-        }
-        response = client.post("/v1/embeddings", json=embedding_call)
-        assert response.status_code == 200
-        assert len(response.json()["data"]) == len(embedding_call["input"])
-
-
-def test_agent_app_embedding(
-    agent_env, mocked_model_discovery_list, mocked_openai_embeddings_create
-):
-    importlib.reload(languru.server.main)
-
-    with TestClient(languru.server.main.app) as client:
-        embedding_call = {
-            "input": ["Hello", "world!"],
-            "model": test_model_name,
-            "encoding_format": "float",
-        }
-        response = client.post("/v1/embeddings", json=embedding_call)
-        assert response.status_code == 200
+def test_app_embedding(test_client):
+    embedding_call = {
+        "input": ["Hello", "world!"],
+        "model": test_model_name,
+        "encoding_format": "float",
+    }
+    response = test_client.post("/v1/embeddings", json=embedding_call)
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == len(embedding_call["input"])
