@@ -3,9 +3,9 @@ from typing import Annotated, Optional, Text
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import Path as PathParam
 from fastapi import Query, Request
-from openai import NotFoundError
 from openai.pagination import SyncPage
 
+from languru.exceptions import ModelNotFound
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.openai_clients import openai_clients
@@ -45,7 +45,7 @@ class RetrieveModelHandler:
     ) -> Model:
         try:
             models_list = openai_clients.models(model=model)
-        except NotFoundError as e:
+        except ModelNotFound as e:
             raise HTTPException(status_code=404, detail=str(e))
 
         if len(models_list) == 0:

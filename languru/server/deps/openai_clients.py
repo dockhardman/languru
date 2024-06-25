@@ -2,13 +2,12 @@ import time
 from logging import Logger
 from typing import Any, List, Optional, Text, Union
 
-import httpx
 from fastapi import Query, Request
-from openai import AzureOpenAI, NotFoundError, OpenAI, OpenAIError
+from openai import AzureOpenAI, OpenAI, OpenAIError
 from openai.types import Model
 
 from languru.config import logger as languru_logger
-from languru.exceptions import OrganizationNotFound
+from languru.exceptions import ModelNotFound, OrganizationNotFound
 from languru.openai_plugins.clients.anthropic import AnthropicOpenAI
 from languru.openai_plugins.clients.google import GoogleOpenAI
 from languru.openai_plugins.clients.groq import GroqOpenAI
@@ -283,11 +282,8 @@ class OpenaiClients:
                         "code": "model_not_found",
                     }
                 }
-                err_res = httpx.Response(404, json=err_body)
-                raise NotFoundError(
-                    f"Error code: {err_res.status_code} - {err_body}",
-                    response=err_res,
-                    body=err_body,
+                raise ModelNotFound(
+                    f"Error code: {404} - {err_body}",
                 )
 
         else:
