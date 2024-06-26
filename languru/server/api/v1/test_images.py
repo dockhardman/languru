@@ -1,7 +1,5 @@
-import importlib
 import io
 import time
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,16 +8,11 @@ from openai.resources.images import Images
 from openai.types import ImagesResponse
 from PIL import Image
 
-import languru.server.main
-from languru.server.config import AppType
 from languru.types.images import (
     ImagesEditRequest,
     ImagesGenerationsRequest,
     ImagesVariationsRequest,
 )
-
-if TYPE_CHECKING:
-    from _pytest.monkeypatch import MonkeyPatch
 
 
 def dummy_png() -> bytes:
@@ -38,14 +31,12 @@ def make_png() -> bytes:
     return mask_byte_stream.getvalue()
 
 
-@pytest.fixture
-def llm_env(monkeypatch: "MonkeyPatch"):
-    monkeypatch.setenv("APP_TYPE", AppType.llm)
+@pytest.fixture(scope="module")
+def test_client():
+    import languru.server.app
 
-
-@pytest.fixture
-def agent_env(monkeypatch: "MonkeyPatch"):
-    monkeypatch.setenv("APP_TYPE", AppType.agent)
+    with TestClient(languru.server.app.app) as client:
+        yield client
 
 
 @pytest.fixture
@@ -90,122 +81,41 @@ def mocked_openai_images_variation_create():
         yield
 
 
-@pytest.fixture
-def mocked_model_discovery_list():
-    from languru.resources.model_discovery.base import DiskCacheModelDiscovery as MD
-    from languru.types.model import Model
-
-    return_model_discovery_list = [
-        Model(
-            id="dall-e-2",
-            created=int(time.time()) - 1,
-            object="model",
-            owned_by="http://0.0.0.0:8682/v1",
-        ),
-    ]
-    with patch.object(MD, "list", MagicMock(return_value=return_model_discovery_list)):
-        yield
+def test_app_images_generations(test_client, mocked_openai_images_generate_create):
+    request_call = ImagesGenerationsRequest.model_validate(
+        {
+            "model": "dall-e-2",
+            "prompt": "A cute baby sea otter",
+            "size": "256x256",
+        }
+    )
+    response = test_client.post(
+        "/v1/images/generations", json=request_call.model_dump(exclude_none=True)
+    )
+    assert response.status_code == 200
 
 
-def test_llm_app_images_generations(llm_env, mocked_openai_images_generate_create):
-    importlib.reload(languru.server.main)
-
-    with TestClient(languru.server.main.app) as client:
-        request_call = ImagesGenerationsRequest.model_validate(
-            {
-                "model": "dall-e-2",
-                "prompt": "A cute baby sea otter",
-                "size": "256x256",
-            }
-        )
-        response = client.post(
-            "/v1/images/generations", json=request_call.model_dump(exclude_none=True)
-        )
-        assert response.status_code == 200
+def test_app_images_edits(test_client, mocked_openai_images_edit_create):
+    request_call = ImagesEditRequest.model_validate(
+        {
+            "image": dummy_png(),
+            "prompt": "A cute baby sea otter wearing a beret",
+            "mask": make_png(),
+            "model": "dall-e-2",
+        }
+    )
+    response = test_client.post("/v1/images/edits", files=request_call.to_files_form())
+    assert response.status_code == 200
 
 
-def test_llm_app_images_edits(llm_env, mocked_openai_images_edit_create):
-    importlib.reload(languru.server.main)
-
-    with TestClient(languru.server.main.app) as client:
-        request_call = ImagesEditRequest.model_validate(
-            {
-                "image": dummy_png(),
-                "prompt": "A cute baby sea otter wearing a beret",
-                "mask": make_png(),
-                "model": "dall-e-2",
-            }
-        )
-        response = client.post("/v1/images/edits", files=request_call.to_files_form())
-        assert response.status_code == 200
-
-
-def test_llm_app_images_variations(llm_env, mocked_openai_images_variation_create):
-    importlib.reload(languru.server.main)
-
-    with TestClient(languru.server.main.app) as client:
-        request_call = ImagesVariationsRequest.model_validate(
-            {
-                "image": ("otter.png", dummy_png(), "image/png"),
-                "model": "dall-e-2",
-            }
-        )
-        response = client.post(
-            "/v1/images/variations", files=request_call.to_files_form()
-        )
-        assert response.status_code == 200
-
-
-def test_agent_app_images_generations(
-    agent_env, mocked_openai_images_generate_create, mocked_model_discovery_list
-):
-    importlib.reload(languru.server.main)
-
-    with TestClient(languru.server.main.app) as client:
-        request_call = ImagesGenerationsRequest.model_validate(
-            {
-                "model": "dall-e-2",
-                "prompt": "A cute baby sea otter",
-                "size": "256x256",
-            }
-        )
-        response = client.post(
-            "/v1/images/generations", json=request_call.model_dump(exclude_none=True)
-        )
-        assert response.status_code == 200
-
-
-def test_agent_app_images_edits(
-    agent_env, mocked_openai_images_edit_create, mocked_model_discovery_list
-):
-    importlib.reload(languru.server.main)
-
-    with TestClient(languru.server.main.app) as client:
-        request_call = ImagesEditRequest.model_validate(
-            {
-                "image": dummy_png(),
-                "prompt": "A cute baby sea otter wearing a beret",
-                "mask": make_png(),
-                "model": "dall-e-2",
-            }
-        )
-        response = client.post("/v1/images/edits", files=request_call.to_files_form())
-        assert response.status_code == 200
-
-
-def test_agent_app_images_variations(
-    agent_env, mocked_openai_images_variation_create, mocked_model_discovery_list
-):
-    importlib.reload(languru.server.main)
-
-    with TestClient(languru.server.main.app) as client:
-        request_call = ImagesVariationsRequest.model_validate(
-            {
-                "image": ("otter.png", dummy_png(), "image/png"),
-                "model": "dall-e-2",
-            }
-        )
-        response = client.post(
-            "/v1/images/variations", files=request_call.to_files_form()
-        )
-        assert response.status_code == 200
+def test_app_images_variations(test_client, mocked_openai_images_variation_create):
+    request_call = ImagesVariationsRequest.model_validate(
+        {
+            "image": ("otter.png", dummy_png(), "image/png"),
+            "model": "dall-e-2",
+        }
+    )
+    response = test_client.post(
+        "/v1/images/variations", files=request_call.to_files_form()
+    )
+    assert response.status_code == 200

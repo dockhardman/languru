@@ -1,6 +1,15 @@
-from typing import Text
+from typing import Optional, Text, Tuple
 
-from fastapi import APIRouter, Body, Depends, File, Form, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from openai import OpenAI
 from openai.types import ImagesResponse
 from pyassorted.asyncio.executor import run_func
@@ -13,8 +22,50 @@ from languru.types.images import (
     ImagesGenerationsRequest,
     ImagesVariationsRequest,
 )
+from languru.types.organizations import OrganizationType
 
 router = APIRouter()
+
+
+def depends_openai_client_model(
+    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
+    model: Text = Form(None),
+) -> Tuple[OpenAI, Text]:
+    if org_type is None:
+        org_type = openai_clients.org_from_model(model)
+
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
+    else:
+        openai_client = openai_clients.org_to_openai_client(org_type)
+        return (openai_client, model)
+
+
+def depends_openai_client_images_generations_request(
+    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
+    images_generations_request: ImagesGenerationsRequest = Body(
+        ...,
+        openapi_examples={
+            "OpenAI": {
+                "summary": "OpenAI",
+                "description": "Generate images using OpenAI's DALL-E model.",
+                "value": {
+                    "prompt": "A cute baby sea otter",
+                    "model": "dall-e-2",
+                    "size": "256x256",
+                },
+            },
+        },
+    ),
+) -> Tuple[OpenAI, ImagesGenerationsRequest]:
+    if org_type is None:
+        org_type = openai_clients.org_from_model(images_generations_request.model)
+
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
+    else:
+        openai_client = openai_clients.org_to_openai_client(org_type)
+        return (openai_client, images_generations_request)
 
 
 class ImagesGenerationsHandler:
@@ -68,27 +119,15 @@ class ImagesVariationsHandler:
 @router.post("/images/generations")
 async def images_generations(
     request: Request,
-    images_generations_request: ImagesGenerationsRequest = Body(
-        ...,
-        openapi_examples={
-            "OpenAI": {
-                "summary": "OpenAI",
-                "description": "Generate images using OpenAI's DALL-E model.",
-                "value": {
-                    "prompt": "A cute baby sea otter",
-                    "model": "dall-e-2",
-                    "size": "256x256",
-                },
-            },
-        },
+    openai_client_images_generations_request=Depends(
+        depends_openai_client_images_generations_request
     ),
-    openai_client=Depends(openai_clients.depends_openai_client),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesGenerationsHandler().handle_request(
         request=request,
-        images_generations_request=images_generations_request,
-        openai_client=openai_client,
+        images_generations_request=openai_client_images_generations_request[1],
+        openai_client=openai_client_images_generations_request[0],
         settings=settings,
     )
 
@@ -99,13 +138,12 @@ async def images_edits(
     image: UploadFile = File(...),
     prompt: Text = Form(...),
     mask: UploadFile = File(None),
-    model: Text = Form(None),
     n: int = Form(None),
     response_format: Text = Form(None),
     size: Text = Form(None),
     user: Text = Form(None),
     timeout: float = Form(None),
-    openai_client=Depends(openai_clients.depends_openai_client),
+    openai_client_model=Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesEditsHandler().handle_request(
@@ -115,7 +153,7 @@ async def images_edits(
                 "image": await image.read(),
                 "prompt": prompt,
                 "mask": await mask.read(),
-                "model": model,
+                "model": openai_client_model[1],
                 "n": n,
                 "response_format": response_format,
                 "size": size,
@@ -123,7 +161,7 @@ async def images_edits(
                 "timeout": timeout,
             }
         ),
-        openai_client=openai_client,
+        openai_client=openai_client_model[0],
         settings=settings,
     )
 
@@ -132,13 +170,12 @@ async def images_edits(
 async def images_variations(
     request: Request,
     image: UploadFile = File(...),
-    model: Text = Form(None),
     n: int = Form(None),
     response_format: Text = Form(None),
     size: Text = Form(None),
     user: Text = Form(None),
     timeout: float = Form(None),
-    openai_client=Depends(openai_clients.depends_openai_client),
+    openai_client_model=Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesVariationsHandler().handle_request(
@@ -146,7 +183,7 @@ async def images_variations(
         images_variations_request=ImagesVariationsRequest.model_validate(
             {
                 "image": await image.read(),
-                "model": model,
+                "model": openai_client_model[1],
                 "n": n,
                 "response_format": response_format,
                 "size": size,
@@ -154,6 +191,6 @@ async def images_variations(
                 "timeout": timeout,
             }
         ),
-        openai_client=openai_client,
+        openai_client=openai_client_model[0],
         settings=settings,
     )
