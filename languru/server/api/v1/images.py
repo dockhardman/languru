@@ -119,9 +119,9 @@ class ImagesVariationsHandler:
 @router.post("/images/generations")
 async def images_generations(
     request: Request,
-    openai_client_images_generations_request=Depends(
-        depends_openai_client_images_generations_request
-    ),
+    openai_client_images_generations_request: Tuple[
+        OpenAI, ImagesGenerationsRequest
+    ] = Depends(depends_openai_client_images_generations_request),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesGenerationsHandler().handle_request(
@@ -143,7 +143,7 @@ async def images_edits(
     size: Text = Form(None),
     user: Text = Form(None),
     timeout: float = Form(None),
-    openai_client_model=Depends(depends_openai_client_model),
+    openai_client_model: Tuple[OpenAI, Text] = Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesEditsHandler().handle_request(
@@ -175,7 +175,7 @@ async def images_variations(
     size: Text = Form(None),
     user: Text = Form(None),
     timeout: float = Form(None),
-    openai_client_model=Depends(depends_openai_client_model),
+    openai_client_model: Tuple[OpenAI, Text] = Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesVariationsHandler().handle_request(

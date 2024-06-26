@@ -123,7 +123,7 @@ class AudioTranslationHandler:
 @router.post("/audio/speech")
 async def audio_speech(
     request: Request,
-    openai_client_audio_speech_request=Depends(
+    openai_client_audio_speech_request: Tuple[OpenAI, AudioSpeechRequest] = Depends(
         depends_openai_client_audio_speech_request
     ),
     settings: ServerBaseSettings = Depends(app_settings),
@@ -146,7 +146,7 @@ async def audio_transcriptions(
     temperature: float = Form(None),
     timestamp_granularities: Text = Form(None),
     timeout: float = Form(None),
-    openai_client_model=Depends(depends_openai_client_model),
+    openai_client_model: Tuple[OpenAI, Text] = Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> Transcription:
     return await AudioTranscriptionHandler().handle_request(
@@ -177,7 +177,7 @@ async def audio_translations(
     response_format: Text = Form(None),
     temperature: float = Form(None),
     timeout: float = Form(None),
-    openai_client_model=Depends(depends_openai_client_model),
+    openai_client_model: Tuple[OpenAI, Text] = Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> Translation:
     return await AudioTranslationHandler().handle_request(

@@ -21,6 +21,8 @@ MODELS_OPENAI = (
     "text-embedding-3-large",
     "text-embedding-3-small",
     "text-embedding-ada-002",
+    "text-moderation-latest",
+    "text-moderation-stable",
     "tts-1",
     "tts-1-1106",
     "tts-1-hd",
