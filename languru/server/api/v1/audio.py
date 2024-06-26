@@ -1,6 +1,15 @@
-from typing import Text
+from typing import Optional, Text, Tuple
 
-from fastapi import APIRouter, Body, Depends, File, Form, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from openai.types.audio import Transcription, Translation
@@ -14,8 +23,51 @@ from languru.types.audio import (
     AudioTranscriptionRequest,
     AudioTranslationRequest,
 )
+from languru.types.organizations import OrganizationType
+from languru.utils.common import dummy_generator_func
 
 router = APIRouter()
+
+
+def depends_openai_client_model(
+    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
+    model: Text = Form(...),
+) -> Tuple[OpenAI, Text]:
+    if org_type is None:
+        org_type = openai_clients.org_from_model(model)
+
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
+    else:
+        openai_client = openai_clients.org_to_openai_client(org_type)
+        return (openai_client, model)
+
+
+def depends_openai_client_audio_speech_request(
+    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
+    audio_speech_request: AudioSpeechRequest = Body(
+        ...,
+        openapi_examples={
+            "OpenAI": {
+                "summary": "OpenAI",
+                "description": "Chat completion request",
+                "value": {
+                    "model": "tts-1",
+                    "voice": "alloy",
+                    "input": "The quick brown fox jumped over the lazy dog.",
+                },
+            },
+        },
+    ),
+) -> Tuple[OpenAI, AudioSpeechRequest]:
+    if org_type is None:
+        org_type = openai_clients.org_from_model(audio_speech_request.model)
+
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
+    else:
+        openai_client = openai_clients.org_to_openai_client(org_type)
+        return (openai_client, audio_speech_request)
 
 
 class AudioSpeechHandler:
@@ -33,7 +85,7 @@ class AudioSpeechHandler:
             **audio_speech_request.model_dump(exclude_none=True)
         ) as response:
             return StreamingResponse(
-                run_generator(response.iter_bytes),  # type: ignore
+                run_generator(dummy_generator_func(response.iter_bytes())),
                 media_type="audio/mpeg",
             )
 
@@ -71,27 +123,15 @@ class AudioTranslationHandler:
 @router.post("/audio/speech")
 async def audio_speech(
     request: Request,
-    audio_speech_request: AudioSpeechRequest = Body(
-        ...,
-        openapi_examples={
-            "OpenAI": {
-                "summary": "OpenAI",
-                "description": "Chat completion request",
-                "value": {
-                    "model": "tts-1",
-                    "voice": "alloy",
-                    "input": "The quick brown fox jumped over the lazy dog.",
-                },
-            },
-        },
+    openai_client_audio_speech_request=Depends(
+        depends_openai_client_audio_speech_request
     ),
-    openai_client=Depends(openai_clients.depends_openai_client),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> StreamingResponse:
     return await AudioSpeechHandler().handle_request(
         request=request,
-        audio_speech_request=audio_speech_request,
-        openai_client=openai_client,
+        audio_speech_request=openai_client_audio_speech_request[1],
+        openai_client=openai_client_audio_speech_request[0],
         settings=settings,
     )
 
@@ -100,14 +140,13 @@ async def audio_speech(
 async def audio_transcriptions(
     request: Request,
     file: UploadFile = File(...),
-    model: Text = Form(...),
     language: Text = Form(None),
     prompt: Text = Form(None),
     response_format: Text = Form(None),
     temperature: float = Form(None),
     timestamp_granularities: Text = Form(None),
     timeout: float = Form(None),
-    openai_client=Depends(openai_clients.depends_openai_client),
+    openai_client_model=Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> Transcription:
     return await AudioTranscriptionHandler().handle_request(
@@ -115,7 +154,7 @@ async def audio_transcriptions(
         audio_transcription_request=AudioTranscriptionRequest.model_validate(
             {
                 "file": await file.read(),
-                "model": model,
+                "model": openai_client_model[1],
                 "language": language,
                 "prompt": prompt,
                 "response_format": response_format,
@@ -124,7 +163,7 @@ async def audio_transcriptions(
                 "timeout": timeout,
             }
         ),
-        openai_client=openai_client,
+        openai_client=openai_client_model[0],
         settings=settings,
     )
 
@@ -133,13 +172,12 @@ async def audio_transcriptions(
 async def audio_translations(
     request: Request,
     file: UploadFile = File(...),
-    model: Text = Form(...),
     language: Text = Form(None),
     prompt: Text = Form(None),
     response_format: Text = Form(None),
     temperature: float = Form(None),
     timeout: float = Form(None),
-    openai_client=Depends(openai_clients.depends_openai_client),
+    openai_client_model=Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> Translation:
     return await AudioTranslationHandler().handle_request(
@@ -147,7 +185,7 @@ async def audio_translations(
         audio_translation_request=AudioTranslationRequest.model_validate(
             {
                 "file": await file.read(),
-                "model": model,
+                "model": openai_client_model[1],
                 "language": language,
                 "prompt": prompt,
                 "response_format": response_format,
@@ -155,6 +193,6 @@ async def audio_translations(
                 "timeout": timeout,
             }
         ),
-        openai_client=openai_client,
+        openai_client=openai_client_model[0],
         settings=settings,
     )
