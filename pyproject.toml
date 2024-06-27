@@ -38,7 +38,7 @@ typing-extensions = "^4"
 voyageai = "^0"
 
 [tool.poetry.scripts]
-languru = "languru.cli.main:app"
+languru = "languru.cli.main:languru_cli"
 
 [tool.poetry.extras]
 all = ["fastapi", "sentencepiece", "tiktoken"]

@@ -35,6 +35,7 @@ def create_app(settings: "ServerBaseSettings", **kwargs):
     app.state.logger = app.extra["logger"] = logging.getLogger(settings.APP_NAME)
     app.state.openai_clients = app.extra["openai_clients"] = OpenaiClients()
 
+    @app.get("/")
     @app.get("/health")
     async def health():
         return {"status": "ok"}
