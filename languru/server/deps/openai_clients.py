@@ -7,7 +7,11 @@ from openai import AzureOpenAI, OpenAI, OpenAIError
 from openai.types import Model
 
 from languru.config import logger as languru_logger
-from languru.exceptions import ModelNotFound, OrganizationNotFound
+from languru.exceptions import (
+    CredentialsNotProvided,
+    ModelNotFound,
+    OrganizationNotFound,
+)
 from languru.openai_plugins.clients.anthropic import AnthropicOpenAI
 from languru.openai_plugins.clients.google import GoogleOpenAI
 from languru.openai_plugins.clients.groq import GroqOpenAI
@@ -87,7 +91,7 @@ class OpenaiClients:
                     for m in MODELS_ANTHROPIC
                 ]
             )
-        except OrganizationNotFound:
+        except CredentialsNotProvided:
             languru_logger.warning("Anthropic OpenAI client not initialized.")
         try:
             self._gg_client = GoogleOpenAI()
@@ -104,7 +108,7 @@ class OpenaiClients:
                     for m in MODELS_GOOGLE
                 ]
             )
-        except OrganizationNotFound:
+        except CredentialsNotProvided:
             languru_logger.warning("Google OpenAI client not initialized.")
         try:
             self._gq_client = GroqOpenAI()
@@ -121,7 +125,7 @@ class OpenaiClients:
                     for m in MODELS_GROQ
                 ]
             )
-        except OrganizationNotFound:
+        except CredentialsNotProvided:
             languru_logger.warning("Groq OpenAI client not initialized.")
         try:
             self._pplx_client = PerplexityOpenAI()
@@ -138,7 +142,7 @@ class OpenaiClients:
                     for m in MODELS_PERPLEXITY
                 ]
             )
-        except OrganizationNotFound:
+        except CredentialsNotProvided:
             languru_logger.warning("Perplexity OpenAI client not initialized.")
         try:
             self._vg_client = VoyageOpenAI()
@@ -155,7 +159,7 @@ class OpenaiClients:
                     for m in MODELS_VOYAGE
                 ]
             )
-        except OrganizationNotFound:
+        except CredentialsNotProvided:
             languru_logger.warning("Voyage OpenAI client not initialized.")
 
     def depends_org_type(

@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings
 from rich.console import Console
 from rich.table import Table
 
+from languru.config import settings as languru_settings
 from languru.version import VERSION
 
 if TYPE_CHECKING:
@@ -127,7 +128,7 @@ def default_logging_config(settings: "ServerBaseSettings"):
             },
         },
         "loggers": {
-            "languru": {
+            languru_settings.logger_name: {
                 "level": "DEBUG",
                 "handlers": ["file_handler", "error_handler", "console_handler"],
                 "propagate": True,
