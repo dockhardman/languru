@@ -1,160 +1,24 @@
-import logging
-import math
-import random
-import time
-from typing import TYPE_CHECKING, cast
+from typing import Optional, Tuple
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, Request
+from fastapi.exceptions import HTTPException
 from fastapi.responses import StreamingResponse
-from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from openai import OpenAI
+from openai.types.chat import ChatCompletion
 from pyassorted.asyncio.executor import run_func, run_generator
 
-from languru.exceptions import ModelNotFound
-from languru.server.config import (
-    AgentSettings,
-    AppType,
-    LlmSettings,
-    ServerBaseSettings,
-)
+from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
-from languru.server.utils.common import get_value_from_app
+from languru.server.deps.openai_clients import openai_clients
 from languru.types.chat.completions import ChatCompletionRequest
+from languru.types.organizations import OrganizationType
 from languru.utils.http import simple_sse_encode
-
-if TYPE_CHECKING:
-    from openai import Stream
 
 router = APIRouter()
 
 
-class ChatCompletionHandler:
-
-    async def handle_request(
-        self,
-        request: "Request",
-        chat_completion_request: "ChatCompletionRequest",
-        settings: "ServerBaseSettings",
-        **kwargs,
-    ) -> ChatCompletion | ChatCompletionChunk | StreamingResponse:
-        if settings.APP_TYPE == AppType.llm:
-            settings = cast(LlmSettings, settings)
-            return await self.handle_llm(
-                request=request,
-                chat_completion_request=chat_completion_request,
-                settings=settings,
-                **kwargs,
-            )
-
-        if settings.APP_TYPE == AppType.agent:
-            settings = cast(AgentSettings, settings)
-            return await self.handle_agent(
-                request=request,
-                chat_completion_request=chat_completion_request,
-                settings=settings,
-                **kwargs,
-            )
-
-        # Not implemented or unknown app server type
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Unknown app server type: {settings.APP_TYPE}"
-                if settings.APP_TYPE
-                else "App server type not implemented"
-            ),
-        )
-
-    async def handle_llm(
-        self,
-        request: "Request",
-        chat_completion_request: "ChatCompletionRequest",
-        settings: "LlmSettings",
-        **kwargs,
-    ) -> ChatCompletion | ChatCompletionChunk | StreamingResponse:
-        from languru.action.base import ActionBase
-
-        action: "ActionBase" = get_value_from_app(
-            request.app, key="action", value_typing=ActionBase
-        )
-
-        try:
-            chat_completion_request.model = action.get_model_name(
-                chat_completion_request.model
-            )
-        except ModelNotFound as e:
-            raise HTTPException(status_code=404, detail=str(e))
-
-        # Stream
-        if chat_completion_request.stream is True:
-            return StreamingResponse(
-                run_generator(
-                    action.chat_stream_sse,
-                    **chat_completion_request.model_dump(exclude_none=True),
-                ),
-                media_type="application/stream+json",
-            )
-
-        # Normal
-        else:
-            chat_completion = await run_func(
-                action.chat, **chat_completion_request.model_dump(exclude_none=True)
-            )
-            return chat_completion
-
-    async def handle_agent(
-        self,
-        request: "Request",
-        chat_completion_request: "ChatCompletionRequest",
-        settings: "AgentSettings",
-        **kwargs,
-    ) -> ChatCompletion | ChatCompletionChunk | StreamingResponse:
-        from openai import OpenAI
-
-        from languru.resources.model_discovery.base import ModelDiscovery
-
-        model_discovery: "ModelDiscovery" = get_value_from_app(
-            request.app, key="model_discovery", value_typing=ModelDiscovery
-        )
-        logger = logging.getLogger(settings.APP_NAME)
-
-        # Get model name and model destination
-        models = await run_func(
-            model_discovery.list,
-            id=chat_completion_request.model,
-            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
-        )
-        if len(models) == 0:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Model '{chat_completion_request.model}' not found",
-            )
-        model = random.choice(models)
-
-        # Request completion
-        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
-        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
-        # Stream
-        if chat_completion_request.stream is True:
-            chat_stream_params = chat_completion_request.model_dump(exclude_none=True)
-            chat_stream_params.pop("stream", None)
-            chat_completion_stream: "Stream[ChatCompletionChunk]" = await run_func(
-                client.chat.completions.create, **chat_stream_params, stream=True
-            )
-            return StreamingResponse(
-                simple_sse_encode(chat_completion_stream, logger=settings.APP_NAME),
-                media_type="application/stream+json",
-            )
-        # Normal
-        else:
-            return await run_func(
-                client.chat.completions.create,
-                **chat_completion_request.model_dump(exclude_none=True),
-            )
-
-
-@router.post("/chat/completions")
-async def chat_completions(
-    request: Request,
+def depends_openai_client_chat_completion_request(
+    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
     chat_completion_request: ChatCompletionRequest = Body(
         ...,
         openapi_examples={
@@ -204,10 +68,92 @@ async def chat_completions(
             },
         },
     ),
+) -> Tuple[OpenAI, ChatCompletionRequest]:
+    if org_type is None:
+        org_type = openai_clients.org_from_model(chat_completion_request.model)
+
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
+    else:
+        openai_client = openai_clients.org_to_openai_client(org_type)
+        return (openai_client, chat_completion_request)
+
+
+class ChatCompletionHandler:
+
+    async def handle_request(
+        self,
+        request: "Request",
+        *args,
+        chat_completion_request: "ChatCompletionRequest",
+        settings: "ServerBaseSettings",
+        openai_client: "OpenAI",
+        **kwargs,
+    ) -> ChatCompletion | StreamingResponse:
+        if chat_completion_request.stream is True:
+            return await self.handle_stream(
+                request=request,
+                chat_completion_request=chat_completion_request,
+                settings=settings,
+                openai_client=openai_client,
+                **kwargs,
+            )
+        else:
+            return await self.handle_normal(
+                request=request,
+                chat_completion_request=chat_completion_request,
+                settings=settings,
+                openai_client=openai_client,
+                **kwargs,
+            )
+
+    async def handle_normal(
+        self,
+        request: "Request",
+        *args,
+        chat_completion_request: "ChatCompletionRequest",
+        settings: "ServerBaseSettings",
+        openai_client: "OpenAI",
+        **kwargs,
+    ) -> ChatCompletion:
+        params = chat_completion_request.model_dump(exclude_none=True)
+        params["stream"] = False
+        chat_completion = await run_func(
+            openai_client.chat.completions.create, **params
+        )
+        return chat_completion
+
+    async def handle_stream(
+        self,
+        request: "Request",
+        *args,
+        chat_completion_request: "ChatCompletionRequest",
+        settings: "ServerBaseSettings",
+        openai_client: "OpenAI",
+        **kwargs,
+    ) -> StreamingResponse:
+        params = chat_completion_request.model_dump(exclude_none=True)
+        params["stream"] = True
+        return StreamingResponse(
+            run_generator(
+                simple_sse_encode,
+                await run_func(openai_client.chat.completions.create, **params),
+            ),
+            media_type="application/stream+json",
+        )
+
+
+@router.post("/chat/completions")
+async def chat_completions(
+    request: Request,
+    openai_client_chat_completion_request: Tuple[
+        OpenAI, ChatCompletionRequest
+    ] = Depends(depends_openai_client_chat_completion_request),
     settings: ServerBaseSettings = Depends(app_settings),
 ):  # -> openai.types.chat.ChatCompletion | openai.types.chat.ChatCompletionChunk
     return await ChatCompletionHandler().handle_request(
         request=request,
-        chat_completion_request=chat_completion_request,
+        chat_completion_request=openai_client_chat_completion_request[1],
         settings=settings,
+        openai_client=openai_client_chat_completion_request[0],
     )

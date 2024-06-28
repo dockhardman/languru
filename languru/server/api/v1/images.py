@@ -1,8 +1,4 @@
-import logging
-import math
-import random
-import time
-from typing import Text, cast
+from typing import Optional, Text, Tuple
 
 from fastapi import (
     APIRouter,
@@ -14,313 +10,39 @@ from fastapi import (
     Request,
     UploadFile,
 )
+from openai import OpenAI
 from openai.types import ImagesResponse
 from pyassorted.asyncio.executor import run_func
 
-from languru.exceptions import ModelNotFound
-from languru.server.config import (
-    AgentSettings,
-    AppType,
-    LlmSettings,
-    ServerBaseSettings,
-)
+from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
-from languru.server.utils.common import get_value_from_app
+from languru.server.deps.openai_clients import openai_clients
 from languru.types.images import (
     ImagesEditRequest,
     ImagesGenerationsRequest,
     ImagesVariationsRequest,
 )
+from languru.types.organizations import OrganizationType
 
 router = APIRouter()
 
 
-class ImagesGenerationsHandler:
-    async def handle_request(
-        self,
-        request: "Request",
-        images_generations_request: "ImagesGenerationsRequest",
-        settings: "ServerBaseSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        if settings.APP_TYPE == AppType.llm:
-            settings = cast(LlmSettings, settings)
-            return await self.handle_llm(
-                request=request,
-                images_generations_request=images_generations_request,
-                settings=settings,
-                **kwargs,
-            )
+def depends_openai_client_model(
+    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
+    model: Text = Form(None),
+) -> Tuple[OpenAI, Text]:
+    if org_type is None:
+        org_type = openai_clients.org_from_model(model)
 
-        if settings.APP_TYPE == AppType.agent:
-            settings = cast(AgentSettings, settings)
-            return await self.handle_agent(
-                request=request,
-                images_generations_request=images_generations_request,
-                settings=settings,
-                **kwargs,
-            )
-
-        # Not implemented or unknown app server type
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Unknown app server type: {settings.APP_TYPE}"
-                if settings.APP_TYPE
-                else "App server type not implemented"
-            ),
-        )
-
-    async def handle_llm(
-        self,
-        request: "Request",
-        images_generations_request: "ImagesGenerationsRequest",
-        settings: "LlmSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        from languru.action.base import ActionBase
-
-        action: "ActionBase" = get_value_from_app(
-            request.app, key="action", value_typing=ActionBase
-        )
-        try:
-            images_generations_request.model = action.get_model_name(
-                images_generations_request.model
-            )
-        except ModelNotFound as e:
-            raise HTTPException(status_code=404, detail=str(e))
-
-        else:
-            image_res = await run_func(
-                action.images_generations,
-                **images_generations_request.model_dump(exclude_none=True),
-            )
-            return image_res
-
-    async def handle_agent(
-        self,
-        request: "Request",
-        images_generations_request: "ImagesGenerationsRequest",
-        settings: "AgentSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        from openai import OpenAI
-
-        from languru.resources.model_discovery.base import ModelDiscovery
-
-        model_discovery: "ModelDiscovery" = get_value_from_app(
-            request.app, key="model_discovery", value_typing=ModelDiscovery
-        )
-        logger = logging.getLogger(settings.APP_NAME)
-
-        # Get model name and model destination
-        models = await run_func(
-            model_discovery.list,
-            id=images_generations_request.model,
-            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
-        )
-        if len(models) == 0:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Model '{images_generations_request.model}' not found",
-            )
-        model = random.choice(models)
-
-        # Request audio speech
-        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
-        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
-        return await run_func(
-            client.images.generate,
-            **images_generations_request.model_dump(exclude_none=True),
-        )
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
+    else:
+        openai_client = openai_clients.org_to_openai_client(org_type)
+        return (openai_client, model)
 
 
-class ImagesEditsHandler:
-    async def handle_request(
-        self,
-        request: "Request",
-        images_edit_request: "ImagesEditRequest",
-        settings: "ServerBaseSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        if settings.APP_TYPE == AppType.llm:
-            settings = cast(LlmSettings, settings)
-            return await self.handle_llm(
-                request=request,
-                images_edit_request=images_edit_request,
-                settings=settings,
-                **kwargs,
-            )
-
-        if settings.APP_TYPE == AppType.agent:
-            settings = cast(AgentSettings, settings)
-            return await self.handle_agent(
-                request=request,
-                images_edit_request=images_edit_request,
-                settings=settings,
-                **kwargs,
-            )
-
-        # Not implemented or unknown app server type
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Unknown app server type: {settings.APP_TYPE}"
-                if settings.APP_TYPE
-                else "App server type not implemented"
-            ),
-        )
-
-    async def handle_llm(
-        self,
-        request: "Request",
-        images_edit_request: "ImagesEditRequest",
-        settings: "LlmSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        from languru.action.base import ActionBase
-
-        action: "ActionBase" = get_value_from_app(
-            request.app, key="action", value_typing=ActionBase
-        )
-        image_res = await run_func(
-            action.images_edits, **images_edit_request.model_dump(exclude_none=True)
-        )
-        return image_res
-
-    async def handle_agent(
-        self,
-        request: "Request",
-        images_edit_request: "ImagesEditRequest",
-        settings: "AgentSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        from openai import OpenAI
-
-        from languru.resources.model_discovery.base import ModelDiscovery
-
-        model_discovery: "ModelDiscovery" = get_value_from_app(
-            request.app, key="model_discovery", value_typing=ModelDiscovery
-        )
-        logger = logging.getLogger(settings.APP_NAME)
-
-        # Get model name and model destination
-        models = await run_func(
-            model_discovery.list,
-            id=images_edit_request.model,
-            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
-        )
-        if len(models) == 0:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Model '{images_edit_request.model}' not found",
-            )
-        model = random.choice(models)
-
-        # Request audio speech
-        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
-        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
-        return await run_func(
-            client.images.edit,
-            **images_edit_request.model_dump(exclude_none=True),
-        )
-
-
-class ImagesVariationsHandler:
-    async def handle_request(
-        self,
-        request: "Request",
-        images_variations_request: "ImagesVariationsRequest",
-        settings: "ServerBaseSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        if settings.APP_TYPE == AppType.llm:
-            settings = cast(LlmSettings, settings)
-            return await self.handle_llm(
-                request=request,
-                images_variations_request=images_variations_request,
-                settings=settings,
-                **kwargs,
-            )
-
-        if settings.APP_TYPE == AppType.agent:
-            settings = cast(AgentSettings, settings)
-            return await self.handle_agent(
-                request=request,
-                images_variations_request=images_variations_request,
-                settings=settings,
-                **kwargs,
-            )
-
-        # Not implemented or unknown app server type
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Unknown app server type: {settings.APP_TYPE}"
-                if settings.APP_TYPE
-                else "App server type not implemented"
-            ),
-        )
-
-    async def handle_llm(
-        self,
-        request: "Request",
-        images_variations_request: "ImagesVariationsRequest",
-        settings: "LlmSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        from languru.action.base import ActionBase
-
-        action: "ActionBase" = get_value_from_app(
-            request.app, key="action", value_typing=ActionBase
-        )
-        image_res = await run_func(
-            action.images_variations,
-            **images_variations_request.model_dump(exclude_none=True),
-        )
-        return image_res
-
-    async def handle_agent(
-        self,
-        request: "Request",
-        images_variations_request: "ImagesVariationsRequest",
-        settings: "AgentSettings",
-        **kwargs,
-    ) -> ImagesResponse:
-        from openai import OpenAI
-
-        from languru.resources.model_discovery.base import ModelDiscovery
-
-        model_discovery: "ModelDiscovery" = get_value_from_app(
-            request.app, key="model_discovery", value_typing=ModelDiscovery
-        )
-        logger = logging.getLogger(settings.APP_NAME)
-
-        # Get model name and model destination
-        models = await run_func(
-            model_discovery.list,
-            id=images_variations_request.model,
-            created_from=math.floor(time.time() - settings.MODEL_REGISTER_PERIOD),
-        )
-        if len(models) == 0:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Model '{images_variations_request.model}' not found",
-            )
-        model = random.choice(models)
-
-        # Request audio speech
-        client = OpenAI(base_url=model.owned_by, api_key="NOT_IMPLEMENTED")
-        logger.debug(f"Using model '{model.id}' from '{model.owned_by}'")
-        return await run_func(
-            client.images.create_variation,
-            **images_variations_request.model_dump(exclude_none=True),
-        )
-
-
-@router.post("/images/generations")
-async def images_generations(
-    request: Request,
+def depends_openai_client_images_generations_request(
+    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
     images_generations_request: ImagesGenerationsRequest = Body(
         ...,
         openapi_examples={
@@ -335,11 +57,77 @@ async def images_generations(
             },
         },
     ),
+) -> Tuple[OpenAI, ImagesGenerationsRequest]:
+    if org_type is None:
+        org_type = openai_clients.org_from_model(images_generations_request.model)
+
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
+    else:
+        openai_client = openai_clients.org_to_openai_client(org_type)
+        return (openai_client, images_generations_request)
+
+
+class ImagesGenerationsHandler:
+    async def handle_request(
+        self,
+        request: "Request",
+        *args,
+        images_generations_request: "ImagesGenerationsRequest",
+        openai_client: "OpenAI",
+        settings: "ServerBaseSettings",
+        **kwargs,
+    ) -> ImagesResponse:
+        return await run_func(
+            openai_client.images.generate,
+            **images_generations_request.model_dump(exclude_none=True),
+        )
+
+
+class ImagesEditsHandler:
+    async def handle_request(
+        self,
+        request: "Request",
+        *args,
+        images_edit_request: "ImagesEditRequest",
+        openai_client: "OpenAI",
+        settings: "ServerBaseSettings",
+        **kwargs,
+    ) -> ImagesResponse:
+        return await run_func(
+            openai_client.images.edit,
+            **images_edit_request.model_dump(exclude_none=True),
+        )
+
+
+class ImagesVariationsHandler:
+    async def handle_request(
+        self,
+        request: "Request",
+        *args,
+        images_variations_request: "ImagesVariationsRequest",
+        openai_client: "OpenAI",
+        settings: "ServerBaseSettings",
+        **kwargs,
+    ) -> ImagesResponse:
+        return await run_func(
+            openai_client.images.create_variation,
+            **images_variations_request.model_dump(exclude_none=True),
+        )
+
+
+@router.post("/images/generations")
+async def images_generations(
+    request: Request,
+    openai_client_images_generations_request: Tuple[
+        OpenAI, ImagesGenerationsRequest
+    ] = Depends(depends_openai_client_images_generations_request),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesGenerationsHandler().handle_request(
         request=request,
-        images_generations_request=images_generations_request,
+        images_generations_request=openai_client_images_generations_request[1],
+        openai_client=openai_client_images_generations_request[0],
         settings=settings,
     )
 
@@ -350,12 +138,12 @@ async def images_edits(
     image: UploadFile = File(...),
     prompt: Text = Form(...),
     mask: UploadFile = File(None),
-    model: Text = Form(None),
     n: int = Form(None),
     response_format: Text = Form(None),
     size: Text = Form(None),
     user: Text = Form(None),
     timeout: float = Form(None),
+    openai_client_model: Tuple[OpenAI, Text] = Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesEditsHandler().handle_request(
@@ -365,7 +153,7 @@ async def images_edits(
                 "image": await image.read(),
                 "prompt": prompt,
                 "mask": await mask.read(),
-                "model": model,
+                "model": openai_client_model[1],
                 "n": n,
                 "response_format": response_format,
                 "size": size,
@@ -373,6 +161,7 @@ async def images_edits(
                 "timeout": timeout,
             }
         ),
+        openai_client=openai_client_model[0],
         settings=settings,
     )
 
@@ -381,12 +170,12 @@ async def images_edits(
 async def images_variations(
     request: Request,
     image: UploadFile = File(...),
-    model: Text = Form(None),
     n: int = Form(None),
     response_format: Text = Form(None),
     size: Text = Form(None),
     user: Text = Form(None),
     timeout: float = Form(None),
+    openai_client_model: Tuple[OpenAI, Text] = Depends(depends_openai_client_model),
     settings: ServerBaseSettings = Depends(app_settings),
 ) -> ImagesResponse:
     return await ImagesVariationsHandler().handle_request(
@@ -394,7 +183,7 @@ async def images_variations(
         images_variations_request=ImagesVariationsRequest.model_validate(
             {
                 "image": await image.read(),
-                "model": model,
+                "model": openai_client_model[1],
                 "n": n,
                 "response_format": response_format,
                 "size": size,
@@ -402,5 +191,6 @@ async def images_variations(
                 "timeout": timeout,
             }
         ),
+        openai_client=openai_client_model[0],
         settings=settings,
     )

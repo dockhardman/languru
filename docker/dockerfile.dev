@@ -17,7 +17,7 @@ WORKDIR /app
 ENV PYTHONPATH=${PYTHONPATH}:/app
 COPY ./README.md ./pyproject.toml ./poetry.lock* /app/
 COPY ./languru /app/languru
-RUN poetry install -E server && poetry show
+RUN poetry install -E all && poetry show
 
 # Expose the port
 EXPOSE 80

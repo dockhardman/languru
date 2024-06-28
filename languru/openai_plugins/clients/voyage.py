@@ -12,6 +12,7 @@ from openai.pagination import SyncPage
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 from openai.types.model import Model
 
+from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
 
 
@@ -133,7 +134,7 @@ class VoyageOpenAI(OpenAI):
     def __init__(self, *, api_key: Optional[Text] = None, **kwargs):
         api_key = api_key or os.getenv("VOYAGE_API_KEY") or os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("Voyage API key is not provided.")
+            raise CredentialsNotProvided("Voyage API key is not provided.")
         kwargs["api_key"] = api_key
         kwargs = {k: v for k, v in kwargs.items() if k in openai_init_parameter_keys}
 

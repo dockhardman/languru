@@ -3,7 +3,10 @@ import string
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
+    Generator,
+    Iterable,
     List,
     NamedTuple,
     Optional,
@@ -194,3 +197,18 @@ def named_tuples_to_dicts(named_tuples: Sequence[NamedTuple]) -> List[Dict]:
 
 def json_dumps(data: Any, indent: Optional[Union[int, Text]] = None) -> Text:
     return json.dumps(data, indent=indent, ensure_ascii=False)
+
+
+def dummy_generator_func(
+    generator: Union[
+        Generator[T, None, None],
+        Iterable[T],
+    ],
+) -> Callable[[], Generator[T, None, None]]:
+    """Create a dummy generator function."""
+
+    def dummy_generator() -> Generator[T, None, None]:
+        for item in generator:
+            yield item
+
+    return dummy_generator

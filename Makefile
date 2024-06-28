@@ -18,9 +18,8 @@ install-all:
 
 update-all:
 	poetry update && \
-		poetry export --without-hashes -E server -f requirements.txt --output requirements.txt && \
-		poetry export --without-hashes --with dev -E server -E cpu -f requirements.txt --output requirements-test.txt && \
-		poetry export --without-hashes --with dev -E all -f requirements.txt --output requirements-all.txt
+		poetry export --without-hashes -E all -f requirements.txt --output requirements.txt && \
+		poetry export --without-hashes -E all --with dev -f requirements.txt --output requirements-test.txt
 
 mkdocs:
 	mkdocs serve
