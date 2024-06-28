@@ -15,7 +15,7 @@ DataModelTypeVar = TypeVar("DataModelTypeVar", bound="DataModel")
 
 class DataModel(BaseModel):
     @classmethod
-    def models_from_openai(
+    def model_from_openai(
         cls: Type[DataModelTypeVar],
         content: Text,
         client: "OpenAI",
@@ -29,7 +29,8 @@ class DataModel(BaseModel):
         user_message = {
             "role": "user",
             "content": (
-                "[Model Schema]\n{model_schema}\n[END Model Schema]\n\n{user_says}"
+                "<model_json_schema>\n{model_schema}\n</model_json_schema>\n\n"
+                + "{user_says}"
             ),
         }
         prompt_template = PromptTemplate(
@@ -63,16 +64,3 @@ class DataModel(BaseModel):
                 ) from e
             models.append(_model)
         return models
-
-    @classmethod
-    def model_from_openai(
-        cls: Type[DataModelTypeVar],
-        content: Text,
-        client: "OpenAI",
-        model: Text = "gpt-3.5-turbo",
-        **kwargs,
-    ) -> DataModelTypeVar:
-        models = cls.models_from_openai(content, client, model, **kwargs)  #
-        if len(models) == 0:
-            raise ValueError("Could not extract information from content.")
-        return models[0]  # Only one model is expected
