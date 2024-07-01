@@ -6,9 +6,14 @@ from pyassorted.string import extract_code_blocks
 from pydantic import BaseModel
 from pydantic_core import ValidationError
 
+from languru.config import logger
 from languru.prompts import PromptTemplate
 from languru.prompts.repositories.data_model import prompt_date_model_from_openai
-from languru.utils.common import ensure_list, ensure_openai_chat_completion_content
+from languru.utils.common import (
+    display_messages,
+    ensure_list,
+    ensure_openai_chat_completion_content,
+)
 
 DataModelTypeVar = TypeVar("DataModelTypeVar", bound="DataModel")
 
@@ -20,11 +25,14 @@ class DataModel(BaseModel):
         content: Text,
         client: "OpenAI",
         model: Text = "gpt-3.5-turbo",
+        *,
+        verbose: bool = False,
         **kwargs,
     ) -> List[DataModelTypeVar]:
         # Get schema
         schema = cls.model_json_schema()
         model_schema = {cls.__name__: schema}
+
         # Prepare prompt
         user_message = {
             "role": "user",
@@ -36,15 +44,26 @@ class DataModel(BaseModel):
         prompt_template = PromptTemplate(
             prompt_date_model_from_openai, messages=[user_message]
         )
+        input_messages = prompt_template.format_messages(
+            prompt_vars={"model_schema": model_schema, "user_says": content}
+        )
+        if verbose:
+            display_messages(
+                messages=input_messages,
+                table_title=f"{client.__class__.__name__} Chat Messages Input",
+            )
+
         # Generate response
         chat_res = client.chat.completions.create(
-            messages=prompt_template.format_messages(
-                prompt_vars={"model_schema": model_schema, "user_says": content}
-            ),
-            model=model,
-            temperature=0.0,
+            messages=input_messages, model=model, temperature=0.0
         )
         chat_answer = ensure_openai_chat_completion_content(chat_res)
+        if verbose:
+            display_messages(
+                messages=[{"role": "assistant", "content": chat_answer}],
+                table_title=f"{client.__class__.__name__}({model}) Chat Response",
+            )
+
         # Parse response
         code_blocks = extract_code_blocks(chat_answer, language="json")
         if len(code_blocks) == 0:
@@ -53,6 +72,7 @@ class DataModel(BaseModel):
             )
         code_block = code_blocks[0]  # Only one code block is expected
         items: List[Dict] = ensure_list(pyjson5.loads(code_block))
+
         # Validate models
         models: List[DataModelTypeVar] = []
         for item in items:
@@ -63,4 +83,6 @@ class DataModel(BaseModel):
                     f"Failed to validate model '{cls.__name__}' from data: {item}"
                 ) from e
             models.append(_model)
+
+        logger.debug(f"Generated models from OpenAI: {models}")
         return models

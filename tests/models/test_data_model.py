@@ -2,10 +2,13 @@ from textwrap import dedent
 from typing import List, Optional, Text
 
 import pytest
-from openai import OpenAI
 from pydantic import EmailStr, Field
 
 from languru.models import DataModel
+from languru.openai_plugins.clients.google import GoogleOpenAI
+
+client = GoogleOpenAI()
+model_name = "models/gemini-1.5-flash"
 
 
 class Tag(DataModel):
@@ -66,7 +69,7 @@ class User(DataModel):
     ],
 )
 def test_models_from_openai(content, expected):
-    res = User.model_from_openai(content, OpenAI())
+    res = User.model_from_openai(content, client, model=model_name, verbose=True)
     assert isinstance(res, List) and len(res) > 0
     assert expected
 
@@ -110,6 +113,6 @@ def test_models_from_openai(content, expected):
     ],
 )
 def test_model_from_openai(content, expected):
-    res = User.model_from_openai(content, OpenAI())
+    res = User.model_from_openai(content, client, model=model_name, verbose=True)
     assert len(res) > 0
     assert all([isinstance(i, User) for i in res])
