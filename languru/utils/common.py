@@ -15,6 +15,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    cast,
 )
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -166,26 +167,41 @@ def display_messages(
         Sequence[Dict[Text, Any]],
         Sequence[ChatCompletionMessageParam],
     ],
+    *,
     is_print: bool = True,
+    table_title: Text = "Messages",
+    table_width: int = 120,
 ) -> Text:
     """Display messages in a human-readable format."""
 
     if not messages:
         raise ValueError("No messages to display.")
 
+    # Convert messages to dictionaries
     _messages = [
         m.model_dump() if isinstance(m, BaseModel) else dict(m) for m in messages
     ]
+
+    # Initialize output
     out = ""
+    table: Optional["Table"] = None
+    if is_print:
+        table = Table(title=table_title, width=table_width)
+        table.add_column("Role", justify="right", style="bold cyan")
+        table.add_column("Content", justify="left")
+
+    # Read messages
     for m in _messages:
         role = str(m.get("role") or "Unknown").capitalize()
         content = str(m.get("content") or "n/a")
         if is_print:
-            console.print(role, style="underline bold cyan")
-            console.print(content)
-            console.print()
+            table = cast(Table, table)
+            table.add_row(role.rjust(9), content)
         out += f"\n\n{role.capitalize()}:\n{content}"
         out = out.strip()
+
+    if is_print:
+        console.print(table)
     return out
 
 

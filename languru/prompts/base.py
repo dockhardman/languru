@@ -1,4 +1,6 @@
 import copy
+import hashlib
+import json
 from types import MappingProxyType
 from typing import Any, Dict, List, Optional, Sequence, Text, Tuple, Union
 
@@ -12,7 +14,7 @@ from languru.types.chat.completions import Message
 class PromptTemplate:
     def __init__(
         self,
-        prompt: Text,
+        prompt: Optional[Text] = None,
         *,
         prompt_vars: Optional[Dict[Text, Any]] = None,
         messages: Optional[
@@ -38,17 +40,41 @@ class PromptTemplate:
             m.model_dump() if isinstance(m, Message) else m for m in messages or []
         ]
 
-    def __call__(self, *args, **kwargs) -> Text:
-        return self.format(*args, **kwargs)
+    def __call__(
+        self,
+        messages: Optional[
+            Union[
+                Sequence["Message"],
+                Sequence[Dict[Text, Any]],
+                Sequence[ChatCompletionMessageParam],
+            ]
+        ] = None,
+        *args,
+        prompt_vars: Optional[Dict[Text, Any]] = None,
+        **kwargs,
+    ) -> List[ChatCompletionMessageParam]:
+        """Format messages with prompt vars."""
+
+        return self.format_messages(
+            messages=messages, *args, prompt_vars=prompt_vars, **kwargs
+        )
 
     def __str__(self):
-        return self.prompt
+        """Return a string representation of the object."""
+
+        _messages = self.prompt_messages()
+        _messages_md5 = hashlib.md5(
+            json.dumps(_messages, sort_keys=True, default=str).encode()
+        ).hexdigest()
+        return f'<{self.__class__.__name__} md5="{_messages_md5}">'
 
     def __repr__(self):
-        return f"<PromptTemplate: {self.prompt}>"
+        return self.__str__()
 
     @property
     def prompt_vars(self) -> Dict[Text, Any]:
+        """Return a copy of the prompt vars."""
+
         return dict(self._prompt_vars)
 
     def prompt_vars_update(
@@ -56,6 +82,8 @@ class PromptTemplate:
         data: Optional[Union[Dict[Text, Any], Sequence[Tuple[Text, Any]]]] = None,
         **kwargs,
     ) -> "PromptTemplate":
+        """Update prompt vars."""
+
         prompt_vars = self.prompt_vars
         prompt_vars.update(data or {})
         prompt_vars.update(kwargs)
@@ -65,6 +93,8 @@ class PromptTemplate:
     def prompt_vars_drop(
         self, keys: Union[Text, Sequence[Text]], *args: Text, **kwargs
     ) -> "PromptTemplate":
+        """Drop prompt vars."""
+
         keys = [keys] if isinstance(keys, Text) else keys
         prompt_vars = self.prompt_vars
         for key in keys:
@@ -73,19 +103,46 @@ class PromptTemplate:
         return self
 
     def prompt_placeholders(self, *args, **kwargs) -> List[Text]:
-        return find_placeholders(
-            self.prompt, open_delim=self.open_delim, close_delim=self.close_delim
-        )
+        """Return a list of placeholders in the prompt and messages."""
 
-    def format(
-        self, *args, prompt_vars: Optional[Dict[Text, Any]] = None, **kwargs
-    ) -> Text:
-        _prompt_vars = self.prompt_vars
-        _prompt_vars.update(prompt_vars or {})
-        _prompt_vars.update(kwargs)
-        return multiple_replace(
-            _prompt_vars, text=self.prompt, wrapped_by=Bracket.CurlyBrackets
+        out = find_placeholders(
+            self.prompt or "", open_delim=self.open_delim, close_delim=self.close_delim
         )
+        for m in self.messages:
+            if "content" in m and isinstance(m["content"], Text):
+                out += find_placeholders(
+                    m["content"],
+                    open_delim=self.open_delim,
+                    close_delim=self.close_delim,
+                )
+        return out
+
+    def prompt_messages(
+        self,
+        messages: Optional[
+            Union[
+                Sequence["Message"],
+                Sequence[Dict[Text, Any]],
+                Sequence[ChatCompletionMessageParam],
+            ]
+        ] = None,
+        *args,
+        **kwargs,
+    ) -> List[ChatCompletionMessageParam]:
+        """Return a list of raw messages with the prompt."""
+
+        _messages: List[ChatCompletionMessageParam] = []
+        if self.prompt:
+            _messages.append(
+                {"role": self.role_system, "content": self.prompt}  # type: ignore
+            )
+        _messages += self.messages
+        if messages:
+            _messages += [
+                m.model_dump() if isinstance(m, BaseModel) else copy.deepcopy(m)
+                for m in messages  # type: ignore
+            ]
+        return _messages
 
     def format_messages(
         self,
@@ -100,18 +157,35 @@ class PromptTemplate:
         prompt_vars: Optional[Dict[Text, Any]] = None,
         **kwargs,
     ) -> List[ChatCompletionMessageParam]:
+        """Format messages with prompt vars.
+
+        Parameters
+        ----------
+        messages : Optional[Union[Sequence["Message"], Sequence[Dict[Text, Any], Sequence[ChatCompletionMessageParam]]]
+            A list of messages to format.
+        *args
+            Additional arguments to pass to the prompt vars.
+        prompt_vars : Optional[Dict[Text, Any]]
+            A dictionary of prompt variables to use.
+        **kwargs
+            Additional keyword arguments to pass to the prompt vars.
+
+        Returns
+        -------
+        List[ChatCompletionMessageParam]
+            A list of formatted messages.
+        """  # noqa
+
+        # Update prompt vars
         _prompt_vars = self.prompt_vars
         _prompt_vars.update(prompt_vars or {})
         _prompt_vars.update(kwargs)
         _prompt_vars = {k: str(v) for k, v in _prompt_vars.items() if v is not None}
-        _messages: List[ChatCompletionMessageParam] = copy.deepcopy(
-            [{"role": self.role_system, "content": self.prompt}]
-            + self.messages
-            + [
-                m.model_dump() if isinstance(m, BaseModel) else m
-                for m in messages or []
-            ],  # type: ignore
-        )
+
+        # Collect messages
+        _messages = self.prompt_messages(messages=messages, *args, **kwargs)
+
+        # Format messages
         for m in _messages:
             if m_content := m.get("content"):
                 if isinstance(m_content, Text):

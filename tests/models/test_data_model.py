@@ -2,10 +2,13 @@ from textwrap import dedent
 from typing import List, Optional, Text
 
 import pytest
-from openai import OpenAI
 from pydantic import EmailStr, Field
 
 from languru.models import DataModel
+from languru.openai_plugins.clients.google import GoogleOpenAI
+
+client = GoogleOpenAI()
+model_name = "models/gemini-1.5-flash"
 
 
 class Tag(DataModel):
@@ -66,7 +69,7 @@ class User(DataModel):
     ],
 )
 def test_models_from_openai(content, expected):
-    res = User.models_from_openai(content, OpenAI())
+    res = User.model_from_openai(content, client, model=model_name, verbose=True)
     assert isinstance(res, List) and len(res) > 0
     assert expected
 
@@ -77,38 +80,39 @@ def test_models_from_openai(content, expected):
         (
             dedent(
                 """
-            User Information
-            Name: John Doe
-            Date of Birth: January 1, 1990
-            Email: johndoe@example.com
-            Phone: (555) 123-4567
-            Address: 123 Main St, Anytown, USA 12345
+                User Information
+                Name: John Doe
+                Date of Birth: January 1, 1990
+                Email: johndoe@example.com
+                Phone: (555) 123-4567
+                Address: 123 Main St, Anytown, USA 12345
 
-            Account Details
-            Username: johndoe90
-            Account Number: 1234567890
-            Account Type: Premium
-            Subscription Start Date: May 1, 2023
-            Subscription End Date: April 30, 2024
+                Account Details
+                Username: johndoe90
+                Account Number: 1234567890
+                Account Type: Premium
+                Subscription Start Date: May 1, 2023
+                Subscription End Date: April 30, 2024
 
-            Payment Information
-            Payment Method: Visa Credit Card
-            Card Number: **** **** **** 1234
-            Expiration Date: 12/2025
-            Billing Address: 123 Main St, Anytown, USA 12345
+                Payment Information
+                Payment Method: Visa Credit Card
+                Card Number: **** **** **** 1234
+                Expiration Date: 12/2025
+                Billing Address: 123 Main St, Anytown, USA 12345
 
-            Preferences
-            Language: English
-            Time Zone: Eastern Standard Time (EST)
-            Email Notifications: Enabled
-            SMS Notifications: Disabled
-            Marketing Communications: Opted Out
-            """  # noqa: E501
+                Preferences
+                Language: English
+                Time Zone: Eastern Standard Time (EST)
+                Email Notifications: Enabled
+                SMS Notifications: Disabled
+                Marketing Communications: Opted Out
+                """  # noqa: E501
             ).strip(),
             True,
         ),
     ],
 )
 def test_model_from_openai(content, expected):
-    res = User.model_from_openai(content, OpenAI())
-    assert isinstance(res, User)
+    res = User.model_from_openai(content, client, model=model_name, verbose=True)
+    assert len(res) > 0
+    assert all([isinstance(i, User) for i in res])
