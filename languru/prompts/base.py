@@ -2,13 +2,39 @@ import copy
 import hashlib
 import json
 from types import MappingProxyType
-from typing import Any, Dict, List, Optional, Sequence, Text, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Text,
+    Tuple,
+    Union,
+)
 
 from openai.types.chat import ChatCompletionMessageParam
-from pyassorted.string import Bracket, find_placeholders, multiple_replace
+from pyassorted.string import (
+    Bracket,
+    extract_code_blocks,
+    find_placeholders,
+    multiple_replace,
+)
 from pydantic import BaseModel
 
+from languru.prompts.repositories.assistant import explanation_co_star
+from languru.prompts.repositories.user import (
+    question_of_costar,
+    request_to_rewrite_as_costar,
+)
 from languru.types.chat.completions import Message
+from languru.utils.common import display_messages, ensure_openai_chat_completion_content
+from languru.utils.prompt import ensure_chat_completion_message_params
+
+if TYPE_CHECKING:
+    from openai import OpenAI
+    from openai.types.chat import ChatCompletion
 
 
 class PromptTemplate:
@@ -39,6 +65,114 @@ class PromptTemplate:
         self.messages: List[ChatCompletionMessageParam] = [  # type: ignore
             m.model_dump() if isinstance(m, Message) else m for m in messages or []
         ]
+
+    @classmethod
+    def from_description(
+        cls,
+        prompt_description: Text,
+        client: "OpenAI",
+        *,
+        model: Text,
+        example_user_queries: Optional[Sequence[Text]] = None,
+        temperature: float = 0.3,
+        verbose: bool = False,
+        **kwargs,
+    ):
+        # Build prompt
+        messages_to_gen_prompt = [
+            {
+                "role": "user",
+                "content": question_of_costar,
+            },
+            {
+                "role": "assistant",
+                "content": explanation_co_star,
+            },
+            {
+                "role": "user",
+                "content": multiple_replace(
+                    {"PROMPT_DESCRIPTION": prompt_description},
+                    request_to_rewrite_as_costar,
+                    wrapped_by=Bracket.CurlyBrackets,
+                ),
+            },
+        ]
+        if verbose:
+            display_messages(
+                messages=messages_to_gen_prompt,
+                table_title=f"{client.__class__.__name__} Chat Messages Input",
+            )
+        # Generate response
+        chat_res: "ChatCompletion" = client.chat.completions.create(
+            messages=ensure_chat_completion_message_params(messages_to_gen_prompt),
+            model=model,
+            temperature=temperature,
+            stream=False,
+        )  # type: ignore
+        chat_answer = ensure_openai_chat_completion_content(chat_res)
+        if verbose:
+            display_messages(
+                messages=[{"role": "assistant", "content": chat_answer}],
+                table_title=f"{client.__class__.__name__}({model}) Chat Response",
+            )
+        # Parse response
+        code_blocks = extract_code_blocks(chat_answer, language="markdown")
+        code_blocks = [b.strip() for b in code_blocks if b.strip()]
+        if len(code_blocks) == 0:
+            raise ValueError(
+                "Failed to extract a markdown code block from the response: "
+                + f"{chat_answer}"
+            )
+        prompt_costar = code_blocks[-1].strip()
+
+        # Generate example messages
+        examples_messages: List[List["Message"]] = []
+        for _ex_query in example_user_queries or []:
+            _ex_query = _ex_query.strip()
+            _ex_messages: List["Message"] = [
+                Message.model_validate({"role": "user", "content": _ex_query})
+            ]
+            messages_input = [
+                {"role": "system", "content": prompt_costar},
+                {"role": "user", "content": _ex_query},
+            ]
+            if verbose:
+                display_messages(
+                    messages=messages_input,
+                    table_title=f"{client.__class__.__name__} Chat Messages Input",
+                )
+            chat_res: "ChatCompletion" = client.chat.completions.create(
+                messages=ensure_chat_completion_message_params(messages_input),
+                model=model,
+                temperature=temperature,
+                stream=False,
+            )  # type: ignore
+            chat_answer = ensure_openai_chat_completion_content(chat_res)
+            if verbose:
+                display_messages(
+                    messages=[{"role": "assistant", "content": chat_answer}],
+                    table_title=f"{client.__class__.__name__}({model}) Chat Response",
+                )
+            _ex_messages.append(
+                Message.model_validate({"role": "assistant", "content": chat_answer})
+            )
+            examples_messages.append(_ex_messages)
+
+        # Add examples into the costar prompt
+        prompt_costar = prompt_costar.strip()
+        prompt_costar += "\n\n## Examples"
+        prompt_costar = prompt_costar.strip()
+        for idx, example_messages in enumerate(examples_messages):
+            prompt_costar += f"\n\n### Example {idx + 1}\n\n"
+            prompt_costar += display_messages(example_messages, is_print=False)
+            prompt_costar = prompt_costar.strip()
+
+        # Final prompt
+        return cls(
+            prompt=prompt_costar,
+            prompt_vars=kwargs.get("prompt_vars"),
+            messages=kwargs.get("messages"),
+        )
 
     def __call__(
         self,
