@@ -1,7 +1,7 @@
 from textwrap import dedent
 from typing import Final, Text
 
-question_of_co_star: Final[Text] = dedent(
+question_of_costar: Final[Text] = dedent(
     """
     The CO-STAR prompt framework is :
 
@@ -18,5 +18,44 @@ question_of_co_star: Final[Text] = dedent(
     **Response (R):** Providing the response format, like text or json, ensures the LLM outputs, and help build pipelines.
 
     Please explain it with gradually increasing complexity.
+    """  # noqa: E501
+).strip()
+
+request_to_rewrite_as_costar = dedent(
+    """
+    ```
+    {PROMPT_DESCRIPTION}
+    ```
+
+    Please rewrite the prompt as CO-STAR framework step by step:
+
+    1. Analyze the prompt and provide a detailed explanation.
+    2. Come up with some hypotheses creatively.
+    3. Provide a response in the markdown code block format as shown below:
+        ```markdown
+        ## Context
+
+        {CONTEXT}
+
+        ## Objective
+
+        {OBJECTIVE}
+
+        ## Style
+
+        {STYLE}
+
+        ## Tone
+
+        {TONE}
+
+        ## Audience
+
+        {AUDIENCE}
+
+        ## Response
+
+        {RESPONSE}
+        ```
     """  # noqa: E501
 ).strip()
