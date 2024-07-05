@@ -27,11 +27,12 @@ request_to_rewrite_as_costar = dedent(
     {PROMPT_DESCRIPTION}
     ```
 
-    Please rewrite the prompt as CO-STAR framework step by step:
+    Please rewrite the prompt above as CO-STAR framework step by step:
 
     1. Analyze the prompt and provide a detailed explanation.
     2. Come up with some hypotheses creatively.
-    3. Provide a response in the markdown code block format as shown below:
+    3. Finally, provide a response in the markdown code block format as shown below:
+
         ```markdown
         ## Context
 
@@ -57,5 +58,8 @@ request_to_rewrite_as_costar = dedent(
 
         {RESPONSE}
         ```
+
+    Note 1: Please ensure that the response is in the correct markdown format in a block.
+    Note 2: The chat example is not required for this prompt.
     """  # noqa: E501
 ).strip()

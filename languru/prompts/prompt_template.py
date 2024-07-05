@@ -78,6 +78,47 @@ class PromptTemplate:
         verbose: bool = False,
         **kwargs,
     ):
+        """
+        Create an instance of the class from a prompt description using OpenAI's API.
+
+        This method generates a prompt based on the given description, creates example
+        messages if provided, and constructs the final prompt with examples.
+
+        Parameters
+        ----------
+        prompt_description : Text
+            A description of the desired prompt.
+        client : OpenAI
+            An instance of the OpenAI client for making API calls.
+        model : Text
+            The name of the OpenAI model to use for generating responses.
+        example_user_queries : Optional[Sequence[Text]], optional
+            A sequence of example user queries to generate responses for, by default None.
+        temperature : float, optional
+            The sampling temperature to use when generating responses, by default 0.3.
+        verbose : bool, optional
+            If True, display detailed information about API calls and responses, by default False.
+        **kwargs : dict
+            Additional keyword arguments to be passed to the class constructor.
+
+        Returns
+        -------
+        cls
+            An instance of the class initialized with the generated prompt and any additional
+            parameters provided in kwargs.
+
+        Raises
+        ------
+        ValueError
+            If no markdown code block can be extracted from the API response.
+
+        Notes
+        -----
+        This method uses the OpenAI API to generate a prompt based on the given description,
+        and then uses that prompt to generate example responses if example queries are provided.
+        The final prompt includes these examples and is used to initialize a new instance of the class.
+        """  # noqa: E501
+
         # Build prompt
         messages_to_gen_prompt = [
             {
