@@ -1,5 +1,5 @@
 from languru.openai_plugins.clients.pplx import PerplexityOpenAI
-from languru.utils.prompt import ensure_chat_completion_message_params
+from languru.utils.openai_utils import ensure_chat_completion_message_params
 
 test_chat_model_name = "llama-3-8b-instruct"
 

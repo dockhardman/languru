@@ -9,11 +9,8 @@ from pydantic_core import ValidationError
 from languru.config import logger
 from languru.prompts import PromptTemplate
 from languru.prompts.repositories.data_model import prompt_date_model_from_openai
-from languru.utils.common import (
-    display_messages,
-    ensure_list,
-    ensure_openai_chat_completion_content,
-)
+from languru.utils.common import display_messages, ensure_list
+from languru.utils.openai_utils import ensure_openai_chat_completion_content
 
 DataModelTypeVar = TypeVar("DataModelTypeVar", bound="DataModel")
 

@@ -29,8 +29,11 @@ from languru.prompts.repositories.user import (
     request_to_rewrite_as_costar,
 )
 from languru.types.chat.completions import Message
-from languru.utils.common import display_messages, ensure_openai_chat_completion_content
-from languru.utils.prompt import ensure_chat_completion_message_params
+from languru.utils.common import display_messages
+from languru.utils.openai_utils import (
+    ensure_chat_completion_message_params,
+    ensure_openai_chat_completion_content,
+)
 
 if TYPE_CHECKING:
     from openai import OpenAI
@@ -245,6 +248,24 @@ class PromptTemplate:
 
     def __repr__(self):
         return self.__str__()
+
+    @property
+    def md5(self) -> Text:
+        """Return the MD5 hash of the prompt messages."""
+
+        _messages = self.prompt_messages()
+        return hashlib.md5(
+            json.dumps(_messages, sort_keys=True, default=str).encode()
+        ).hexdigest()
+
+    @property
+    def md5_formatted(self) -> Text:
+        """Return the formatted MD5 hash of the prompt messages."""
+
+        _messages = self.format_messages()
+        return hashlib.md5(
+            json.dumps(_messages, sort_keys=True, default=str).encode()
+        ).hexdigest()
 
     @property
     def prompt_vars(self) -> Dict[Text, Any]:
