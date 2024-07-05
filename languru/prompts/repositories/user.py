@@ -59,7 +59,7 @@ request_to_rewrite_as_costar = dedent(
         {RESPONSE}
         ```
 
-    Note 1: Please ensure that the response is in the correct markdown format in a block.
+    Note 1: Please ensure that the response is in the correct markdown format in a code snippet.
     Note 2: The chat example is not required for this prompt.
     """  # noqa: E501
 ).strip()

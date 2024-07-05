@@ -27,16 +27,12 @@ from languru.prompts.repositories.user import (
     request_to_rewrite_as_costar,
 )
 from languru.types.chat.completions import Message
+from languru.utils.chat import chat_completion_once
 from languru.utils.common import display_messages
-from languru.utils.openai_utils import (
-    ensure_chat_completion_message_params,
-    ensure_openai_chat_completion_content,
-    messages_to_md5,
-)
+from languru.utils.openai_utils import messages_to_md5
 
 if TYPE_CHECKING:
     from openai import OpenAI
-    from openai.types.chat import ChatCompletion
 
 
 class PromptTemplate:
@@ -76,7 +72,7 @@ class PromptTemplate:
         *,
         model: Text,
         example_user_queries: Optional[Sequence[Text]] = None,
-        temperature: float = 0.3,
+        temperature: float = 0.7,
         verbose: bool = False,
         **kwargs,
     ):
@@ -121,45 +117,24 @@ class PromptTemplate:
         The final prompt includes these examples and is used to initialize a new instance of the class.
         """  # noqa: E501
 
-        # Build prompt
-        messages_to_gen_prompt = [
-            {
-                "role": "user",
-                "content": question_of_costar,
-            },
-            {
-                "role": "assistant",
-                "content": explanation_co_star,
-            },
-            {
-                "role": "user",
-                "content": multiple_replace(
-                    {"PROMPT_DESCRIPTION": prompt_description},
-                    request_to_rewrite_as_costar,
-                    wrapped_by=Bracket.CurlyBrackets,
-                ),
-            },
-        ]
-        if verbose:
-            display_messages(
-                messages=messages_to_gen_prompt,
-                table_title=f"{client.__class__.__name__} Chat Messages Input",
-            )
-        # Generate response
-        chat_res: "ChatCompletion" = client.chat.completions.create(
-            messages=ensure_chat_completion_message_params(messages_to_gen_prompt),
+        # Build prompt by chat
+        chat_answer = chat_completion_once(
+            messages=[
+                {"role": "user", "content": question_of_costar},
+                {"role": "assistant", "content": explanation_co_star},
+                {"role": "user", "content": request_to_rewrite_as_costar},
+            ],
+            client=client,
             model=model,
+            prompt_vars={"PROMPT_DESCRIPTION": prompt_description},
+            verbose=verbose,
             temperature=temperature,
-            stream=False,
-        )  # type: ignore
-        chat_answer = ensure_openai_chat_completion_content(chat_res)
-        if verbose:
-            display_messages(
-                messages=[{"role": "assistant", "content": chat_answer}],
-                table_title=f"{client.__class__.__name__}({model}) Chat Response",
-            )
+            wrapped_by=Bracket.CurlyBrackets,
+        )
         # Parse response
-        code_blocks = extract_code_blocks(chat_answer, language="markdown")
+        code_blocks = extract_code_blocks(
+            chat_answer, language="markdown", eob_missing_ok=True
+        )
         code_blocks = [b.strip() for b in code_blocks if b.strip()]
         if len(code_blocks) == 0:
             raise ValueError(
@@ -172,43 +147,34 @@ class PromptTemplate:
         examples_messages: List[List["Message"]] = []
         for _ex_query in example_user_queries or []:
             _ex_query = _ex_query.strip()
-            _ex_messages: List["Message"] = [
-                Message.model_validate({"role": "user", "content": _ex_query})
-            ]
-            messages_input = [
-                {"role": "system", "content": prompt_costar},
-                {"role": "user", "content": _ex_query},
-            ]
-            if verbose:
-                display_messages(
-                    messages=messages_input,
-                    table_title=f"{client.__class__.__name__} Chat Messages Input",
-                )
-            chat_res: "ChatCompletion" = client.chat.completions.create(
-                messages=ensure_chat_completion_message_params(messages_input),
+            _ex_chat_answer = chat_completion_once(
+                messages=[
+                    {"role": "system", "content": prompt_costar},
+                    {"role": "user", "content": _ex_query},
+                ],
+                client=client,
                 model=model,
+                verbose=verbose,
                 temperature=temperature,
-                stream=False,
-            )  # type: ignore
-            chat_answer = ensure_openai_chat_completion_content(chat_res)
-            if verbose:
-                display_messages(
-                    messages=[{"role": "assistant", "content": chat_answer}],
-                    table_title=f"{client.__class__.__name__}({model}) Chat Response",
-                )
-            _ex_messages.append(
-                Message.model_validate({"role": "assistant", "content": chat_answer})
+                wrapped_by=Bracket.CurlyBrackets,
             )
-            examples_messages.append(_ex_messages)
+            examples_messages.append(
+                [
+                    Message.model_validate({"role": "user", "content": _ex_query}),
+                    Message.model_validate(
+                        {"role": "assistant", "content": _ex_chat_answer}
+                    ),
+                ]
+            )
 
         # Add examples into the costar prompt
-        prompt_costar = prompt_costar.strip()
-        prompt_costar += "\n\n## Examples"
-        prompt_costar = prompt_costar.strip()
-        for idx, example_messages in enumerate(examples_messages):
-            prompt_costar += f"\n\n### Example {idx + 1}\n\n"
-            prompt_costar += display_messages(example_messages, is_print=False)
+        if examples_messages:
+            prompt_costar += "\n\n## Examples"
             prompt_costar = prompt_costar.strip()
+            for idx, example_messages in enumerate(examples_messages):
+                prompt_costar += f"\n\n### Example {idx + 1}\n\n"
+                prompt_costar += display_messages(example_messages, is_print=False)
+                prompt_costar = prompt_costar.strip()
 
         # Final prompt
         return cls(

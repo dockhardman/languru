@@ -48,23 +48,19 @@ def chat_completion_once(
     elif query:
         if system:
             messages_input.append(
-                ChatCompletionSystemMessageParam(
-                    role="system",
-                    content=multiple_replace(
-                        prompt_vars or {}, system, wrapped_by=wrapped_by
-                    ).strip(),
-                )
+                ChatCompletionSystemMessageParam(role="system", content=system)
             )
         messages_input.append(
-            ChatCompletionUserMessageParam(
-                role="user",
-                content=multiple_replace(
-                    prompt_vars or {}, query, wrapped_by=wrapped_by
-                ).strip(),
-            )
+            ChatCompletionUserMessageParam(role="user", content=query)
         )
     else:
         raise ValueError("Either 'messages' or 'query' must be provided")
+    for m in messages_input:
+        _content = m.get("content")
+        if isinstance(_content, Text):
+            m["content"] = multiple_replace(
+                prompt_vars or {}, _content, wrapped_by=wrapped_by
+            ).strip()
 
     if verbose:
         display_messages(
