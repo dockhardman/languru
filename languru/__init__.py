@@ -1,5 +1,5 @@
 from languru.models.data_model import DataModel
-from languru.prompts.base import PromptTemplate
+from languru.prompts.prompt_template import PromptTemplate
 from languru.types.audio import (
     AudioSpeechRequest,
     AudioTranscriptionRequest,

@@ -5,7 +5,7 @@ from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
 from languru.openai_plugins.clients.groq import GroqOpenAI
-from languru.utils.prompt import ensure_chat_completion_message_params
+from languru.utils.openai_utils import ensure_chat_completion_message_params
 
 test_chat_model_name = "llama3-8b-8192"
 
