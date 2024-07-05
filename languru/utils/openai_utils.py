@@ -1,3 +1,5 @@
+import hashlib
+import json
 from typing import Any, Dict, List, Sequence, Text, Union
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -61,3 +63,11 @@ def ensure_openai_chat_completion_content(chat_completion: "ChatCompletion") -> 
     if chat_answer is None:
         raise ValueError("Failed to get a response content from the OpenAI API.")
     return chat_answer
+
+
+def messages_to_md5(messages: List[ChatCompletionMessageParam]) -> Text:
+    """Convert messages to an MD5 hash."""
+
+    return hashlib.md5(
+        json.dumps(messages, sort_keys=True, default=str).encode()
+    ).hexdigest()

@@ -1,6 +1,4 @@
 import copy
-import hashlib
-import json
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -33,6 +31,7 @@ from languru.utils.common import display_messages
 from languru.utils.openai_utils import (
     ensure_chat_completion_message_params,
     ensure_openai_chat_completion_content,
+    messages_to_md5,
 )
 
 if TYPE_CHECKING:
@@ -240,11 +239,7 @@ class PromptTemplate:
     def __str__(self):
         """Return a string representation of the object."""
 
-        _messages = self.prompt_messages()
-        _messages_md5 = hashlib.md5(
-            json.dumps(_messages, sort_keys=True, default=str).encode()
-        ).hexdigest()
-        return f'<{self.__class__.__name__} md5="{_messages_md5}">'
+        return f'<{self.__class__.__name__} md5="{self.md5_formatted}">'
 
     def __repr__(self):
         return self.__str__()
@@ -254,18 +249,14 @@ class PromptTemplate:
         """Return the MD5 hash of the prompt messages."""
 
         _messages = self.prompt_messages()
-        return hashlib.md5(
-            json.dumps(_messages, sort_keys=True, default=str).encode()
-        ).hexdigest()
+        return messages_to_md5(_messages)
 
     @property
     def md5_formatted(self) -> Text:
         """Return the formatted MD5 hash of the prompt messages."""
 
         _messages = self.format_messages()
-        return hashlib.md5(
-            json.dumps(_messages, sort_keys=True, default=str).encode()
-        ).hexdigest()
+        return messages_to_md5(_messages)
 
     @property
     def prompt_vars(self) -> Dict[Text, Any]:
@@ -332,7 +323,7 @@ class PromptTemplate:
             _messages.append(
                 {"role": self.role_system, "content": self.prompt}  # type: ignore
             )
-        _messages += self.messages
+        _messages += copy.deepcopy(self.messages)
         if messages:
             _messages += [
                 m.model_dump() if isinstance(m, BaseModel) else copy.deepcopy(m)
