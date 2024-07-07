@@ -1,10 +1,11 @@
 import time
 from logging import Logger
-from typing import Any, List, Optional, Text, Union
+from typing import Any, Dict, List, Optional, Sequence, Text, Union
 
 from fastapi import Query, Request
 from openai import AzureOpenAI, OpenAI, OpenAIError
 from openai.types import Model
+from pydantic import BaseModel
 
 from languru.config import logger as languru_logger
 from languru.exceptions import (
@@ -30,7 +31,59 @@ from languru.types.models import (
 from languru.types.organizations import OrganizationType, to_org_type
 
 
-class OpenaiClients:
+class OpenaiModels:
+    _models: List[Model]
+
+    def models(self, model: Optional[Text] = None) -> List["Model"]:
+        """Returns the supported models based on the organization type."""
+
+        if model is not None:
+            for m in self._models:
+                if m.id == model:
+                    return [m.model_copy()]
+            else:
+                err_body = {
+                    "error": {
+                        "message": f"The model '{model}' does not exist",
+                        "type": "invalid_request_error",
+                        "param": "model",
+                        "code": "model_not_found",
+                    }
+                }
+                raise ModelNotFound(
+                    f"Error code: 404 - {err_body}",
+                )
+
+        else:
+            return [m.model_copy() for m in self._models]
+
+    def model_add(
+        self, models: Union[Dict, "Model", Sequence[Dict], Sequence["Model"]]
+    ) -> None:
+        """Adds a new model to the supported models."""
+
+        if isinstance(models, Dict):
+            self._models.append(Model.model_validate(models))
+            return
+        elif isinstance(models, BaseModel):
+            self._models.append(Model.model_validate(models.model_dump()))
+            return
+
+        for m in models:
+            if isinstance(m, BaseModel):
+                self._models.append(Model.model_validate(m.model_dump()))
+            else:
+                self._models.append(Model.model_validate(m))
+
+    def model_remove(self, models: Union[Text, List[Text]]) -> None:
+        """Removes a model from the supported models."""
+
+        if isinstance(models, Text):
+            models = [models]
+        self._models[:] = [m for m in self._models if m.id not in models]
+
+
+class OpenaiClients(OpenaiModels):
     def __init__(self, *args, **kwargs):
         self._oai_client: Optional["OpenAI"] = None
         self._aoai_client: Optional["AzureOpenAI"] = None
@@ -66,7 +119,7 @@ class OpenaiClients:
                 )
                 for m in MODELS_OPENAI
             ]
-            self._models.extend(_models)
+            self.model_add(_models)
         except OpenAIError:
             languru_logger.warning("OpenAI client not initialized.")
 
@@ -84,7 +137,7 @@ class OpenaiClients:
                 )
                 for m in MODELS_AZURE_OPENAI
             ]
-            self._models.extend(_models)
+            self.model_add(_models)
         except OpenAIError:
             languru_logger.warning("Azure OpenAI client not initialized.")
 
@@ -102,7 +155,7 @@ class OpenaiClients:
                 )
                 for m in MODELS_ANTHROPIC
             ]
-            self._models.extend(_models)
+            self.model_add(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Anthropic OpenAI client not initialized.")
 
@@ -120,7 +173,7 @@ class OpenaiClients:
                 )
                 for m in MODELS_GOOGLE
             ]
-            self._models.extend(_models)
+            self.model_add(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Google OpenAI client not initialized.")
 
@@ -138,7 +191,7 @@ class OpenaiClients:
                 )
                 for m in MODELS_GROQ
             ]
-            self._models.extend(_models)
+            self.model_add(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Groq OpenAI client not initialized.")
 
@@ -156,7 +209,7 @@ class OpenaiClients:
                 )
                 for m in MODELS_PERPLEXITY
             ]
-            self._models.extend(_models)
+            self.model_add(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Perplexity OpenAI client not initialized.")
 
@@ -174,7 +227,7 @@ class OpenaiClients:
                 )
                 for m in MODELS_VOYAGE
             ]
-            self._models.extend(_models)
+            self.model_add(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Voyage OpenAI client not initialized.")
 
@@ -285,29 +338,6 @@ class OpenaiClients:
                 f"Organization '{org}' client not not initialized."
             )
         return _client
-
-    def models(self, model: Optional[Text] = None) -> List[Model]:
-        """Returns the supported models based on the organization type."""
-
-        if model is not None:
-            for m in self._models:
-                if m.id == model:
-                    return [m.model_copy()]
-            else:
-                err_body = {
-                    "error": {
-                        "message": f"The model '{model}' does not exist",
-                        "type": "invalid_request_error",
-                        "param": "model",
-                        "code": "model_not_found",
-                    }
-                }
-                raise ModelNotFound(
-                    f"Error code: {404} - {err_body}",
-                )
-
-        else:
-            return [m.model_copy() for m in self._models]
 
     def default_openai_client(self) -> "OpenAI":
         """Returns the default OpenAI client."""
