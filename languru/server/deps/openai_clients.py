@@ -94,7 +94,7 @@ class OpenaiModels:
         model = model.strip()
         model_lower = model.lower()
         for _org in orgs:
-            if model_lower.startswith(f"{_org.value.lower}/"):
+            if model_lower.startswith(f"{_org.value.lower()}/"):
                 return model.split("/", 1)[-1]
         return model
 

@@ -191,3 +191,9 @@ def dummy_generator_func(
             yield item
 
     return dummy_generator
+
+
+def display_object(obj: object) -> Text:
+    """Display an object in a human-readable format."""
+
+    return f"{obj.__class__.__module__}.{obj.__class__.__name__}"
