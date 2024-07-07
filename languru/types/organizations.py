@@ -1,5 +1,6 @@
 from enum import Enum
 from types import MappingProxyType
+from typing import Text, Union
 
 from languru.exceptions import OrganizationNotFound
 
@@ -12,7 +13,9 @@ ALIASES_PERPLEXITY = ("perplexity", "pp", "perp", "pplx")
 ALIASES_VOYAGE = ("voyage", "voy", "vg")
 
 
-def to_org_type(org: str) -> "OrganizationType":
+def to_org_type(org: Union[Text, "OrganizationType"]) -> "OrganizationType":
+    if isinstance(org, OrganizationType):
+        return org
     _org = org.casefold().strip().replace("-", "").replace("_", "")
     if _org in ALIASES_OPENAI:
         return OrganizationType.OPENAI

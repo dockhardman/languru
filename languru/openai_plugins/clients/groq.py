@@ -36,6 +36,7 @@ from openai.types.model import Model
 
 from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
+from languru.types.models import MODELS_GROQ
 from languru.utils.sse import simple_encode_sse
 
 
@@ -205,7 +206,7 @@ class GroqChatCompletions(Completions):
             )
         )
         res_message = self._client.groq_client.chat.completions.create(
-            messages=messages, model=model, stream=False, **params
+            messages=messages, model=model, stream=False, **params  # type: ignore
         )
 
         # Return response
@@ -283,7 +284,7 @@ class GroqChatCompletions(Completions):
             )
         )
         stream_chat_chunks = self._client.groq_client.chat.completions.create(
-            messages=messages, model=model, stream=True, **params
+            messages=messages, model=model, stream=True, **params  # type: ignore
         )
 
         # Get the message stream
@@ -351,6 +352,8 @@ class GroqChat(OpenAIResources.Chat):
 class GroqModels(OpenAIResources.Models):
 
     _client: "GroqOpenAI"
+
+    supported_models = frozenset(MODELS_GROQ)
 
     def retrieve(
         self,

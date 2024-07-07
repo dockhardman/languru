@@ -41,6 +41,7 @@ from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
 from languru.types.chat.anthropic import AnthropicChatCompletionRequest
 from languru.types.chat.completions import ChatCompletionRequest
+from languru.types.models import MODELS_ANTHROPIC
 from languru.utils.openai_utils import rand_chat_completion_id
 from languru.utils.sse import simple_encode_sse
 
@@ -421,13 +422,7 @@ class AnthropicChat(OpenAIResources.Chat):
 
 class AnthropicModels(OpenAIResources.Models):
 
-    supported_models = frozenset(
-        [
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307",
-        ]
-    )
+    supported_models = frozenset(MODELS_ANTHROPIC)
 
     def retrieve(
         self,
