@@ -41,124 +41,140 @@ class OpenaiClients:
         self._vg_client: Optional["VoyageOpenAI"] = None
         self._models: List["Model"] = []
 
-        _created = int(time.time())
+        self.init_openai_clients()
+
+    def init_openai_clients(self) -> None:
+        self.init_openai_client()
+        self.init_azure_openai_client()
+        self.init_anthropic_openai_client()
+        self.init_google_openai_client()
+        self.init_groq_openai_client()
+        self.init_perplexity_openai_client()
+        self.init_voyage_openai_client()
+
+    def init_openai_client(self) -> None:
         try:
             self._oai_client = OpenAI()
-            self._models.extend(
-                [
-                    Model.model_validate(
-                        {
-                            "id": m,
-                            "created": _created,
-                            "object": "model",
-                            "owned_by": OrganizationType.OPENAI.value,
-                        }
-                    )
-                    for m in MODELS_OPENAI
-                ]
-            )
+            _models = [
+                Model.model_validate(
+                    {
+                        "id": m,
+                        "created": int(time.time()),
+                        "object": "model",
+                        "owned_by": OrganizationType.OPENAI.value,
+                    }
+                )
+                for m in MODELS_OPENAI
+            ]
+            self._models.extend(_models)
         except OpenAIError:
             languru_logger.warning("OpenAI client not initialized.")
+
+    def init_azure_openai_client(self) -> None:
         try:
             self._aoai_client = AzureOpenAI(api_version="2024-02-01")
-            self._models.extend(
-                [
-                    Model.model_validate(
-                        {
-                            "id": m,
-                            "created": _created,
-                            "object": "model",
-                            "owned_by": OrganizationType.AZURE.value,
-                        }
-                    )
-                    for m in MODELS_AZURE_OPENAI
-                ]
-            )
+            _models = [
+                Model.model_validate(
+                    {
+                        "id": m,
+                        "created": int(time.time()),
+                        "object": "model",
+                        "owned_by": OrganizationType.AZURE.value,
+                    }
+                )
+                for m in MODELS_AZURE_OPENAI
+            ]
+            self._models.extend(_models)
         except OpenAIError:
             languru_logger.warning("Azure OpenAI client not initialized.")
+
+    def init_anthropic_openai_client(self) -> None:
         try:
             self._ant_client = AnthropicOpenAI()
-            self._models.extend(
-                [
-                    Model.model_validate(
-                        {
-                            "id": m,
-                            "created": _created,
-                            "object": "model",
-                            "owned_by": OrganizationType.ANTHROPIC.value,
-                        }
-                    )
-                    for m in MODELS_ANTHROPIC
-                ]
-            )
+            _models = [
+                Model.model_validate(
+                    {
+                        "id": m,
+                        "created": int(time.time()),
+                        "object": "model",
+                        "owned_by": OrganizationType.ANTHROPIC.value,
+                    }
+                )
+                for m in MODELS_ANTHROPIC
+            ]
+            self._models.extend(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Anthropic OpenAI client not initialized.")
+
+    def init_google_openai_client(self) -> None:
         try:
             self._gg_client = GoogleOpenAI()
-            self._models.extend(
-                [
-                    Model.model_validate(
-                        {
-                            "id": m,
-                            "created": _created,
-                            "object": "model",
-                            "owned_by": OrganizationType.GOOGLE.value,
-                        }
-                    )
-                    for m in MODELS_GOOGLE
-                ]
-            )
+            _models = [
+                Model.model_validate(
+                    {
+                        "id": m,
+                        "created": int(time.time()),
+                        "object": "model",
+                        "owned_by": OrganizationType.GOOGLE.value,
+                    }
+                )
+                for m in MODELS_GOOGLE
+            ]
+            self._models.extend(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Google OpenAI client not initialized.")
+
+    def init_groq_openai_client(self) -> None:
         try:
             self._gq_client = GroqOpenAI()
-            self._models.extend(
-                [
-                    Model.model_validate(
-                        {
-                            "id": m,
-                            "created": _created,
-                            "object": "model",
-                            "owned_by": OrganizationType.GROQ.value,
-                        }
-                    )
-                    for m in MODELS_GROQ
-                ]
-            )
+            _models = [
+                Model.model_validate(
+                    {
+                        "id": m,
+                        "created": int(time.time()),
+                        "object": "model",
+                        "owned_by": OrganizationType.GROQ.value,
+                    }
+                )
+                for m in MODELS_GROQ
+            ]
+            self._models.extend(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Groq OpenAI client not initialized.")
+
+    def init_perplexity_openai_client(self) -> None:
         try:
             self._pplx_client = PerplexityOpenAI()
-            self._models.extend(
-                [
-                    Model.model_validate(
-                        {
-                            "id": m,
-                            "created": _created,
-                            "object": "model",
-                            "owned_by": OrganizationType.PERPLEXITY.value,
-                        }
-                    )
-                    for m in MODELS_PERPLEXITY
-                ]
-            )
+            _models = [
+                Model.model_validate(
+                    {
+                        "id": m,
+                        "created": int(time.time()),
+                        "object": "model",
+                        "owned_by": OrganizationType.PERPLEXITY.value,
+                    }
+                )
+                for m in MODELS_PERPLEXITY
+            ]
+            self._models.extend(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Perplexity OpenAI client not initialized.")
+
+    def init_voyage_openai_client(self) -> None:
         try:
             self._vg_client = VoyageOpenAI()
-            self._models.extend(
-                [
-                    Model.model_validate(
-                        {
-                            "id": m,
-                            "created": _created,
-                            "object": "model",
-                            "owned_by": OrganizationType.VOYAGE.value,
-                        }
-                    )
-                    for m in MODELS_VOYAGE
-                ]
-            )
+            _models = [
+                Model.model_validate(
+                    {
+                        "id": m,
+                        "created": int(time.time()),
+                        "object": "model",
+                        "owned_by": OrganizationType.VOYAGE.value,
+                    }
+                )
+                for m in MODELS_VOYAGE
+            ]
+            self._models.extend(_models)
         except CredentialsNotProvided:
             languru_logger.warning("Voyage OpenAI client not initialized.")
 
