@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Optional, Text, Tuple
 
 from fastapi import (
@@ -14,34 +15,48 @@ from openai import OpenAI
 from openai.types import ImagesResponse
 from pyassorted.asyncio.executor import run_func
 
+from languru.config import logger as languru_logger
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.openai_clients import openai_clients
+from languru.server.utils.common import get_value_from_app
 from languru.types.images import (
     ImagesEditRequest,
     ImagesGenerationsRequest,
     ImagesVariationsRequest,
 )
 from languru.types.organizations import OrganizationType
+from languru.utils.common import display_object
 
 router = APIRouter()
 
 
 def depends_openai_client_model(
+    request: "Request",
     org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
     model: Text = Form(None),
 ) -> Tuple[OpenAI, Text]:
-    if org_type is None:
-        org_type = openai_clients.org_from_model(model)
+    logger = get_value_from_app(
+        request.app, key="logger", value_typing=Logger, default=languru_logger
+    )
 
     if org_type is None:
+        org_type = openai_clients.org_from_model(model)
+    if org_type is None:
         raise HTTPException(status_code=400, detail="Organization type not found.")
-    else:
-        openai_client = openai_clients.org_to_openai_client(org_type)
-        return (openai_client, model)
+
+    openai_client = openai_clients.org_to_openai_client(org_type)
+    model = openai_clients.model_strip_org(model, org_type)
+    logger.debug(
+        f"Organization type: '{org_type}', "
+        + f"openAI client: '{display_object(openai_client)}', "
+        + f"model: '{model}'"
+    )
+    return (openai_client, model)
 
 
 def depends_openai_client_images_generations_request(
+    request: "Request",
     org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
     images_generations_request: ImagesGenerationsRequest = Body(
         ...,
@@ -58,14 +73,25 @@ def depends_openai_client_images_generations_request(
         },
     ),
 ) -> Tuple[OpenAI, ImagesGenerationsRequest]:
-    if org_type is None:
-        org_type = openai_clients.org_from_model(images_generations_request.model)
+    logger = get_value_from_app(
+        request.app, key="logger", value_typing=Logger, default=languru_logger
+    )
 
     if org_type is None:
+        org_type = openai_clients.org_from_model(images_generations_request.model)
+    if org_type is None:
         raise HTTPException(status_code=400, detail="Organization type not found.")
-    else:
-        openai_client = openai_clients.org_to_openai_client(org_type)
-        return (openai_client, images_generations_request)
+
+    openai_client = openai_clients.org_to_openai_client(org_type)
+    images_generations_request.model = openai_clients.model_strip_org(
+        images_generations_request.model, org_type
+    )
+    logger.debug(
+        f"Organization type: '{org_type}', "
+        + f"openAI client: '{display_object(openai_client)}', "
+        + f"model: '{images_generations_request.model}'"
+    )
+    return (openai_client, images_generations_request)
 
 
 class ImagesGenerationsHandler:

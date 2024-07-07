@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Optional, Tuple
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -6,17 +7,21 @@ from openai import OpenAI
 from openai.types.completion import Completion
 from pyassorted.asyncio.executor import run_func, run_generator
 
+from languru.config import logger as languru_logger
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.openai_clients import openai_clients
+from languru.server.utils.common import get_value_from_app
 from languru.types.completions import CompletionRequest
 from languru.types.organizations import OrganizationType
+from languru.utils.common import display_object
 from languru.utils.http import simple_sse_encode
 
 router = APIRouter()
 
 
 def depends_openai_client_completion_request(
+    request: "Request",
     org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
     completion_request: CompletionRequest = Body(
         ...,
@@ -34,14 +39,25 @@ def depends_openai_client_completion_request(
         },
     ),
 ) -> Tuple[OpenAI, CompletionRequest]:
-    if org_type is None:
-        org_type = openai_clients.org_from_model(completion_request.model)
+    logger = get_value_from_app(
+        request.app, key="logger", value_typing=Logger, default=languru_logger
+    )
 
     if org_type is None:
+        org_type = openai_clients.org_from_model(completion_request.model)
+    if org_type is None:
         raise HTTPException(status_code=400, detail="Organization type not found.")
-    else:
-        openai_client = openai_clients.org_to_openai_client(org_type)
-        return (openai_client, completion_request)
+
+    openai_client = openai_clients.org_to_openai_client(org_type)
+    completion_request.model = openai_clients.model_strip_org(
+        completion_request.model, org_type
+    )
+    logger.debug(
+        f"Organization type: '{org_type}', "
+        + f"openAI client: '{display_object(openai_client)}', "
+        + f"model: '{completion_request.model}'"
+    )
+    return (openai_client, completion_request)
 
 
 class TextCompletionHandler:
