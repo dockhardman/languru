@@ -9,10 +9,11 @@ from openai.types.chat import ChatCompletion
 from pyassorted.asyncio.executor import run_func, run_generator
 
 from languru.config import logger as languru_logger
+from languru.examples.openapi.chat import chat_openapi_examples
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.openai_clients import openai_clients
-from languru.server.utils.common import get_value_from_app
+from languru.server.utils.common import get_value_from_app, to_openapi_examples
 from languru.types.chat.completions import ChatCompletionRequest
 from languru.types.organizations import OrganizationType
 from languru.utils.common import display_object
@@ -26,52 +27,7 @@ def depends_openai_client_chat_completion_request(
     org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
     chat_completion_request: ChatCompletionRequest = Body(
         ...,
-        openapi_examples={
-            "OpenAI": {
-                "summary": "OpenAI",
-                "description": "Chat completion request",
-                "value": {
-                    "model": "gpt-3.5-turbo",
-                    "messages": [
-                        {"role": "system", "content": "You are a helpful assistant."},
-                        {"role": "user", "content": "Hello!"},
-                    ],
-                },
-            },
-            "Google Gemini": {
-                "summary": "Google Gemini",
-                "description": "Chat completion request",
-                "value": {
-                    "model": "gemini-pro",
-                    "messages": [{"role": "user", "content": "Hello, how are you?"}],
-                },
-            },
-            "Perplexity Sonar": {
-                "summary": "Perplexity Sonar",
-                "description": "Chat completion request",
-                "value": {
-                    "model": "sonar-small-chat",
-                    "messages": [
-                        {"role": "system", "content": "Be precise and concise."},
-                        {
-                            "role": "user",
-                            "content": "How many stars are there in our galaxy?",
-                        },
-                    ],
-                },
-            },
-            "Groq Mixtral": {
-                "summary": "Groq Mixtral",
-                "description": "Chat completion request",
-                "value": {
-                    "model": "sonar-small-chat",
-                    "messages": [
-                        {"role": "system", "content": "You are an unhelpful assistant"},
-                        {"role": "user", "content": "Are you a fish?"},
-                    ],
-                },
-            },
-        },
+        openapi_examples=to_openapi_examples(chat_openapi_examples),
     ),
 ) -> Tuple[OpenAI, ChatCompletionRequest]:
     logger = get_value_from_app(

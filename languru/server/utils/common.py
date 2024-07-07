@@ -1,10 +1,11 @@
 import logging
-from typing import TYPE_CHECKING, Any, Optional, Text, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, Optional, Text, Type, TypeVar, Union
 
 from languru.config import logger as languru_logger
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+    from fastapi.openapi.models import Example
 
 T = TypeVar("T")
 
@@ -40,3 +41,9 @@ def get_value_from_app(
             + "in app.state or app.extra"
         )
     return out
+
+
+def to_openapi_examples(
+    openapi_examples: Union[Dict[Text, "Example"], Dict]
+) -> Dict[Text, "Example"]:
+    return openapi_examples
