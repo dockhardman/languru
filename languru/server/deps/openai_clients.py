@@ -82,8 +82,50 @@ class OpenaiModels:
             models = [models]
         self._models[:] = [m for m in self._models if m.id not in models]
 
+    def model_strip_org(
+        self, model: Text, org: Optional[Union[Text, OrganizationType]] = None
+    ) -> Text:
+        """Strips the organization type from the model name."""
 
-class OpenaiClients(OpenaiModels):
+        orgs: List[OrganizationType] = [
+            to_org_type(o) if isinstance(o, Text) else o
+            for o in ([org] if org is not None else list(OrganizationType))
+        ]
+        model = model.strip()
+        model_lower = model.lower()
+        for _org in orgs:
+            if model_lower.startswith(f"{_org.value.lower}/"):
+                return model.split("/", 1)[-1]
+        return model
+
+
+class OpenaiDepends:
+    def depends_org_type(
+        self,
+        request: Request,
+        api_type: Optional[Text] = Query(None),
+        org: Optional[Text] = Query(None),
+        org_type: Optional[Text] = Query(None),
+        organization: Optional[Text] = Query(None),
+        organization_type: Optional[Text] = Query(None),
+    ) -> Optional[OrganizationType]:
+        """Returns the OpenAI client based on the request parameters."""
+
+        logger = get_value_from_app(
+            request.app, key="logger", value_typing=Logger, default=languru_logger
+        )
+        organization_type = (
+            organization_type or organization or org_type or org or api_type
+        )
+
+        out: Optional[OrganizationType] = None
+        if organization_type is not None:
+            out = to_org_type(organization_type)
+            logger.debug(f"Organization type: '{out}'.")
+        return out
+
+
+class OpenaiClients(OpenaiModels, OpenaiDepends):
     def __init__(self, *args, **kwargs):
         self._oai_client: Optional["OpenAI"] = None
         self._aoai_client: Optional["AzureOpenAI"] = None
@@ -231,33 +273,7 @@ class OpenaiClients(OpenaiModels):
         except CredentialsNotProvided:
             languru_logger.warning("Voyage OpenAI client not initialized.")
 
-    def depends_org_type(
-        self,
-        request: Request,
-        api_type: Optional[Text] = Query(None),
-        org: Optional[Text] = Query(None),
-        org_type: Optional[Text] = Query(None),
-        organization: Optional[Text] = Query(None),
-        organization_type: Optional[Text] = Query(None),
-    ) -> Optional[OrganizationType]:
-        """Returns the OpenAI client based on the request parameters."""
-
-        logger = get_value_from_app(
-            request.app, key="logger", value_typing=Logger, default=languru_logger
-        )
-        organization_type = (
-            organization_type or organization or org_type or org or api_type
-        )
-
-        out: Optional[OrganizationType] = None
-        if organization_type is not None:
-            out = to_org_type(organization_type)
-            logger.debug(f"Organization type: '{out}'.")
-        return out
-
-    def org_from_model(self, model: Text) -> Optional[OrganizationType]:
-        """Returns the organization type based on the model name."""
-
+    def org_in_model_name(self, model: Text) -> Optional[OrganizationType]:
         _model = (model.strip() if model else None) or None
         organization_type: Optional[OrganizationType] = None
 
@@ -271,42 +287,56 @@ class OpenaiClients(OpenaiModels):
                 )
             except OrganizationNotFound:
                 pass
+        return organization_type
 
+    def org_in_supported_models(self, model: Text) -> Optional[OrganizationType]:
+        _model = (model.strip() if model else None) or None
+        if _model is None:
+            return None
         # Try search supported models
-        if model is not None:
-            for _c, _org in (
-                (self._oai_client, OrganizationType.OPENAI),
-                (self._aoai_client, OrganizationType.AZURE),
-                (self._ant_client, OrganizationType.ANTHROPIC),
-                (self._gg_client, OrganizationType.GOOGLE),
-                (self._gq_client, OrganizationType.GROQ),
-                (self._pplx_client, OrganizationType.PERPLEXITY),
-                (self._vg_client, OrganizationType.VOYAGE),
-            ):
-                if _c is None:
-                    continue
-                if isinstance(_c, OpenAI):
-                    if model in MODELS_OPENAI:
-                        organization_type = _org
-                        languru_logger.debug(
-                            f"Organization type: '{organization_type}' of '{_model}'."
-                        )
-                        break
-                elif isinstance(_c, AzureOpenAI):
-                    if model in MODELS_AZURE_OPENAI:
-                        organization_type = _org
-                        languru_logger.debug(
-                            f"Organization type: '{organization_type}' of '{_model}'."
-                        )
-                        break
-                elif hasattr(_c, "models") and hasattr(_c.models, "supported_models"):
-                    if model in _c.models.supported_models:  # type: ignore
-                        organization_type = _org
-                        languru_logger.debug(
-                            f"Organization type: '{organization_type}' of '{_model}'."
-                        )
-                        break
+        organization_type: Optional[OrganizationType] = None
+        for _c, _org in (
+            (self._oai_client, OrganizationType.OPENAI),
+            (self._aoai_client, OrganizationType.AZURE),
+            (self._ant_client, OrganizationType.ANTHROPIC),
+            (self._gg_client, OrganizationType.GOOGLE),
+            (self._gq_client, OrganizationType.GROQ),
+            (self._pplx_client, OrganizationType.PERPLEXITY),
+            (self._vg_client, OrganizationType.VOYAGE),
+        ):
+            if _c is None:
+                continue
+            if isinstance(_c, OpenAI):
+                if model in MODELS_OPENAI:
+                    organization_type = _org
+                    languru_logger.debug(
+                        f"Organization type: '{organization_type}' of '{_model}'."
+                    )
+                    break
+            elif isinstance(_c, AzureOpenAI):
+                if model in MODELS_AZURE_OPENAI:
+                    organization_type = _org
+                    languru_logger.debug(
+                        f"Organization type: '{organization_type}' of '{_model}'."
+                    )
+                    break
+            elif hasattr(_c, "models") and hasattr(_c.models, "supported_models"):
+                if model in _c.models.supported_models:  # type: ignore
+                    organization_type = _org
+                    languru_logger.debug(
+                        f"Organization type: '{organization_type}' of '{_model}'."
+                    )
+                    break
+        return organization_type
 
+    def org_from_model(self, model: Text) -> Optional[OrganizationType]:
+        """Returns the organization type based on the model name."""
+
+        organization_type: Optional[OrganizationType] = None
+        if organization_type is None:
+            organization_type = self.org_in_model_name(model)
+        if organization_type is None:
+            organization_type = self.org_in_supported_models(model)
         return organization_type
 
     def org_to_openai_client(
