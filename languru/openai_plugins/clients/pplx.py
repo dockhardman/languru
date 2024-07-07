@@ -12,21 +12,12 @@ from openai.types.model import Model
 
 from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
+from languru.types.models import MODELS_PERPLEXITY
 
 
 class PerplexityModels(OpenAIResources.Models):
 
-    supported_models = frozenset(
-        [
-            "llama-3-sonar-small-32k-chat",
-            "llama-3-sonar-small-32k-online",
-            "llama-3-sonar-large-32k-chat",
-            "llama-3-sonar-large-32k-online",
-            "llama-3-8b-instruct",
-            "llama-3-70b-instruct",
-            "mixtral-8x7b-instruct",
-        ]
-    )
+    supported_models = frozenset(MODELS_PERPLEXITY)
     temperature_span = (0.0, 1.99)
 
     def retrieve(

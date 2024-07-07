@@ -14,19 +14,12 @@ from openai.types.model import Model
 
 from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
+from languru.types.models import MODELS_VOYAGE
 
 
 class VoyageModels(OpenAIResources.Models):
 
-    supported_models = frozenset(
-        [
-            "voyage-2",
-            "voyage-large-2-instruct",
-            "voyage-law-2",
-            "voyage-code-2",
-            "voyage-large-2",
-        ]
-    )
+    supported_models = frozenset(MODELS_VOYAGE)
 
     def retrieve(
         self,

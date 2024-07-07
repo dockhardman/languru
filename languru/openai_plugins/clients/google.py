@@ -35,6 +35,7 @@ from openai.types.model import Model
 
 from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
+from languru.types.models import MODELS_GOOGLE
 from languru.utils.openai_utils import rand_chat_completion_id
 from languru.utils.sse import simple_encode_sse
 
@@ -378,6 +379,9 @@ class GoogleChat(OpenAIResources.Chat):
 
 
 class GoogleModels(OpenAIResources.Models):
+
+    supported_models = frozenset(MODELS_GOOGLE)
+
     def retrieve(
         self,
         model: str,
