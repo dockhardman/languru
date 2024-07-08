@@ -4,7 +4,7 @@ from sqlalchemy.orm import declarative_base
 Base = declarative_base()
 
 
-class AssistantOrm(Base):
+class Assistant(Base):
     __tablename__ = "assistants"
 
     db_id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
@@ -23,4 +23,4 @@ class AssistantOrm(Base):
     top_p = sa.Column(sa.Float, nullable=True)
 
 
-__all__ = ["AssistantOrm"]
+__all__ = ["Assistant"]
