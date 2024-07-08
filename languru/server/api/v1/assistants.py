@@ -43,5 +43,7 @@ async def list_assistants(
     if order is not None:
         params["order"] = order
     if openai_clients._oai_client is None:
-        return SyncCursorPage.model_validate({"data": []})
+        return SyncCursorPage.model_validate(
+            {"data": [], "object": "list", "has_more": False}
+        )
     return await run_func(openai_clients._oai_client.beta.assistants.list, **params)
