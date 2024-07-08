@@ -5,13 +5,13 @@ import sqlalchemy as sa
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from yarl import URL
 
-from languru.resources.sql.openai.data_store.assistants import AssistantClient
+from languru.resources.sql.openai.backend.assistants import Assistants
 from languru.types.sql.openai import Assistant as OrmAssistant
 from languru.types.sql.openai import Base as SQL_Base
 
 
-class DataStoreClient:
-    assistants: AssistantClient
+class OpenaiBackend:
+    assistants: Assistants
 
     def __init__(
         self,
@@ -30,9 +30,7 @@ class DataStoreClient:
         self._session_factory = sessionmaker(bind=self._engine)
         self._sql_base = sql_base
 
-        self.assistants = AssistantClient(
-            client=self, orm_assistant=orm_assistant, **kwargs
-        )
+        self.assistants = Assistants(client=self, orm_assistant=orm_assistant, **kwargs)
 
     @property
     def sql_engine(self) -> sa.Engine:

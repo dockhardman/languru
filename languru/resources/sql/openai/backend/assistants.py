@@ -11,13 +11,13 @@ from openai.types.beta.assistant_tool_param import AssistantToolParam
 from languru.types.sql.openai import Assistant as OrmAssistant
 
 if TYPE_CHECKING:
-    from languru.resources.sql.openai.data_store.client import DataStoreClient
+    from languru.resources.sql.openai.backend._client import OpenaiBackend
 
 
-class AssistantClient:
+class Assistants:
     def __init__(
         self,
-        client: "DataStoreClient",
+        client: "OpenaiBackend",
         *,
         orm_assistant: Type["OrmAssistant"],
         **kwargs,
@@ -105,8 +105,22 @@ class AssistantClient:
             session.refresh(assistant)
             return assistant.to_openai()
 
-    def delete(self) -> "AssistantDeleted":
-        pass
+    def delete(self, assistant_id: Text) -> "AssistantDeleted":
+        with self._client.sql_session() as session:
+            query = session.query(self.orm_assistant).filter(
+                self.orm_assistant.id == assistant_id
+            )
+            assistant = query.one()
+            session.delete(assistant)
+            session.commit()
+            return AssistantDeleted.model_validate(
+                {"id": assistant_id, "deleted": True, "object": "assistant.deleted"}
+            )
 
-    def retrieve(self) -> "Assistant":
-        pass
+    def retrieve(self, assistant_id: Text) -> "Assistant":
+        with self._client.sql_session() as session:
+            query = session.query(self.orm_assistant).filter(
+                self.orm_assistant.id == assistant_id
+            )
+            assistant = query.one()
+            return assistant.to_openai()
