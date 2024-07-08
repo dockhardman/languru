@@ -5,8 +5,8 @@ from sqlalchemy.orm import DeclarativeBase
 from yarl import URL
 
 from languru.resources.sql.openai.data_store.assistants import AssistantClient
-from languru.types.sql.openai_orm import Assistant as OrmAssistant
-from languru.types.sql.openai_orm import Base as SQL_Base
+from languru.types.sql.openai import Assistant as OrmAssistant
+from languru.types.sql.openai import Base as SQL_Base
 
 
 class DataStoreClient:
@@ -30,7 +30,7 @@ class DataStoreClient:
         self._orm_assistant = orm_assistant
 
         self.assistants = AssistantClient(
-            client=self, orm_assistant=self._orm_assistant
+            client=self, orm_assistant=self._orm_assistant, **kwargs
         )
 
     @property
