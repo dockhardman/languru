@@ -7,7 +7,10 @@ from openai.types.beta.assistant_response_format_option_param import (
     AssistantResponseFormatOptionParam,
 )
 from openai.types.beta.assistant_tool_param import AssistantToolParam
+from openai.types.beta.thread import Thread as OpenaiThread
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from languru.utils.common import model_dump
 
 
 class Base(DeclarativeBase):
@@ -39,14 +42,14 @@ class Assistant(Base):
             created_at=assistant.created_at,
             description=assistant.description,
             instructions=assistant.instructions,
-            assistant_metadata=assistant.metadata,
+            assistant_metadata=model_dump(assistant.metadata),
             model=assistant.model,
             name=assistant.name,
             object=assistant.object,
-            tools=assistant.tools,
-            response_format=assistant.response_format,
+            tools=model_dump(assistant.tools),
+            response_format=model_dump(assistant.response_format),
             temperature=assistant.temperature,
-            tool_resources=assistant.tool_resources,
+            tool_resources=model_dump(assistant.tool_resources),
             top_p=assistant.top_p,
         )
 
@@ -98,16 +101,59 @@ class Assistant(Base):
             self.response_format = (
                 response_format
                 if isinstance(response_format, Text)
-                else dict(response_format)
+                else model_dump(response_format)
             )
         if temperature is not None:
             self.temperature = temperature
         if tool_resources is not None:
-            self.tool_resources = dict(tool_resources)
+            self.tool_resources = model_dump(tool_resources)
         if tools is not None:
-            self.tools = [dict(t) for t in tools]
+            self.tools = [model_dump(t) for t in tools]
         if top_p is not None:
             self.top_p = top_p
 
 
-__all__ = ["Assistant"]
+class Thread(Base):
+    __tablename__ = "threads"
+
+    id: Mapped[Text] = mapped_column(sa.String, primary_key=True)
+    created_at: Mapped[int] = mapped_column(sa.Integer)
+    thread_metadata: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    object: Mapped[Text] = mapped_column(sa.String)
+    tool_resources: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+
+    @classmethod
+    def from_openai(cls, thread: OpenaiThread) -> "Thread":
+        return cls(
+            id=thread.id,
+            created_at=thread.created_at,
+            thread_metadata=model_dump(thread.metadata),
+            object=thread.object,
+            tool_resources=model_dump(thread.tool_resources),
+        )
+
+    def to_openai(self):
+        return OpenaiThread.model_validate(
+            {
+                "id": self.id,
+                "created_at": self.created_at,
+                "metadata": self.thread_metadata,
+                "object": self.object,
+                "tool_resources": self.tool_resources,
+            }
+        )
+
+    def update(
+        self,
+        *,
+        metadata: Optional[Dict] = None,
+        tool_resources: Optional[assistant_create_params.ToolResources] = None,
+        **kwargs,
+    ):
+        if metadata is not None:
+            self.thread_metadata = metadata
+        if tool_resources is not None:
+            self.tool_resources = model_dump(tool_resources)
+
+
+__all__ = ["Assistant", "Thread"]

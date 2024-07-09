@@ -16,6 +16,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 
 from pydantic import BaseModel
@@ -197,3 +198,27 @@ def display_object(obj: object) -> Text:
     """Display an object in a human-readable format."""
 
     return f"{obj.__class__.__module__}.{obj.__class__.__name__}"
+
+
+@overload
+def model_dump(obj: Sequence) -> List[Dict]: ...
+
+
+@overload
+def model_dump(obj: None) -> None: ...
+
+
+@overload
+def model_dump(obj: Any) -> Dict: ...
+
+
+def model_dump(obj: Any) -> Optional[Union[Dict, List[Dict]]]:
+    """Dump the model in a dictionary format."""
+
+    if obj is None:
+        return None
+    elif isinstance(obj, BaseModel):
+        return obj.model_dump()
+    elif isinstance(obj, Sequence) and not isinstance(obj, Text):
+        return [model_dump(item) for item in obj]
+    return json.loads(json.dumps(obj, default=str))
