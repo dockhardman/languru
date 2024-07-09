@@ -8,7 +8,7 @@ from openai.types.beta.assistant_response_format_option_param import (
 )
 from openai.types.beta.assistant_tool_param import AssistantToolParam
 
-from languru.types.sql.openai import Assistant as OrmAssistant
+from languru.types.sql._openai import Assistant as OrmAssistant
 
 if TYPE_CHECKING:
     from languru.resources.sql.openai.backend._client import OpenaiBackend
@@ -77,30 +77,18 @@ class Assistants:
                 self.orm_assistant.id == assistant_id
             )
             assistant = query.one()
-            if model is not None:
-                assistant.model = model
-            if description is not None:
-                assistant.description = description
-            if instructions is not None:
-                assistant.instructions = instructions
-            if metadata is not None:
-                assistant.metadata = metadata
-            if name is not None:
-                assistant.name = name
-            if response_format is not None:
-                assistant.response_format = (
-                    response_format
-                    if isinstance(response_format, Text)
-                    else dict(response_format)
-                )
-            if temperature is not None:
-                assistant.temperature = temperature
-            if tool_resources is not None:
-                assistant.tool_resources = dict(tool_resources)
-            if tools is not None:
-                assistant.tools = [dict(t) for t in tools]
-            if top_p is not None:
-                assistant.top_p = top_p
+            assistant.update(
+                model=model,
+                description=description,
+                instructions=instructions,
+                metadata=metadata,
+                name=name,
+                response_format=response_format,
+                temperature=temperature,
+                tool_resources=tool_resources,
+                tools=tools,
+                top_p=top_p,
+            )
             session.commit()
             session.refresh(assistant)
             return assistant.to_openai()

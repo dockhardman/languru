@@ -6,8 +6,8 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from yarl import URL
 
 from languru.resources.sql.openai.backend.assistants import Assistants
-from languru.types.sql.openai import Assistant as OrmAssistant
-from languru.types.sql.openai import Base as SQL_Base
+from languru.types.sql._openai import Assistant as OrmAssistant
+from languru.types.sql._openai import Base as SQL_Base
 
 
 class OpenaiBackend:
