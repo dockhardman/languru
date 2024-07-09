@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Dict, Iterable, List, Literal, Optional, Text, Type
 
+import sqlalchemy.exc
 from openai.types.beta import assistant_create_params
 from openai.types.beta.assistant import Assistant
 from openai.types.beta.assistant_deleted import AssistantDeleted
@@ -8,6 +9,7 @@ from openai.types.beta.assistant_response_format_option_param import (
 )
 from openai.types.beta.assistant_tool_param import AssistantToolParam
 
+from languru.exceptions import NotFound
 from languru.types.sql._openai import Assistant as OrmAssistant
 
 if TYPE_CHECKING:
@@ -72,43 +74,63 @@ class Assistants:
         tools: Optional[Iterable[AssistantToolParam]] = None,
         top_p: Optional[float] = None,
     ) -> "Assistant":
-        with self._client.sql_session() as session:
-            query = session.query(self.orm_assistant).filter(
-                self.orm_assistant.id == assistant_id
-            )
-            assistant = query.one()
-            assistant.update(
-                model=model,
-                description=description,
-                instructions=instructions,
-                metadata=metadata,
-                name=name,
-                response_format=response_format,
-                temperature=temperature,
-                tool_resources=tool_resources,
-                tools=tools,
-                top_p=top_p,
-            )
-            session.commit()
-            session.refresh(assistant)
-            return assistant.to_openai()
+        try:
+            with self._client.sql_session() as session:
+                query = session.query(self.orm_assistant).filter(
+                    self.orm_assistant.id == assistant_id
+                )
+                assistant = query.one()
+                assistant.update(
+                    model=model,
+                    description=description,
+                    instructions=instructions,
+                    metadata=metadata,
+                    name=name,
+                    response_format=response_format,
+                    temperature=temperature,
+                    tool_resources=tool_resources,
+                    tools=tools,
+                    top_p=top_p,
+                )
+                session.commit()
+                session.refresh(assistant)
+                return assistant.to_openai()
+        except sqlalchemy.exc.NoResultFound:
+            raise NotFound(f"Assistant with ID {assistant_id} not found.")
 
-    def delete(self, assistant_id: Text) -> "AssistantDeleted":
-        with self._client.sql_session() as session:
-            query = session.query(self.orm_assistant).filter(
-                self.orm_assistant.id == assistant_id
-            )
-            assistant = query.one()
-            session.delete(assistant)
-            session.commit()
-            return AssistantDeleted.model_validate(
-                {"id": assistant_id, "deleted": True, "object": "assistant.deleted"}
-            )
+    def delete(
+        self, assistant_id: Text, *, not_exist_ok: bool = False
+    ) -> "AssistantDeleted":
+        try:
+            with self._client.sql_session() as session:
+                query = session.query(self.orm_assistant).filter(
+                    self.orm_assistant.id == assistant_id
+                )
+                assistant = query.one()
+                session.delete(assistant)
+                session.commit()
+                return AssistantDeleted.model_validate(
+                    {"id": assistant_id, "deleted": True, "object": "assistant.deleted"}
+                )
+        except sqlalchemy.exc.NoResultFound:
+            if not_exist_ok:
+                return AssistantDeleted.model_validate(
+                    {
+                        "id": assistant_id,
+                        "deleted": False,
+                        "object": "assistant.deleted",
+                    }
+                )
+            else:
+                raise NotFound(f"Assistant with ID {assistant_id} not found.")
 
     def retrieve(self, assistant_id: Text) -> "Assistant":
-        with self._client.sql_session() as session:
-            query = session.query(self.orm_assistant).filter(
-                self.orm_assistant.id == assistant_id
-            )
-            assistant = query.one()
-            return assistant.to_openai()
+        try:
+            with self._client.sql_session() as session:
+                query = session.query(self.orm_assistant).filter(
+                    self.orm_assistant.id == assistant_id
+                )
+                assistant = query.one()
+                return assistant.to_openai()
+        except sqlalchemy.exc.NoResultFound:
+            raise NotFound(f"Assistant with ID {assistant_id} not found.")

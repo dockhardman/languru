@@ -13,6 +13,10 @@ def rand_chat_completion_id() -> Text:
     return f"chatcmpl-{rand_str(29)}"
 
 
+def rand_assistant_id() -> Text:
+    return f"asst_{rand_str(24)}"
+
+
 def ensure_chat_completion_message_params(
     messages: (
         Sequence[ChatCompletionMessageParam]
