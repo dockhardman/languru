@@ -17,6 +17,14 @@ def rand_assistant_id() -> Text:
     return f"asst_{rand_str(24)}"
 
 
+def rand_thread_id() -> Text:
+    return f"thread_{rand_str(24)}"
+
+
+def rand_message_id() -> Text:
+    return f"msg_{rand_str(24)}"
+
+
 def ensure_chat_completion_message_params(
     messages: (
         Sequence[ChatCompletionMessageParam]

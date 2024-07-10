@@ -10,7 +10,6 @@ from openai.types.beta.assistant_response_format_option_param import (
 from openai.types.beta.assistant_tool_param import AssistantToolParam
 
 from languru.exceptions import NotFound
-from languru.resources.sql.openai.backend.threads import Threads as ThreadsBackend
 from languru.types.sql._openai import Assistant as OrmAssistant
 
 if TYPE_CHECKING:
@@ -18,8 +17,6 @@ if TYPE_CHECKING:
 
 
 class Assistants:
-    threads: ThreadsBackend
-
     def __init__(
         self,
         client: "OpenaiBackend",
@@ -29,8 +26,6 @@ class Assistants:
     ):
         self._client = client
         self.orm_model = orm_model
-
-        self.threads = ThreadsBackend(client=self._client)
 
     def list(
         self,

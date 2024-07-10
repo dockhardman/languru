@@ -1,13 +1,15 @@
+import time
 from typing import Dict, Iterable, List, Optional, Text, Union
 
 import sqlalchemy as sa
-from openai.types.beta import assistant_create_params
+from openai.types.beta import assistant_create_params, thread_create_params
 from openai.types.beta.assistant import Assistant as OpenaiAssistant
 from openai.types.beta.assistant_response_format_option_param import (
     AssistantResponseFormatOptionParam,
 )
 from openai.types.beta.assistant_tool_param import AssistantToolParam
 from openai.types.beta.thread import Thread as OpenaiThread
+from openai.types.beta.threads.message import Message as OpenaiMessage
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from languru.utils.common import model_dump
@@ -124,7 +126,7 @@ class Thread(Base):
     tool_resources: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
 
     @classmethod
-    def from_openai(cls, thread: OpenaiThread) -> "Thread":
+    def from_openai(cls, thread: "OpenaiThread") -> "Thread":
         return cls(
             id=thread.id,
             created_at=thread.created_at,
@@ -162,7 +164,7 @@ class Message(Base):
 
     db_id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     id: Mapped[Text] = mapped_column(sa.String, index=True)
-    assistant_id: Mapped[Text] = mapped_column(sa.String, nullable=True, index=True)
+    assistant_id: Mapped[Text] = mapped_column(sa.String, nullable=True)
     attachments: Mapped[List[Dict]] = mapped_column(sa.JSON, nullable=True)
     completed_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
     content: Mapped[List[Dict]] = mapped_column(sa.JSON)
@@ -170,11 +172,64 @@ class Message(Base):
     incomplete_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
     incomplete_details: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
     message_metadata: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
-    object: Mapped[Text] = mapped_column(sa.String)
+    object: Mapped[Text] = mapped_column(sa.String)  # "thread.message"
     role: Mapped[Text] = mapped_column(sa.String)
     run_id: Mapped[Text] = mapped_column(sa.String, nullable=True)
-    status: Mapped[Text] = mapped_column(sa.String)
+    status: Mapped[Text] = mapped_column(sa.String, nullable=True)
     thread_id: Mapped[Text] = mapped_column(sa.String, index=True)
+
+    @classmethod
+    def from_openai(cls, message: "OpenaiMessage") -> "Message":
+        return cls(
+            id=message.id,
+            assistant_id=message.assistant_id,
+            attachments=model_dump(message.attachments),
+            completed_at=message.completed_at,
+            content=model_dump(message.content),
+            created_at=message.created_at,
+            incomplete_at=message.incomplete_at,
+            incomplete_details=model_dump(message.incomplete_details),
+            message_metadata=model_dump(message.metadata),
+            object=message.object,
+            role=message.role,
+            run_id=message.run_id,
+            status=message.status,
+            thread_id=message.thread_id,
+        )
+
+    @classmethod
+    def from_openai_create_params(
+        cls, message_id: Text, message: thread_create_params.Message
+    ) -> "Message":
+        return cls(
+            id=message_id,
+            content=model_dump(message["content"]),
+            role=message["role"],
+            created_at=int(time.time()),
+            object="thread.message",
+            attachments=model_dump(message.get("attachments") or []),
+            message_metadata=model_dump(message.get("metadata") or {}),
+        )
+
+    def to_openai(self) -> "OpenaiMessage":
+        return OpenaiMessage.model_validate(
+            {
+                "id": self.id,
+                "assistant_id": self.assistant_id,
+                "attachments": model_dump(self.attachments),
+                "completed_at": self.completed_at,
+                "content": model_dump(self.content),
+                "created_at": self.created_at,
+                "incomplete_at": self.incomplete_at,
+                "incomplete_details": model_dump(self.incomplete_details),
+                "metadata": model_dump(self.metadata),
+                "object": self.object,
+                "role": self.role,
+                "run_id": self.run_id,
+                "status": self.status,
+                "thread_id": self.thread_id,
+            }
+        )
 
 
 class Run(Base):

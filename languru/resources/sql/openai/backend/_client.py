@@ -5,13 +5,18 @@ import sqlalchemy as sa
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from yarl import URL
 
-from languru.resources.sql.openai.backend.assistants import Assistants
+from languru.resources.sql.openai.backend.assistants import (
+    Assistants as AssistantsBackend,
+)
+from languru.resources.sql.openai.backend.threads import Threads as ThreadsBackend
 from languru.types.sql._openai import Assistant as OrmAssistant
 from languru.types.sql._openai import Base as SQL_Base
+from languru.types.sql._openai import Thread as OrmThread
 
 
 class OpenaiBackend:
-    assistants: Assistants
+    assistants: AssistantsBackend
+    threads: ThreadsBackend
 
     def __init__(
         self,
@@ -19,6 +24,7 @@ class OpenaiBackend:
         *,
         sql_base: Type[DeclarativeBase] = SQL_Base,
         orm_assistant: Type[OrmAssistant] = OrmAssistant,
+        orm_thread: Type[OrmThread] = OrmThread,
         **kwargs,
     ):
         self.url: Text = str(url)
@@ -30,7 +36,10 @@ class OpenaiBackend:
         self._session_factory = sessionmaker(bind=self._engine)
         self._sql_base = sql_base
 
-        self.assistants = Assistants(client=self, orm_model=orm_assistant, **kwargs)
+        self.assistants = AssistantsBackend(
+            client=self, orm_model=orm_assistant, **kwargs
+        )
+        self.threads = ThreadsBackend(client=self, orm_model=orm_thread, **kwargs)
 
     @property
     def sql_engine(self) -> sa.Engine:
