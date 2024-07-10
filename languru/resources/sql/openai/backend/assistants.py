@@ -10,6 +10,7 @@ from openai.types.beta.assistant_response_format_option_param import (
 from openai.types.beta.assistant_tool_param import AssistantToolParam
 
 from languru.exceptions import NotFound
+from languru.resources.sql.openai.backend.threads import Threads as ThreadsBackend
 from languru.types.sql._openai import Assistant as OrmAssistant
 
 if TYPE_CHECKING:
@@ -17,15 +18,19 @@ if TYPE_CHECKING:
 
 
 class Assistants:
+    threads: ThreadsBackend
+
     def __init__(
         self,
         client: "OpenaiBackend",
         *,
-        orm_assistant: Type["OrmAssistant"],
+        orm_model: Type["OrmAssistant"] = OrmAssistant,
         **kwargs,
     ):
         self._client = client
-        self.orm_assistant = orm_assistant
+        self.orm_model = orm_model
+
+        self.threads = ThreadsBackend(client=self._client)
 
     def list(
         self,
@@ -36,16 +41,16 @@ class Assistants:
         order: Literal["asc", "desc"] = "asc",
     ) -> List["Assistant"]:
         with self._client.sql_session() as session:
-            query = session.query(self.orm_assistant)
+            query = session.query(self.orm_model)
             query = query.order_by(
-                self.orm_assistant.created_at.desc()
+                self.orm_model.created_at.desc()
                 if order == "desc"
-                else self.orm_assistant.created_at.asc()
+                else self.orm_model.created_at.asc()
             )
             if after is not None:
-                query = query.filter(self.orm_assistant.db_id > after)
+                query = query.filter(self.orm_model.db_id > after)
             if before is not None:
-                query = query.filter(self.orm_assistant.db_id < before)
+                query = query.filter(self.orm_model.db_id < before)
             if limit is not None:
                 query = query.limit(limit)
             assistants = query.all()
@@ -53,7 +58,7 @@ class Assistants:
 
     def create(self, assistant: "Assistant") -> "Assistant":
         with self._client.sql_session() as session:
-            orm_assistant = self.orm_assistant.from_openai(assistant)
+            orm_assistant = self.orm_model.from_openai(assistant)
             session.add(orm_assistant)
             session.commit()
             session.refresh(orm_assistant)
@@ -76,8 +81,8 @@ class Assistants:
     ) -> "Assistant":
         try:
             with self._client.sql_session() as session:
-                query = session.query(self.orm_assistant).filter(
-                    self.orm_assistant.id == assistant_id
+                query = session.query(self.orm_model).filter(
+                    self.orm_model.id == assistant_id
                 )
                 assistant = query.one()
                 assistant.update(
@@ -103,8 +108,8 @@ class Assistants:
     ) -> "AssistantDeleted":
         try:
             with self._client.sql_session() as session:
-                query = session.query(self.orm_assistant).filter(
-                    self.orm_assistant.id == assistant_id
+                query = session.query(self.orm_model).filter(
+                    self.orm_model.id == assistant_id
                 )
                 assistant = query.one()
                 session.delete(assistant)
@@ -127,8 +132,8 @@ class Assistants:
     def retrieve(self, assistant_id: Text) -> "Assistant":
         try:
             with self._client.sql_session() as session:
-                query = session.query(self.orm_assistant).filter(
-                    self.orm_assistant.id == assistant_id
+                query = session.query(self.orm_model).filter(
+                    self.orm_model.id == assistant_id
                 )
                 assistant = query.one()
                 return assistant.to_openai()

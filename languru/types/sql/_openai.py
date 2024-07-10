@@ -193,7 +193,7 @@ class Run(Base):
     last_error: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
     max_completion_tokens: Mapped[int] = mapped_column(sa.Integer, nullable=True)
     max_prompt_tokens: Mapped[int] = mapped_column(sa.Integer, nullable=True)
-    metadata: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    run_metadata: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
     model: Mapped[Text] = mapped_column(sa.String)
     object: Mapped[Text] = mapped_column(sa.String)
     parallel_tool_calls: Mapped[bool] = mapped_column(sa.Boolean)

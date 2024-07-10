@@ -30,7 +30,7 @@ class OpenaiBackend:
         self._session_factory = sessionmaker(bind=self._engine)
         self._sql_base = sql_base
 
-        self.assistants = Assistants(client=self, orm_assistant=orm_assistant, **kwargs)
+        self.assistants = Assistants(client=self, orm_model=orm_assistant, **kwargs)
 
     @property
     def sql_engine(self) -> sa.Engine:
