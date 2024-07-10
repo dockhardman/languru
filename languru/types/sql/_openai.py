@@ -116,8 +116,9 @@ class Assistant(Base):
 class Thread(Base):
     __tablename__ = "threads"
 
-    id: Mapped[Text] = mapped_column(sa.String, primary_key=True)
-    created_at: Mapped[int] = mapped_column(sa.Integer)
+    db_id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    id: Mapped[Text] = mapped_column(sa.String, index=True)
+    created_at: Mapped[int] = mapped_column(sa.Integer, index=True)
     thread_metadata: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
     object: Mapped[Text] = mapped_column(sa.String)
     tool_resources: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
@@ -156,4 +157,57 @@ class Thread(Base):
             self.tool_resources = model_dump(tool_resources)
 
 
-__all__ = ["Assistant", "Thread"]
+class Message(Base):
+    __tablename__ = "messages"
+
+    db_id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    id: Mapped[Text] = mapped_column(sa.String, index=True)
+    assistant_id: Mapped[Text] = mapped_column(sa.String, nullable=True, index=True)
+    attachments: Mapped[List[Dict]] = mapped_column(sa.JSON, nullable=True)
+    completed_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    content: Mapped[List[Dict]] = mapped_column(sa.JSON)
+    created_at: Mapped[int] = mapped_column(sa.Integer, index=True)
+    incomplete_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    incomplete_details: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    message_metadata: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    object: Mapped[Text] = mapped_column(sa.String)
+    role: Mapped[Text] = mapped_column(sa.String)
+    run_id: Mapped[Text] = mapped_column(sa.String, nullable=True)
+    status: Mapped[Text] = mapped_column(sa.String)
+    thread_id: Mapped[Text] = mapped_column(sa.String, index=True)
+
+
+class Run(Base):
+    __tablename__ = "runs"
+
+    db_id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    id: Mapped[Text] = mapped_column(sa.String, index=True)
+    assistant_id: Mapped[Text] = mapped_column(sa.String, index=True)
+    cancelled_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    completed_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    created_at: Mapped[int] = mapped_column(sa.Integer, index=True)
+    expires_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    failed_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    incomplete_details: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    instructions: Mapped[Text] = mapped_column(sa.String)
+    last_error: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    max_completion_tokens: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    max_prompt_tokens: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    metadata: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    model: Mapped[Text] = mapped_column(sa.String)
+    object: Mapped[Text] = mapped_column(sa.String)
+    parallel_tool_calls: Mapped[bool] = mapped_column(sa.Boolean)
+    required_action: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    response_format: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    started_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
+    status: Mapped[Text] = mapped_column(sa.String)
+    thread_id: Mapped[Text] = mapped_column(sa.String, index=True)
+    tool_choice: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    tools: Mapped[List[Dict]] = mapped_column(sa.JSON)
+    truncation_strategy: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    usage: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    temperature: Mapped[float] = mapped_column(sa.Float, nullable=True)
+    top_p: Mapped[float] = mapped_column(sa.Float, nullable=True)
+
+
+__all__ = ["Assistant", "Thread", "Message", "Run"]
