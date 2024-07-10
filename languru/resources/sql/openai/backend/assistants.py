@@ -101,28 +101,27 @@ class Assistants:
     def delete(
         self, assistant_id: Text, *, not_exist_ok: bool = False
     ) -> "AssistantDeleted":
-        try:
-            with self._client.sql_session() as session:
-                query = session.query(self.orm_model).filter(
-                    self.orm_model.id == assistant_id
-                )
-                assistant = query.one()
-                session.delete(assistant)
-                session.commit()
-                return AssistantDeleted.model_validate(
-                    {"id": assistant_id, "deleted": True, "object": "assistant.deleted"}
-                )
-        except sqlalchemy.exc.NoResultFound:
-            if not_exist_ok:
-                return AssistantDeleted.model_validate(
-                    {
-                        "id": assistant_id,
-                        "deleted": False,
-                        "object": "assistant.deleted",
-                    }
-                )
-            else:
+        with self._client.sql_session() as session:
+            query = session.query(self.orm_model).filter(
+                self.orm_model.id == assistant_id
+            )
+            assistant = query.first()
+            if assistant is None:
+                if not_exist_ok:
+                    return AssistantDeleted.model_validate(
+                        {
+                            "id": assistant_id,
+                            "deleted": False,
+                            "object": "assistant.deleted",
+                        }
+                    )
                 raise NotFound(f"Assistant with ID {assistant_id} not found.")
+
+            session.delete(assistant)
+            session.commit()
+            return AssistantDeleted.model_validate(
+                {"id": assistant_id, "deleted": True, "object": "assistant.deleted"}
+            )
 
     def retrieve(self, assistant_id: Text) -> "Assistant":
         try:

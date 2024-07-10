@@ -1,8 +1,10 @@
-from typing import TYPE_CHECKING, Iterable, Optional, Text, Type
+from typing import TYPE_CHECKING, Dict, Iterable, Optional, Text, Type
 
 from openai.types.beta import thread_create_params
 from openai.types.beta.thread import Thread
+from openai.types.beta.thread_deleted import ThreadDeleted
 
+from languru.exceptions import NotFound
 from languru.resources.sql.openai.backend.messages import Messages as MessagesBackend
 from languru.resources.sql.openai.backend.runs import Runs as RunsBackend
 from languru.types.sql._openai import Message as OrmMessage
@@ -48,13 +50,60 @@ class Threads:
             session.refresh(orm_thread)
             return orm_thread.to_openai()
 
-    def retrieve(self, thread_id: Text) -> "OrmThread":
+    def retrieve(self, thread_id: Text) -> "Thread":
         with self._client.sql_session() as session:
-            pass
+            thread = (
+                session.query(self.orm_model)
+                .filter(self.orm_model.id == thread_id)
+                .first()
+            )
+            if thread is None:
+                raise NotFound(f"Thread {thread_id} not found")
+            return thread.to_openai()
 
-    def update(self, thread_id: Text):
-        pass
-
-    def delete(self, thread_id: Text):
+    def update(
+        self,
+        thread_id: Text,
+        *,
+        metadata: Optional[Dict] = None,
+        tool_resources: Optional[thread_create_params.ToolResources] = None,
+    ) -> "Thread":
         with self._client.sql_session() as session:
-            pass
+            thread = (
+                session.query(self.orm_model)
+                .filter(self.orm_model.id == thread_id)
+                .first()
+            )
+            if thread is None:
+                raise NotFound(f"Thread {thread_id} not found")
+            thread.update(
+                metadata=metadata,
+                tool_resources=tool_resources,
+            )
+            session.commit()
+            session.refresh(thread)
+            return thread.to_openai()
+
+    def delete(self, thread_id: Text, *, not_exist_ok: bool = False) -> "ThreadDeleted":
+        with self._client.sql_session() as session:
+            thread = (
+                session.query(self.orm_model)
+                .filter(self.orm_model.id == thread_id)
+                .first()
+            )
+            if thread is None:
+                if not_exist_ok:
+                    return ThreadDeleted.model_validate(
+                        {
+                            "id": thread_id,
+                            "deleted": False,
+                            "object": "thread.deleted",
+                        }
+                    )
+                raise NotFound(f"Thread {thread_id} not found")
+
+            session.delete(thread)
+            session.commit()
+            return ThreadDeleted.model_validate(
+                {"id": thread_id, "deleted": True, "object": "thread.deleted"}
+            )
