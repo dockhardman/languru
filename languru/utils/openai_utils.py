@@ -1,12 +1,29 @@
 import hashlib
 import json
-from typing import Any, Dict, List, Sequence, Text, Union
+from typing import Any, Dict, List, Literal, Sequence, Text, Union
 
 from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat.chat_completion import ChatCompletion
 from pyassorted.string.rand import rand_str
 
 from languru.types.chat.completions import Message
+
+
+def rand_openai_id(
+    type: Literal[
+        "chat_completion", "chatcmpl", "assistant", "asst", "thread", "message", "msg"
+    ]
+) -> Text:
+    if type in ("chat_completion", "chatcmpl"):
+        return rand_chat_completion_id()
+    elif type in ("assistant", "asst"):
+        return rand_assistant_id()
+    elif type == "thread":
+        return rand_thread_id()
+    elif type in ("message", "msg"):
+        return rand_message_id()
+    else:
+        raise ValueError(f"Invalid type: {type}")
 
 
 def rand_chat_completion_id() -> Text:
