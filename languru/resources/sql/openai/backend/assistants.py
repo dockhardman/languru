@@ -30,24 +30,63 @@ class Assistants:
     def list(
         self,
         *,
-        after: Optional[Text] = None,
-        before: Optional[Text] = None,
+        after: Optional[int] = None,
+        before: Optional[int] = None,
         limit: Optional[int] = None,
-        order: Literal["asc", "desc"] = "asc",
+        order: Optional[Literal["asc", "desc"]] = None,
     ) -> List["Assistant"]:
         with self._client.sql_session() as session:
             query = session.query(self.orm_model)
-            query = query.order_by(
-                self.orm_model.created_at.desc()
-                if order == "desc"
-                else self.orm_model.created_at.asc()
-            )
+
+            # Apply sorting
+            if order == "desc":
+                query = query.order_by(self.orm_model.created_at.desc())
+            else:
+                query = query.order_by(self.orm_model.created_at.asc())
+
+            # Apply pagination using after
             if after is not None:
-                query = query.filter(self.orm_model.db_id > after)
+                try:
+                    after_instance = (
+                        session.query(self.orm_model)
+                        .filter(self.orm_model.db_id == after)
+                        .one()
+                    )
+                    if order == "asc":
+                        query = query.filter(
+                            self.orm_model.created_at > after_instance.created_at
+                        )
+                    else:
+                        query = query.filter(
+                            self.orm_model.created_at < after_instance.created_at
+                        )
+                except sqlalchemy.exc.NoResultFound:
+                    raise NotFound(f"Assistant with ID {after} not found.")
+
+            # Apply pagination using before
             if before is not None:
-                query = query.filter(self.orm_model.db_id < before)
+                try:
+                    before_instance = (
+                        session.query(self.orm_model)
+                        .filter(self.orm_model.db_id == before)
+                        .one()
+                    )
+                    if order == "asc":
+                        query = query.filter(
+                            self.orm_model.created_at < before_instance.created_at
+                        )
+                    else:
+                        query = query.filter(
+                            self.orm_model.created_at > before_instance.created_at
+                        )
+                except sqlalchemy.exc.NoResultFound:
+                    raise NotFound(f"Assistant with ID {before} not found.")
+
+            # Apply limit
             if limit is not None:
                 query = query.limit(limit)
+
+            # Execute query and return results
             assistants = query.all()
             return [asst.to_openai() for asst in assistants]
 
