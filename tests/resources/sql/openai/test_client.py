@@ -1,4 +1,4 @@
-import time
+from pprint import pformat
 from typing import Text
 
 import pytest
@@ -6,30 +6,18 @@ from openai.types.beta.assistant import Assistant
 
 from languru.exceptions import NotFound
 from languru.resources.sql.openai.backend import OpenaiBackend
-from languru.utils.openai_utils import rand_assistant_id
+from languru.utils.openai_dummies import get_dummy_assistant, get_dummy_thread
+from languru.utils.openai_utils import rand_openai_id
 
 
-def test_openai_backend(session_id_fixture: Text):
+def test_openai_backend_assistants_apis(session_id_fixture: Text):
     openai_backend = OpenaiBackend(url="sqlite:///:memory:")
     openai_backend.touch()
 
     # Create assistants
-    assistant_id = rand_assistant_id()
+    assistant_id = rand_openai_id("asst")
     assistant = openai_backend.assistants.create(
-        Assistant.model_validate(
-            {
-                "id": assistant_id,
-                "created_at": int(time.time()),
-                "description": "Math Tutor",
-                "instructions": "You are a personal math tutor. Write and run code to answer math questions.",  # noqa: E501
-                "metadata": {},
-                "model": "models/gemini-1.5-flash",
-                "name": "Math Tutor",
-                "object": "assistant",
-                "tools": [],
-                "temperature": 0.7,
-            }
-        )
+        Assistant.model_validate(get_dummy_assistant(assistant_id))
     )
     assert assistant.id == assistant_id
 
@@ -56,3 +44,28 @@ def test_openai_backend(session_id_fixture: Text):
     assert len(assistants) == 0
     with pytest.raises(NotFound):
         openai_backend.assistants.retrieve(assistant_id)
+
+
+def test_openai_backend_threads_apis(session_id_fixture: Text):
+    openai_backend = OpenaiBackend(url="sqlite:///:memory:")
+    openai_backend.touch()
+
+    # Create thread
+    thread_id = rand_openai_id("thread")
+    thread = openai_backend.threads.create(get_dummy_thread(thread_id))
+    assert thread.id == thread_id
+
+    # Get thread
+    thread_retrieved = openai_backend.threads.retrieve(thread_id)
+    assert thread_retrieved.id == thread_id
+
+    # Update thread
+    update_metadata = {"key": "value"}
+    thread_updated = openai_backend.threads.update(thread_id, metadata=update_metadata)
+    assert pformat(thread_updated.metadata) == pformat(update_metadata)
+
+    # Delete thread
+    delete_result = openai_backend.threads.delete(thread_id)
+    assert delete_result.id == thread_id
+    with pytest.raises(NotFound):
+        openai_backend.threads.retrieve(thread_id)
