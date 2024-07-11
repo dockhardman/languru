@@ -222,7 +222,7 @@ class Message(Base):
                 "created_at": self.created_at,
                 "incomplete_at": self.incomplete_at,
                 "incomplete_details": model_dump(self.incomplete_details),
-                "metadata": model_dump(self.metadata),
+                "metadata": model_dump(self.message_metadata),
                 "object": self.object,
                 "role": self.role,
                 "run_id": self.run_id,

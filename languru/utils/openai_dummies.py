@@ -3,6 +3,7 @@ from typing import Optional, Text
 
 from openai.types.beta.assistant import Assistant
 from openai.types.beta.thread import Thread
+from openai.types.beta.threads.message import Message
 
 from languru.utils.openai_utils import rand_openai_id
 
@@ -32,5 +33,38 @@ def get_dummy_thread(thread_id: Optional[Text] = None) -> "Thread":
             "metadata": {},
             "object": "thread",
             "tool_resources": {},
+        }
+    )
+
+
+def get_dummy_message(
+    message_id: Optional[Text] = None,
+    *,
+    assistant_id: Optional[Text] = None,
+    thread_id: Optional[Text] = None,
+    run_id: Optional[Text] = None,
+    text: Optional[Text] = None
+) -> "Message":
+    return Message.model_validate(
+        {
+            "id": message_id or rand_openai_id("msg"),
+            "assistant_id": assistant_id,
+            "attachments": [],
+            "completed_at": None,
+            "content": [
+                {
+                    "text": {"annotations": [], "value": text or "What is 2 + 2?"},
+                    "type": "text",
+                }
+            ],
+            "created_at": int(time.time()),
+            "incomplete_at": None,
+            "incomplete_details": None,
+            "metadata": {},
+            "object": "thread.message",
+            "role": "user",
+            "run_id": run_id,
+            "status": "incomplete",
+            "thread_id": thread_id or rand_openai_id("thread"),
         }
     )
