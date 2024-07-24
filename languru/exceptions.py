@@ -1,8 +1,12 @@
-class ModelNotFound(Exception):
+class NotFound(Exception):
     pass
 
 
-class OrganizationNotFound(Exception):
+class ModelNotFound(NotFound):
+    pass
+
+
+class OrganizationNotFound(NotFound):
     pass
 
 
