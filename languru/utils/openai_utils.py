@@ -11,7 +11,14 @@ from languru.types.chat.completions import Message
 
 def rand_openai_id(
     type: Literal[
-        "chat_completion", "chatcmpl", "assistant", "asst", "thread", "message", "msg"
+        "chat_completion",
+        "chatcmpl",
+        "assistant",
+        "asst",
+        "thread",
+        "message",
+        "msg",
+        "run",
     ]
 ) -> Text:
     if type in ("chat_completion", "chatcmpl"):
@@ -22,6 +29,8 @@ def rand_openai_id(
         return rand_thread_id()
     elif type in ("message", "msg"):
         return rand_message_id()
+    elif type == "run":
+        return rand_run_id()
     else:
         raise ValueError(f"Invalid type: {type}")
 
@@ -40,6 +49,10 @@ def rand_thread_id() -> Text:
 
 def rand_message_id() -> Text:
     return f"msg_{rand_str(24)}"
+
+
+def rand_run_id() -> Text:
+    return f"run_{rand_str(24)}"
 
 
 def ensure_chat_completion_message_params(

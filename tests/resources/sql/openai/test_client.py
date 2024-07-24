@@ -1,3 +1,4 @@
+import time
 from pprint import pformat
 from typing import Text
 
@@ -9,6 +10,8 @@ from languru.resources.sql.openai.backend import OpenaiBackend
 from languru.utils.openai_dummies import (
     get_dummy_assistant,
     get_dummy_message,
+    get_dummy_message_answer,
+    get_dummy_run,
     get_dummy_thread,
 )
 from languru.utils.openai_utils import rand_openai_id
@@ -111,3 +114,55 @@ def test_openai_backend_threads_messages_apis(session_id_fixture: Text):
     assert delete_result.id == message_id
     with pytest.raises(NotFound):
         openai_backend.threads.messages.retrieve(message_id, thread_id=thread_id)
+
+
+def test_openai_backend_threads_runs_apis(session_id_fixture: Text):
+    openai_backend = OpenaiBackend(url="sqlite:///:memory:")
+    openai_backend.touch()
+
+    # Create assistants, threads and messages
+    assistant = openai_backend.assistants.create(
+        Assistant.model_validate(get_dummy_assistant())
+    )
+    thread = openai_backend.threads.create(get_dummy_thread())
+    message = openai_backend.threads.messages.create(
+        get_dummy_message(thread_id=thread.id)
+    )
+    assert thread.id == message.thread_id
+
+    # Create run
+    run_id = rand_openai_id("run")
+    run = openai_backend.threads.runs.create(
+        get_dummy_run(run_id=run_id, assistant_id=assistant.id, thread_id=thread.id)
+    )
+    assert run.id == run_id
+
+    # Get run
+    run_retrieved = openai_backend.threads.runs.retrieve(run_id, thread_id=thread.id)
+    assert run_retrieved.id == run_id
+
+    # Assume that the run is in progress. And be completed after message is answered.
+    openai_backend.threads.runs.update(
+        run_id, thread_id=thread.id, status="in_progress"
+    )
+    openai_backend.threads.messages.create(
+        get_dummy_message_answer(
+            message_id=message.id,
+            assistant_id=assistant.id,
+            thread_id=thread.id,
+            run_id=run.id,
+        )
+    )
+    openai_backend.threads.runs.update(
+        run_id, thread_id=thread.id, status="completed", completed_at=int(time.time())
+    )
+
+    # The run should be completed now with completed messages
+    assert (
+        openai_backend.threads.runs.retrieve(run_id, thread_id=thread.id).status
+        == "completed"
+    )
+    assert (
+        len(openai_backend.threads.messages.list(thread_id=thread.id, run_id=run.id))
+        == 1
+    )
