@@ -258,7 +258,7 @@ class Run(Base):
     started_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
     status: Mapped[Text] = mapped_column(sa.String)
     thread_id: Mapped[Text] = mapped_column(sa.String, index=True)
-    tool_choice: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
+    tool_choice: Mapped[Text] = mapped_column(sa.JSON, nullable=True)
     tools: Mapped[List[Dict]] = mapped_column(sa.JSON)
     truncation_strategy: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
     usage: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
@@ -289,7 +289,11 @@ class Run(Base):
             started_at=message.started_at,
             status=message.status,
             thread_id=message.thread_id,
-            tool_choice=model_dump(message.tool_choice),
+            tool_choice=(
+                message.tool_choice
+                if isinstance(message.tool_choice, Text)
+                else model_dump(message.tool_choice)
+            ),
             tools=model_dump(message.tools),
             truncation_strategy=model_dump(message.truncation_strategy),
             usage=model_dump(message.usage),
@@ -321,7 +325,11 @@ class Run(Base):
                 "started_at": self.started_at,
                 "status": self.status,
                 "thread_id": self.thread_id,
-                "tool_choice": model_dump(self.tool_choice),
+                "tool_choice": (
+                    self.tool_choice
+                    if isinstance(self.tool_choice, Text)
+                    else model_dump(self.tool_choice)
+                ),
                 "tools": model_dump(self.tools),
                 "truncation_strategy": model_dump(self.truncation_strategy),
                 "usage": model_dump(self.usage),
