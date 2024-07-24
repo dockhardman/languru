@@ -10,6 +10,7 @@ from openai.types.beta.assistant_response_format_option_param import (
 from openai.types.beta.assistant_tool_param import AssistantToolParam
 from openai.types.beta.thread import Thread as OpenaiThread
 from openai.types.beta.threads.message import Message as OpenaiMessage
+from openai.types.beta.threads.run import Run as OpenaiRun
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from languru.utils.common import model_dump
@@ -263,6 +264,71 @@ class Run(Base):
     usage: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
     temperature: Mapped[float] = mapped_column(sa.Float, nullable=True)
     top_p: Mapped[float] = mapped_column(sa.Float, nullable=True)
+
+    @classmethod
+    def from_openai(cls, message: "OpenaiRun") -> "Run":
+        return cls(
+            id=message.id,
+            assistant_id=message.assistant_id,
+            cancelled_at=message.cancelled_at,
+            completed_at=message.completed_at,
+            created_at=message.created_at,
+            expires_at=message.expires_at,
+            failed_at=message.failed_at,
+            incomplete_details=model_dump(message.incomplete_details),
+            instructions=message.instructions,
+            last_error=model_dump(message.last_error),
+            max_completion_tokens=message.max_completion_tokens,
+            max_prompt_tokens=message.max_prompt_tokens,
+            run_metadata=model_dump(message.metadata),
+            model=message.model,
+            object=message.object,
+            parallel_tool_calls=message.parallel_tool_calls,
+            required_action=model_dump(message.required_action),
+            response_format=model_dump(message.response_format),
+            started_at=message.started_at,
+            status=message.status,
+            thread_id=message.thread_id,
+            tool_choice=model_dump(message.tool_choice),
+            tools=model_dump(message.tools),
+            truncation_strategy=model_dump(message.truncation_strategy),
+            usage=model_dump(message.usage),
+            temperature=message.temperature,
+            top_p=message.top_p,
+        )
+
+    def to_openai(self) -> "OpenaiRun":
+        return OpenaiRun.model_validate(
+            {
+                "id": self.id,
+                "assistant_id": self.assistant_id,
+                "cancelled_at": self.cancelled_at,
+                "completed_at": self.completed_at,
+                "created_at": self.created_at,
+                "expires_at": self.expires_at,
+                "failed_at": self.failed_at,
+                "incomplete_details": model_dump(self.incomplete_details),
+                "instructions": self.instructions,
+                "last_error": model_dump(self.last_error),
+                "max_completion_tokens": self.max_completion_tokens,
+                "max_prompt_tokens": self.max_prompt_tokens,
+                "metadata": model_dump(self.run_metadata),
+                "model": self.model,
+                "object": self.object,
+                "parallel_tool_calls": self.parallel_tool_calls,
+                "required_action": model_dump(self.required_action),
+                "response_format": model_dump(self.response_format),
+                "started_at": self.started_at,
+                "status": self.status,
+                "thread_id": self.thread_id,
+                "tool_choice": model_dump(self.tool_choice),
+                "tools": model_dump(self.tools),
+                "truncation_strategy": model_dump(self.truncation_strategy),
+                "usage": model_dump(self.usage),
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+            }
+        )
 
 
 __all__ = ["Assistant", "Thread", "Message", "Run"]
