@@ -30,8 +30,8 @@ class Assistants:
     def list(
         self,
         *,
-        after: Optional[int] = None,
-        before: Optional[int] = None,
+        after: Optional[Text] = None,
+        before: Optional[Text] = None,
         limit: Optional[int] = None,
         order: Optional[Literal["asc", "desc"]] = None,
     ) -> List["Assistant"]:
@@ -49,7 +49,7 @@ class Assistants:
                 try:
                     after_instance = (
                         session.query(self.orm_model)
-                        .filter(self.orm_model.db_id == after)
+                        .filter(self.orm_model.id == after)
                         .one()
                     )
                     if order == "asc":
@@ -68,7 +68,7 @@ class Assistants:
                 try:
                     before_instance = (
                         session.query(self.orm_model)
-                        .filter(self.orm_model.db_id == before)
+                        .filter(self.orm_model.id == before)
                         .one()
                     )
                     if order == "asc":
