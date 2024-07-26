@@ -13,6 +13,7 @@ from languru.types.openai_page import OpenaiPage
 router = APIRouter()
 
 
+# https://platform.openai.com/docs/api-reference/assistants/listAssistants
 @router.get("/assistants")
 async def list_assistants(
     request: Request,
@@ -53,3 +54,79 @@ async def list_assistants(
         last_id=assistants[-1].id if assistants else None,
         has_more=len(assistants) >= limit,
     )
+
+
+# https://platform.openai.com/docs/api-reference/assistants/getAssistant
+# @router.get("/assistants/{assistant_id}")
+
+
+# https://platform.openai.com/docs/api-reference/assistants/modifyAssistant
+# @router.post("/assistants/{assistant_id}")
+
+
+# https://platform.openai.com/docs/api-reference/assistants/deleteAssistant
+# @router.delete("/assistants/{assistant_id}")
+
+
+# https://platform.openai.com/docs/api-reference/threads/createThread
+# @router.post("/threads")
+
+
+# https://platform.openai.com/docs/api-reference/threads/getThread
+# @router.get("/threads/{thread_id}")
+
+
+# https://platform.openai.com/docs/api-reference/threads/modifyThread
+# @router.post("/threads/{thread_id}")
+
+
+# https://platform.openai.com/docs/api-reference/threads/deleteThread
+# @router.delete("/threads/{thread_id}")
+
+
+# https://platform.openai.com/docs/api-reference/messages/createMessage
+# @router.post("/threads/{thread_id}/messages")
+
+
+# https://platform.openai.com/docs/api-reference/messages/listMessages
+# @router.get("/threads/{thread_id}/messages")
+
+
+# https://platform.openai.com/docs/api-reference/messages/getMessage
+# @router.get("/threads/{thread_id}/messages/{message_id}")
+
+
+# https://platform.openai.com/docs/api-reference/messages/modifyMessage
+# @router.post("/threads/{thread_id}/messages/{message_id}")
+
+
+# https://platform.openai.com/docs/api-reference/messages/deleteMessage
+# @router.delete("/threads/{thread_id}/messages/{message_id}")
+
+
+# https://platform.openai.com/docs/api-reference/runs/createRun
+# @router.post("/threads/{thread_id}/runs")
+
+
+# https://platform.openai.com/docs/api-reference/runs/createThreadAndRun
+# @router.post("/threads/runs")
+
+
+# https://platform.openai.com/docs/api-reference/runs/listRuns
+# @router.get("/threads/{thread_id}/runs")
+
+
+# https://platform.openai.com/docs/api-reference/runs/getRun
+# @router.get("/threads/{thread_id}/runs/{run_id}")
+
+
+# https://platform.openai.com/docs/api-reference/runs/modifyRun
+# @router.post("/threads/{thread_id}/runs/{run_id}")
+
+
+# https://platform.openai.com/docs/api-reference/runs/submitToolOutputs
+# @router.post("/threads/{thread_id}/runs/{run_id}/submit_tool_outputs")
+
+
+# https://platform.openai.com/docs/api-reference/runs/cancelRun
+# @router.post("/threads/{thread_id}/runs/{run_id}/cancel")
