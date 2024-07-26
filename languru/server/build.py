@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from languru.config import logger as languru_logger
 from languru.config import settings as languru_settings
+from languru.resources.sql.openai.backend import OpenaiBackend
 from languru.server.config import (
     ServerBaseSettings,
     init_logger_config,
@@ -17,9 +18,16 @@ from languru.server.utils.common import get_value_from_app
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
+    # App initialization
     settings = get_value_from_app(app, key="settings", value_typing=ServerBaseSettings)
     init_paths(settings)
     init_logger_config(settings)
+
+    # OpenAI clients initialization
+    openai_backend = get_value_from_app(
+        app, key="openai_backend", value_typing=OpenaiBackend
+    )
+    openai_backend.touch()
     yield
 
 
@@ -34,6 +42,9 @@ def create_app(settings: "ServerBaseSettings", **kwargs):
     app.state.settings = app.extra["settings"] = settings
     app.state.logger = app.extra["logger"] = logging.getLogger(settings.APP_NAME)
     app.state.openai_clients = app.extra["openai_clients"] = OpenaiClients()
+    app.state.openai_backend = app.extra["openai_backend"] = OpenaiBackend(
+        url=settings.OPENAI_BACKEND_URL
+    )
 
     @app.get("/")
     @app.get("/health")

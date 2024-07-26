@@ -42,6 +42,9 @@ class ServerBaseSettings(BaseSettings):
     RELOAD_DELAY: float = 5.0
     DATA_DIR: Text = str(Path("./data").absolute())
 
+    # Backend configuration
+    OPENAI_BACKEND_URL: Text = "sqlite:///data/openai.db"
+
     # Resources configuration
     openai_available: bool = True if os.environ.get("OPENAI_API_KEY") else False
 
