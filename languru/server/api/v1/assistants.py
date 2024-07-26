@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi import Path as QueryPath
 from fastapi import Query, Request
 from openai.types.beta.assistant import Assistant
+from openai.types.beta.assistant_deleted import AssistantDeleted
 from pyassorted.asyncio.executor import run_func
 
 from languru.exceptions import NotFound
@@ -12,6 +13,7 @@ from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.openai_backend import depends_openai_backend
 from languru.types.openai_assistant_create import AssistantCreateRequest
+from languru.types.openai_assistant_update import AssistantUpdateRequest
 from languru.types.openai_page import OpenaiPage
 
 router = APIRouter()
@@ -103,11 +105,59 @@ async def get_assistant(
 
 
 # https://platform.openai.com/docs/api-reference/assistants/modifyAssistant
-# @router.post("/assistants/{assistant_id}")
+@router.post("/assistants/{assistant_id}")
+async def update_assistant(
+    request: Request,
+    assistant_id: Text = QueryPath(..., description="The ID of the assistant."),
+    assistant_update_request: AssistantUpdateRequest = Body(
+        ...,
+        description="The request to update an assistant.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Assistant:
+    """Update an assistant by ID."""
+
+    try:
+        assistant = await run_func(
+            openai_backend.assistants.update,
+            assistant_id,
+            description=assistant_update_request.description,
+            instructions=assistant_update_request.instructions,
+            metadata=assistant_update_request.metadata,
+            name=assistant_update_request.name,
+            response_format=assistant_update_request.response_format,
+            temperature=assistant_update_request.temperature,
+            tool_resources=assistant_update_request.tool_resources,
+            tools=assistant_update_request.tools,
+            top_p=assistant_update_request.top_p,
+        )
+        return assistant
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # https://platform.openai.com/docs/api-reference/assistants/deleteAssistant
-# @router.delete("/assistants/{assistant_id}")
+@router.delete("/assistants/{assistant_id}")
+async def delete_assistant(
+    request: Request,
+    assistant_id: Text = QueryPath(..., description="The ID of the assistant."),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> AssistantDeleted:
+    """Delete an assistant by ID."""
+
+    try:
+        assistant_deleted = await run_func(
+            openai_backend.assistants.delete, assistant_id
+        )
+        return assistant_deleted
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # https://platform.openai.com/docs/api-reference/threads/createThread
