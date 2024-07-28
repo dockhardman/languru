@@ -17,6 +17,7 @@ from languru.server.deps.common import app_settings
 from languru.server.deps.openai_backend import depends_openai_backend
 from languru.types.openai_page import OpenaiPage
 from languru.types.openai_threads import (
+    ThreadCreateAndRunRequest,
     ThreadCreateRequest,
     ThreadsMessageCreate,
     ThreadsMessageUpdate,
@@ -344,7 +345,31 @@ async def create_run(
 
 
 # https://platform.openai.com/docs/api-reference/runs/createThreadAndRun
-# @router.post("/threads/runs")
+@router.post("/threads/runs")
+async def create_thread_and_run(
+    request: Request,
+    thread_create_and_run_request: ThreadCreateAndRunRequest = Body(
+        ...,
+        description="The parameters for creating a thread and running an assistant.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Run:
+    """Create a thread and run an assistant in it."""
+
+    thread, messages = thread_create_and_run_request.to_openai_thread_and_messages()
+    assistant = await run_func(
+        openai_backend.assistants.retrieve,
+        assistant_id=thread_create_and_run_request.assistant_id,
+    )
+    run = thread_create_and_run_request.to_openai_run(
+        thread_id=thread.id, assistant_instructions=assistant.instructions
+    )
+    thread = await run_func(
+        openai_backend.threads.create, thread=thread, messages=messages
+    )
+    run = await run_func(openai_backend.threads.runs.create, run=run)
+    return run
 
 
 # https://platform.openai.com/docs/api-reference/runs/listRuns
