@@ -12,8 +12,10 @@ from languru.resources.sql.openai.backend import OpenaiBackend
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.openai_backend import depends_openai_backend
-from languru.types.openai_assistant_create import AssistantCreateRequest
-from languru.types.openai_assistant_update import AssistantUpdateRequest
+from languru.types.openai_assistants import (
+    AssistantCreateRequest,
+    AssistantUpdateRequest,
+)
 from languru.types.openai_page import OpenaiPage
 
 router = APIRouter()
