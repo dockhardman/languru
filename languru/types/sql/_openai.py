@@ -1,13 +1,12 @@
-import time
 from typing import Dict, Iterable, List, Optional, Text, Union
 
 import sqlalchemy as sa
-from openai.types.beta import assistant_create_params, thread_create_params
 from openai.types.beta.assistant import Assistant as OpenaiAssistant
-from openai.types.beta.assistant_response_format_option_param import (
-    AssistantResponseFormatOptionParam,
+from openai.types.beta.assistant import ToolResources
+from openai.types.beta.assistant_response_format_option import (
+    AssistantResponseFormatOption,
 )
-from openai.types.beta.assistant_tool_param import AssistantToolParam
+from openai.types.beta.assistant_tool import AssistantTool
 from openai.types.beta.thread import Thread as OpenaiThread
 from openai.types.beta.threads.message import Message as OpenaiMessage
 from openai.types.beta.threads.run import Run as OpenaiRun
@@ -83,10 +82,10 @@ class Assistant(Base):
         instructions: Optional[Text] = None,
         metadata: Optional[Dict] = None,
         name: Optional[Text] = None,
-        response_format: Optional[AssistantResponseFormatOptionParam] = None,
+        response_format: Optional[AssistantResponseFormatOption] = None,
         temperature: Optional[float] = None,
-        tool_resources: Optional[assistant_create_params.ToolResources] = None,
-        tools: Optional[Iterable[AssistantToolParam]] = None,
+        tool_resources: Optional[ToolResources] = None,
+        tools: Optional[Iterable[AssistantTool]] = None,
         top_p: Optional[float] = None,
         **kwargs,
     ):
@@ -151,7 +150,7 @@ class Thread(Base):
         self,
         *,
         metadata: Optional[Dict] = None,
-        tool_resources: Optional[assistant_create_params.ToolResources] = None,
+        tool_resources: Optional[ToolResources] = None,
         **kwargs,
     ):
         if metadata is not None:
@@ -199,17 +198,15 @@ class Message(Base):
         )
 
     @classmethod
-    def from_openai_create_params(
-        cls, message_id: Text, message: thread_create_params.Message
-    ) -> "Message":
+    def from_openai_create_params(cls, message: OpenaiMessage) -> "Message":
         return cls(
-            id=message_id,
-            content=model_dump(message["content"]),
-            role=message["role"],
-            created_at=int(time.time()),
-            object="thread.message",
-            attachments=model_dump(message.get("attachments") or []),
-            message_metadata=model_dump(message.get("metadata") or {}),
+            id=message.id,
+            content=model_dump(message.content),
+            role=message.role,
+            created_at=message.created_at,
+            object=message.object,
+            attachments=model_dump(message.attachments or []),
+            message_metadata=model_dump(message.metadata or {}),
         )
 
     def to_openai(self) -> "OpenaiMessage":

@@ -1,16 +1,16 @@
 from typing import TYPE_CHECKING, Dict, Iterable, List, Literal, Optional, Text, Type
 
 import sqlalchemy.exc
-from openai.types.beta import thread_create_params
+from openai.types.beta.assistant import ToolResources
 from openai.types.beta.thread import Thread
 from openai.types.beta.thread_deleted import ThreadDeleted
+from openai.types.beta.threads.message import Message as OpenaiMessage
 
 from languru.exceptions import NotFound
 from languru.resources.sql.openai.backend.messages import Messages as MessagesBackend
 from languru.resources.sql.openai.backend.runs import Runs as RunsBackend
 from languru.types.sql._openai import Message as OrmMessage
 from languru.types.sql._openai import Thread as OrmThread
-from languru.utils.openai_utils import rand_message_id
 
 if TYPE_CHECKING:
     from languru.resources.sql.openai.backend._client import OpenaiBackend
@@ -97,15 +97,13 @@ class Threads:
     def create(
         self,
         thread: "Thread",
-        messages: Optional[Iterable["thread_create_params.Message"]] = None,
+        messages: Optional[Iterable[OpenaiMessage]] = None,
     ) -> "Thread":
         with self._client.sql_session() as session:
             orm_thread = OrmThread.from_openai(thread)
             session.add(orm_thread)
             for message in messages or []:
-                orm_message = OrmMessage.from_openai_create_params(
-                    rand_message_id(), message=message
-                )
+                orm_message = OrmMessage.from_openai_create_params(message)
                 session.add(orm_message)
             session.commit()
 
@@ -128,7 +126,7 @@ class Threads:
         thread_id: Text,
         *,
         metadata: Optional[Dict] = None,
-        tool_resources: Optional[thread_create_params.ToolResources] = None,
+        tool_resources: Optional[ToolResources] = None,
     ) -> "Thread":
         with self._client.sql_session() as session:
             thread = (
