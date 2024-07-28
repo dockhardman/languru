@@ -5,6 +5,7 @@ from fastapi import Path as QueryPath
 from fastapi import Query, Request
 from openai.types.beta.assistant import Assistant
 from openai.types.beta.assistant_deleted import AssistantDeleted
+from openai.types.beta.thread import Thread
 from pyassorted.asyncio.executor import run_func
 
 from languru.exceptions import NotFound
@@ -17,6 +18,47 @@ from languru.types.openai_assistant_update import AssistantUpdateRequest
 from languru.types.openai_page import OpenaiPage
 
 router = APIRouter()
+
+
+@router.get("/threads")
+async def list_threads(
+    request: Request,
+    after: Optional[Text] = Query(
+        None,
+        description="`after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include after=obj_foo in order to fetch the next page of the list.",  # noqa: E501
+    ),
+    before: Optional[Text] = Query(
+        None,
+        description="`before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include before=obj_foo in order to fetch the previous page of the list.",  # noqa: E501
+    ),
+    limit: int = Query(
+        20,
+        ge=1,
+        le=100,
+        description="A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 20.",  # noqa: E501
+    ),
+    order: Optional[Literal["asc", "desc"]] = Query(
+        None,
+        description="Sort order by the `created_at` timestamp of the objects. `asc` for ascending order and `desc` for descending order.",  # noqa: E501
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> OpenaiPage[Thread]:
+    """List all threads."""
+
+    threads = await run_func(
+        openai_backend.threads.list,
+        after=after,
+        before=before,
+        limit=limit,
+        order=order,
+    )
+    return OpenaiPage(
+        data=threads,
+        object="list",
+        first_id=threads[0].id if threads else None,
+        last_id=threads[-1].id if threads else None,
+    )
 
 
 # https://platform.openai.com/docs/api-reference/threads/createThread

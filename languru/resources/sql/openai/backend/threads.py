@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING, Dict, Iterable, Optional, Text, Type
+from typing import TYPE_CHECKING, Dict, Iterable, List, Literal, Optional, Text, Type
 
+import sqlalchemy.exc
 from openai.types.beta import thread_create_params
 from openai.types.beta.thread import Thread
 from openai.types.beta.thread_deleted import ThreadDeleted
@@ -31,6 +32,67 @@ class Threads:
 
         self.messages = MessagesBackend(client=self._client)
         self.runs = RunsBackend(client=self._client)
+
+    def list(
+        self,
+        *,
+        after: Optional[Text] = None,
+        before: Optional[Text] = None,
+        limit: Optional[int] = None,
+        order: Optional[Literal["asc", "desc"]] = None,
+    ) -> List["Thread"]:
+        with self._client.sql_session() as session:
+            query = session.query(self.orm_model)
+
+            # Apply sorting
+            if order == "desc":
+                query = query.order_by(self.orm_model.created_at.desc())
+            else:
+                query = query.order_by(self.orm_model.created_at.asc())
+
+            # Apply pagination using after
+            if after is not None:
+                try:
+                    after_instance = (
+                        session.query(self.orm_model)
+                        .filter(self.orm_model.id == after)
+                        .one()
+                    )
+                    if order == "asc":
+                        query = query.filter(
+                            self.orm_model.created_at > after_instance.created_at
+                        )
+                    else:
+                        query = query.filter(
+                            self.orm_model.created_at < after_instance.created_at
+                        )
+                except sqlalchemy.exc.NoResultFound:
+                    raise NotFound(f"Thread {after} not found")
+
+            # Apply pagination using before
+            if before is not None:
+                try:
+                    before_instance = (
+                        session.query(self.orm_model)
+                        .filter(self.orm_model.id == before)
+                        .one()
+                    )
+                    if order == "asc":
+                        query = query.filter(
+                            self.orm_model.created_at < before_instance.created_at
+                        )
+                    else:
+                        query = query.filter(
+                            self.orm_model.created_at > before_instance.created_at
+                        )
+                except sqlalchemy.exc.NoResultFound:
+                    raise NotFound(f"Thread {before} not found")
+
+            # Apply limit
+            if limit is not None:
+                query = query.limit(limit)
+
+            return [thread.to_openai() for thread in query.all()]
 
     def create(
         self,
