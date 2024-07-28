@@ -3,9 +3,8 @@ from typing import Literal, Optional, Text
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi import Path as QueryPath
 from fastapi import Query, Request
-from openai.types.beta.assistant import Assistant
-from openai.types.beta.assistant_deleted import AssistantDeleted
 from openai.types.beta.thread import Thread
+from openai.types.beta.thread_deleted import ThreadDeleted
 from pyassorted.asyncio.executor import run_func
 
 from languru.exceptions import NotFound
@@ -13,10 +12,8 @@ from languru.resources.sql.openai.backend import OpenaiBackend
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.openai_backend import depends_openai_backend
-from languru.types.openai_assistant_create import AssistantCreateRequest
-from languru.types.openai_assistant_update import AssistantUpdateRequest
 from languru.types.openai_page import OpenaiPage
-from languru.types.openai_threads import ThreadCreateRequest
+from languru.types.openai_threads import ThreadCreateRequest, ThreadUpdateRequest
 
 router = APIRouter()
 
@@ -84,15 +81,75 @@ async def create_thread(
 
 
 # https://platform.openai.com/docs/api-reference/threads/getThread
-# @router.get("/threads/{thread_id}")
+@router.get("/threads/{thread_id}")
+async def get_thread(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread to retrieve.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Thread:
+    """Get a thread."""
+
+    try:
+        thread = await run_func(
+            openai_backend.threads.retrieve,
+            thread_id=thread_id,
+        )
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return thread
 
 
 # https://platform.openai.com/docs/api-reference/threads/modifyThread
-# @router.post("/threads/{thread_id}")
+@router.post("/threads/{thread_id}")
+async def update_thread(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread to update.",
+    ),
+    thread_update_request: ThreadUpdateRequest = Body(
+        ...,
+        description="The parameters for updating a thread.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Thread:
+    """Update a thread."""
+
+    thread = await run_func(
+        openai_backend.threads.update,
+        thread_id=thread_id,
+        metadata=thread_update_request.metadata,
+        tool_resources=thread_update_request.tool_resources,
+    )
+    return thread
 
 
 # https://platform.openai.com/docs/api-reference/threads/deleteThread
-# @router.delete("/threads/{thread_id}")
+@router.delete("/threads/{thread_id}")
+async def delete_thread(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread to delete.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> ThreadDeleted:
+    """Delete a thread."""
+
+    try:
+        thread = await run_func(
+            openai_backend.threads.delete,
+            thread_id=thread_id,
+        )
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return thread
 
 
 # https://platform.openai.com/docs/api-reference/messages/createMessage

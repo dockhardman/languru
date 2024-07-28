@@ -85,3 +85,17 @@ class ThreadCreateRequest(BaseModel):
         data["object"] = "thread"
         data["created_at"] = int(time.time())
         return Thread.model_validate(data)
+
+
+class ThreadUpdateRequest(BaseModel):
+    metadata: Optional[Dict[Text, Text]] = Field(
+        default=None,
+        description="Set of 16 key-value pairs that can be attached to an object.",
+    )
+    tool_resources: Optional[ToolResources] = Field(
+        default=None,
+        description=(
+            "A set of resources that are made available to "
+            + "the assistant's tools in this thread."
+        ),
+    )
