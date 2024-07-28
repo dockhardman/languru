@@ -7,6 +7,7 @@ from openai.types.beta.thread import Thread
 from openai.types.beta.thread_deleted import ThreadDeleted
 from openai.types.beta.threads.message import Message
 from openai.types.beta.threads.message_deleted import MessageDeleted
+from openai.types.beta.threads.run import Run
 from pyassorted.asyncio.executor import run_func
 
 from languru.exceptions import NotFound
@@ -19,6 +20,7 @@ from languru.types.openai_threads import (
     ThreadCreateRequest,
     ThreadsMessageCreate,
     ThreadsMessageUpdate,
+    ThreadsRunCreate,
     ThreadUpdateRequest,
 )
 
@@ -318,7 +320,27 @@ async def delete_message(
 
 
 # https://platform.openai.com/docs/api-reference/runs/createRun
-# @router.post("/threads/{thread_id}/runs")
+@router.post("/threads/{thread_id}/runs")
+async def create_run(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread to create a run in.",
+    ),
+    run_create_request: ThreadsRunCreate = Body(
+        ...,
+        description="The parameters for creating a run.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Run:
+    """Create a run in a thread."""
+
+    run = await run_func(
+        openai_backend.threads.runs.create,
+        run=run_create_request.to_openai_run(thread_id=thread_id),
+    )
+    return run
 
 
 # https://platform.openai.com/docs/api-reference/runs/createThreadAndRun
