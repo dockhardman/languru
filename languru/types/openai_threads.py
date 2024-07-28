@@ -62,6 +62,13 @@ class ThreadsMessageCreate(BaseModel):
         return OpenaiMessage.model_validate(data)
 
 
+class ThreadsMessageUpdate(BaseModel):
+    metadata: Optional[Dict[Text, Text]] = Field(
+        default=None,
+        description="Set of 16 key-value pairs that can be attached to an object.",
+    )
+
+
 class ThreadCreateRequest(BaseModel):
     messages: Optional[List[ThreadsMessageCreate]] = Field(
         default=None,
