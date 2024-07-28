@@ -13,7 +13,10 @@ from openai.types.beta.threads.image_file import ImageFile
 from openai.types.beta.threads.image_url import ImageURL
 from openai.types.beta.threads.message import AttachmentTool
 from openai.types.beta.threads.message import Message as OpenaiMessage
+from openai.types.beta.threads.run import IncompleteDetails, LastError, RequiredAction
 from openai.types.beta.threads.run import Run as OpenaiRun
+from openai.types.beta.threads.run import TruncationStrategy, Usage
+from openai.types.beta.threads.run_status import RunStatus
 from openai.types.beta.threads.text import Text as OpenaiText
 from openai.types.beta.threads.text_content_block import (
     TextContentBlock as OpenaiTextContentBlock,
@@ -186,6 +189,97 @@ class ThreadsRunCreate(BaseModel):
         data["created_at"] = int(time.time())
         data["thread_id"] = thread_id
         return OpenaiRun.model_validate(data)
+
+
+class ThreadsRunUpdate(BaseModel):
+    metadata: Optional[Dict[Text, Text]] = Field(
+        default=None,
+        description="Set of 16 key-value pairs that can be attached to an object.",
+    )
+    cancelled_at: Optional[int] = Field(
+        default=None,
+        description="The time at which the run was cancelled.",
+    )
+    completed_at: Optional[int] = Field(
+        default=None,
+        description="The time at which the run was completed.",
+    )
+    expires_at: Optional[int] = Field(
+        default=None,
+        description="The time at which the run expires.",
+    )
+    failed_at: Optional[int] = Field(
+        default=None,
+        description="The time at which the run failed.",
+    )
+    incomplete_details: Optional[IncompleteDetails] = Field(
+        default=None,
+        description="Details on why the run is incomplete.",
+    )
+    instructions: Optional[Text] = Field(
+        default=None,
+        description="The instructions the assistant used for this run.",
+    )
+    last_error: Optional[LastError] = Field(
+        default=None,
+        description="The last error associated with this run.",
+    )
+    max_completion_tokens: Optional[int] = Field(
+        default=None,
+        description="The maximum number of completion tokens specified to have been used over the course of the run.",  # noqa: E501
+    )
+    max_prompt_tokens: Optional[int] = Field(
+        default=None,
+        description="The maximum number of prompt tokens specified to have been used over the course of the run.",  # noqa: E501
+    )
+    model: Optional[Text] = Field(
+        default=None,
+        description="The model that the assistant used for this run.",
+    )
+    parallel_tool_calls: Optional[bool] = Field(
+        default=None,
+        description="Whether to enable parallel function calling during tool use.",
+    )
+    required_action: Optional[RequiredAction] = Field(
+        default=None,
+        description="The required action for the run.",
+    )
+    response_format: Optional[AssistantResponseFormatOption] = Field(
+        default=None,
+        description="Specifies the format that the model must output.",
+    )
+    started_at: Optional[int] = Field(
+        default=None,
+        description="The time at which the run started.",
+    )
+    status: Optional[RunStatus] = Field(
+        default=None,
+        description="The status of the run.",
+    )
+    tool_choice: Optional[AssistantToolChoiceOption] = Field(
+        default=None,
+        description="Controls which (if any) tool is called by the model.",
+    )
+    tools: Optional[List[AssistantTool]] = Field(
+        default=None,
+        description="The list of tools that the assistant used for this run.",
+    )
+    truncation_strategy: Optional[TruncationStrategy] = Field(
+        default=None,
+        description="Controls for how a thread will be truncated prior to the run.",
+    )
+    usage: Optional[Usage] = Field(
+        default=None,
+        description="Usage statistics related to the run.",
+    )
+    temperature: Optional[float] = Field(
+        default=None,
+        description="The sampling temperature used for this run.",
+    )
+    top_p: Optional[float] = Field(
+        default=None,
+        description="The nucleus sampling value used for this run.",
+    )
 
 
 class ThreadCreateAndRunRequest(BaseModel):

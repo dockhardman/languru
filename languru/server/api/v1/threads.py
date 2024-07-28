@@ -22,6 +22,7 @@ from languru.types.openai_threads import (
     ThreadsMessageCreate,
     ThreadsMessageUpdate,
     ThreadsRunCreate,
+    ThreadsRunUpdate,
     ThreadUpdateRequest,
 )
 
@@ -373,15 +374,132 @@ async def create_thread_and_run(
 
 
 # https://platform.openai.com/docs/api-reference/runs/listRuns
-# @router.get("/threads/{thread_id}/runs")
+@router.get("/threads/{thread_id}/runs")
+async def list_runs(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread to list runs in.",
+    ),
+    after: Optional[Text] = Query(
+        None,
+        description="`after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include after=obj_foo in order to fetch the next page of the list.",  # noqa: E501
+    ),
+    before: Optional[Text] = Query(
+        None,
+        description="`before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include before=obj_foo in order to fetch the previous page of the list.",  # noqa: E501
+    ),
+    limit: int = Query(
+        20,
+        ge=1,
+        le=100,
+        description="A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 20.",  # noqa: E501
+    ),
+    order: Optional[Literal["asc", "desc"]] = Query(
+        None,
+        description="Sort order by the `created_at` timestamp of the objects. `asc` for ascending order and `desc` for descending order.",  # noqa: E501
+    ),
+    assistant_id: Optional[Text] = Query(
+        None,
+        description="The ID of the assistant to filter runs by.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> OpenaiPage[Run]:
+    """List all runs in a thread."""
+
+    runs = await run_func(
+        openai_backend.threads.runs.list,
+        thread_id=thread_id,
+        after=after,
+        before=before,
+        limit=limit,
+        order=order,
+        assistant_id=assistant_id,
+    )
+    return OpenaiPage(
+        data=runs,
+        object="list",
+        first_id=runs[0].id if runs else None,
+        last_id=runs[-1].id if runs else None,
+    )
 
 
 # https://platform.openai.com/docs/api-reference/runs/getRun
-# @router.get("/threads/{thread_id}/runs/{run_id}")
+@router.get("/threads/{thread_id}/runs/{run_id}")
+async def get_run(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread containing the run.",
+    ),
+    run_id: Text = QueryPath(
+        ...,
+        description="The ID of the run to retrieve.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Run:
+    """Get a run in a thread."""
+
+    try:
+        run = await run_func(
+            openai_backend.threads.runs.retrieve, run_id=run_id, thread_id=thread_id
+        )
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return run
 
 
 # https://platform.openai.com/docs/api-reference/runs/modifyRun
-# @router.post("/threads/{thread_id}/runs/{run_id}")
+@router.post("/threads/{thread_id}/runs/{run_id}")
+async def update_run(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread containing the run.",
+    ),
+    run_id: Text = QueryPath(
+        ...,
+        description="The ID of the run to update.",
+    ),
+    run_update_request: ThreadsRunUpdate = Body(
+        ...,
+        description="The parameters for updating a run.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Run:
+    """Update a run in a thread."""
+
+    run = await run_func(
+        openai_backend.threads.runs.update,
+        run_id=run_id,
+        thread_id=thread_id,
+        cancelled_at=run_update_request.cancelled_at,
+        completed_at=run_update_request.completed_at,
+        expires_at=run_update_request.expires_at,
+        failed_at=run_update_request.failed_at,
+        incomplete_details=run_update_request.incomplete_details,
+        instructions=run_update_request.instructions,
+        last_error=run_update_request.last_error,
+        max_completion_tokens=run_update_request.max_completion_tokens,
+        max_prompt_tokens=run_update_request.max_prompt_tokens,
+        metadata=run_update_request.metadata,
+        model=run_update_request.model,
+        parallel_tool_calls=run_update_request.parallel_tool_calls,
+        required_action=run_update_request.required_action,
+        response_format=run_update_request.response_format,
+        started_at=run_update_request.started_at,
+        status=run_update_request.status,
+        tool_choice=run_update_request.tool_choice,
+        tools=run_update_request.tools,
+        truncation_strategy=run_update_request.truncation_strategy,
+        usage=run_update_request.usage,
+        temperature=run_update_request.temperature,
+        top_p=run_update_request.top_p,
+    )
+    return run
 
 
 # https://platform.openai.com/docs/api-reference/runs/submitToolOutputs

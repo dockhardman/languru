@@ -255,7 +255,7 @@ class Run(Base):
     started_at: Mapped[int] = mapped_column(sa.Integer, nullable=True)
     status: Mapped[Text] = mapped_column(sa.String)
     thread_id: Mapped[Text] = mapped_column(sa.String, index=True)
-    tool_choice: Mapped[Text] = mapped_column(sa.JSON, nullable=True)
+    tool_choice: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
     tools: Mapped[List[Dict]] = mapped_column(sa.JSON)
     truncation_strategy: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
     usage: Mapped[Dict] = mapped_column(sa.JSON, nullable=True)
