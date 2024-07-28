@@ -1,15 +1,20 @@
+import time
 from typing import Dict, List, Literal, Optional, Text, Union
 
 from openai.types.beta.assistant import ToolResources
+from openai.types.beta.thread import Thread
 from openai.types.beta.threads.annotation import Annotation as OpenaiAnnotation
 from openai.types.beta.threads.image_file import ImageFile
 from openai.types.beta.threads.image_url import ImageURL
 from openai.types.beta.threads.message import AttachmentTool
+from openai.types.beta.threads.message import Message as OpenaiMessage
 from openai.types.beta.threads.text import Text as OpenaiText
 from openai.types.beta.threads.text_content_block import (
     TextContentBlock as OpenaiTextContentBlock,
 )
 from pydantic import BaseModel, Field
+
+from languru.utils.openai_utils import rand_openai_id
 
 
 class TextContentBlockText(OpenaiText):
@@ -45,6 +50,17 @@ class ThreadsMessageCreate(BaseModel):
         description="Set of 16 key-value pairs that can be attached to an object.",
     )
 
+    def to_openai_message(self) -> OpenaiMessage:
+        data = self.model_dump()
+        data["id"] = rand_openai_id("message")
+        data["object"] = "thread.message"
+        data["created_at"] = int(time.time())
+        if isinstance(data["content"], Text):
+            data["content"] = [
+                TextContentBlock.model_validate({"text": {"value": data["content"]}})
+            ]
+        return OpenaiMessage.model_validate(data)
+
 
 class ThreadCreateRequest(BaseModel):
     messages: Optional[List[ThreadsMessageCreate]] = Field(
@@ -62,3 +78,10 @@ class ThreadCreateRequest(BaseModel):
             + "the assistant's tools in this thread."
         ),
     )
+
+    def to_openai_thread(self) -> Thread:
+        data = self.model_dump()
+        data["id"] = rand_openai_id("thread")
+        data["object"] = "thread"
+        data["created_at"] = int(time.time())
+        return Thread.model_validate(data)

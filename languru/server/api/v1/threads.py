@@ -16,6 +16,7 @@ from languru.server.deps.openai_backend import depends_openai_backend
 from languru.types.openai_assistant_create import AssistantCreateRequest
 from languru.types.openai_assistant_update import AssistantUpdateRequest
 from languru.types.openai_page import OpenaiPage
+from languru.types.openai_threads import ThreadCreateRequest
 
 router = APIRouter()
 
@@ -62,7 +63,24 @@ async def list_threads(
 
 
 # https://platform.openai.com/docs/api-reference/threads/createThread
-# @router.post("/threads")
+@router.post("/threads")
+async def create_thread(
+    request: Request,
+    thread_create_request: ThreadCreateRequest = Body(
+        ...,
+        description="The parameters for creating a thread.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Thread:
+    """Create a thread."""
+
+    thread = await run_func(
+        openai_backend.threads.create,
+        thread=thread_create_request.to_openai_thread(),
+        messages=[m.to_openai_message() for m in thread_create_request.messages or []],
+    )
+    return thread
 
 
 # https://platform.openai.com/docs/api-reference/threads/getThread
