@@ -17,6 +17,7 @@ from languru.server.deps.common import app_settings
 from languru.server.deps.openai_backend import depends_openai_backend
 from languru.types.openai_page import OpenaiPage
 from languru.types.openai_threads import (
+    RunSubmitToolOutputsRequest,
     ThreadCreateAndRunRequest,
     ThreadCreateRequest,
     ThreadsMessageCreate,
@@ -503,8 +504,44 @@ async def update_run(
 
 
 # https://platform.openai.com/docs/api-reference/runs/submitToolOutputs
-# @router.post("/threads/{thread_id}/runs/{run_id}/submit_tool_outputs")
+@router.post("/threads/{thread_id}/runs/{run_id}/submit_tool_outputs")
+async def submit_tool_outputs(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread containing the run.",
+    ),
+    run_id: Text = QueryPath(
+        ...,
+        description="The ID of the run to submit tool outputs for.",
+    ),
+    run_submit_tool_outputs_request: RunSubmitToolOutputsRequest = Body(
+        ...,
+        description="The parameters for submitting tool outputs for a run.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Run:
+    """Submit tool outputs for a run in a thread."""
+
+    raise HTTPException(status_code=501, detail="Not implemented")
 
 
 # https://platform.openai.com/docs/api-reference/runs/cancelRun
-# @router.post("/threads/{thread_id}/runs/{run_id}/cancel")
+@router.post("/threads/{thread_id}/runs/{run_id}/cancel")
+async def cancel_run(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread containing the run.",
+    ),
+    run_id: Text = QueryPath(
+        ...,
+        description="The ID of the run to cancel.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Run:
+    """Cancel a run in a thread."""
+
+    raise HTTPException(status_code=501, detail="Not implemented")
