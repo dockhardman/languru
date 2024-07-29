@@ -26,6 +26,7 @@ from languru.types.openai_threads import (
     ThreadsRunUpdate,
     ThreadUpdateRequest,
 )
+from languru.utils.openai_utils import rand_openai_id
 
 router = APIRouter()
 
@@ -84,10 +85,14 @@ async def create_thread(
 ) -> Thread:
     """Create a thread."""
 
+    thread_id = rand_openai_id("thread")
     thread = await run_func(
         openai_backend.threads.create,
-        thread=thread_create_request.to_openai_thread(),
-        messages=[m.to_openai_message() for m in thread_create_request.messages or []],
+        thread=thread_create_request.to_openai_thread(thread_id),
+        messages=[
+            m.to_openai_message(thread_id=thread_id)
+            for m in thread_create_request.messages or []
+        ],
     )
     return thread
 
@@ -184,7 +189,7 @@ async def create_message(
     message = await run_func(
         openai_backend.threads.messages.create,
         thread_id=thread_id,
-        message=message_create_request.to_openai_message(),
+        message=message_create_request.to_openai_message(thread_id=thread_id),
     )
     return message
 

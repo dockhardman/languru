@@ -103,7 +103,7 @@ class Threads:
             orm_thread = OrmThread.from_openai(thread)
             session.add(orm_thread)
             for message in messages or []:
-                orm_message = OrmMessage.from_openai_create_params(message)
+                orm_message = OrmMessage.from_openai(message)
                 session.add(orm_message)
             session.commit()
 

@@ -197,18 +197,6 @@ class Message(Base):
             thread_id=message.thread_id,
         )
 
-    @classmethod
-    def from_openai_create_params(cls, message: OpenaiMessage) -> "Message":
-        return cls(
-            id=message.id,
-            content=model_dump(message.content),
-            role=message.role,
-            created_at=message.created_at,
-            object=message.object,
-            attachments=model_dump(message.attachments or []),
-            message_metadata=model_dump(message.metadata or {}),
-        )
-
     def to_openai(self) -> "OpenaiMessage":
         return OpenaiMessage.model_validate(
             {

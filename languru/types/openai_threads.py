@@ -59,9 +59,16 @@ class ThreadsMessageCreate(BaseModel):
         description="Set of 16 key-value pairs that can be attached to an object.",
     )
 
-    def to_openai_message(self, message_id: Optional[Text] = None) -> OpenaiMessage:
+    def to_openai_message(
+        self,
+        thread_id: Text,
+        message_id: Optional[Text] = None,
+        status: Literal["in_progress", "incomplete", "completed"] = "completed",
+    ) -> OpenaiMessage:
         data = self.model_dump()
         data["id"] = message_id or rand_openai_id("message")
+        data["thread_id"] = thread_id
+        data["status"] = status
         data["object"] = "thread.message"
         data["created_at"] = int(time.time())
         if isinstance(data["content"], Text):
@@ -352,7 +359,7 @@ class ThreadCreateAndRunRequest(BaseModel):
             self.thread or ThreadCreateRequest.model_validate({})
         ).to_openai_thread(thread_id)
         messages = (
-            [m.to_openai_message() for m in self.thread.messages]
+            [m.to_openai_message(thread_id=thread.id) for m in self.thread.messages]
             if self.thread and self.thread.messages
             else []
         )
