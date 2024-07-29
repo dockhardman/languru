@@ -1,13 +1,12 @@
 from typing import TYPE_CHECKING, Dict, Iterable, List, Literal, Optional, Text, Type
 
 import sqlalchemy.exc
-from openai.types.beta import assistant_create_params
-from openai.types.beta.assistant import Assistant
+from openai.types.beta.assistant import Assistant, ToolResources
 from openai.types.beta.assistant_deleted import AssistantDeleted
-from openai.types.beta.assistant_response_format_option_param import (
-    AssistantResponseFormatOptionParam,
+from openai.types.beta.assistant_response_format_option import (
+    AssistantResponseFormatOption,
 )
-from openai.types.beta.assistant_tool_param import AssistantToolParam
+from openai.types.beta.assistant_tool import AssistantTool
 
 from languru.exceptions import NotFound
 from languru.types.sql._openai import Assistant as OrmAssistant
@@ -107,10 +106,10 @@ class Assistants:
         instructions: Optional[Text] = None,
         metadata: Optional[Dict] = None,
         name: Optional[Text] = None,
-        response_format: Optional[AssistantResponseFormatOptionParam] = None,
+        response_format: Optional[AssistantResponseFormatOption] = None,
         temperature: Optional[float] = None,
-        tool_resources: Optional[assistant_create_params.ToolResources] = None,
-        tools: Optional[Iterable[AssistantToolParam]] = None,
+        tool_resources: Optional[ToolResources] = None,
+        tools: Optional[Iterable[AssistantTool]] = None,
         top_p: Optional[float] = None,
     ) -> "Assistant":
         try:
