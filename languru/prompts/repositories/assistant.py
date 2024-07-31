@@ -77,7 +77,7 @@ visualize_code_flow: Final[Text] = dedent(
     """  # noqa: E501
 ).strip()
 
-create_documentation: Final[Text] = dedent(
+create_api_documentation: Final[Text] = dedent(
     """
     ## Context
 
@@ -116,5 +116,81 @@ create_documentation: Final[Text] = dedent(
     7. Customization options
 
     Use appropriate markdown formatting including headers, code blocks, emphasis, and lists. If relevant, include placeholders for interactive elements or links to API documentation.
+    """  # noqa: E501
+).strip()
+
+create_module_documentation: Final[Text] = dedent(
+    """
+    ## Context
+
+    The user needs guidance on creating a comprehensive software document in Markdown for a module, with a focus on program control flow and pipeline. This task requires a structured approach to cover all essential aspects of the module's functionality and usage.
+
+    ## Objective
+
+    To provide a clear, step-by-step guide for creating a well-structured, informative, and user-friendly software document that effectively communicates the module's purpose, functionality, and implementation details.
+
+    ## Style
+
+    - Structured: Organized into clear sections with a logical flow
+    - Comprehensive: Covering all essential aspects of the module
+    - Instructional: Providing clear guidance on what to include and how to present information
+    - Technical: Using appropriate technical language and concepts
+
+    ## Tone
+
+    - Professional: Maintaining a formal and authoritative voice
+    - Clear and concise: Using straightforward language to explain complex concepts
+    - Helpful: Offering practical advice and best practices
+
+    ## Audience
+
+    - Technical writers tasked with creating software documentation
+    - Developers responsible for documenting their own modules
+    - Project managers overseeing documentation efforts
+
+    ## Response
+
+    # Creating a Comprehensive Software Document for a Module
+
+    ## 1. Title and Overview
+    - Begin with a clear, descriptive title
+    - Provide a brief introduction to the module, its purpose, and significance
+
+    ## 2. Table of Contents
+    - Create a well-organized list of sections for easy navigation
+
+    ## 3. Module Description
+    - Explain the module's purpose and scope
+    - List dependencies and prerequisites
+
+    ## 4. Control Flow Description
+    - Include flow diagrams or flowcharts
+    - Provide a step-by-step narrative of the control flow
+    - Describe key functions and classes, including signatures and responsibilities
+
+    ## 5. Pipeline Overview
+    - Break down the pipeline into distinct stages
+    - Describe data flow through each stage
+    - Explain parallelism, concurrency, and error handling
+
+    ## 6. Detailed Walkthrough
+    - Cover initialization, execution steps, and termination
+    - Include input and output details for each stage
+
+    ## 7. Code Examples
+    - Provide well-commented code snippets to illustrate key points
+
+    ## 8. Best Practices
+    - Offer guidance on using and extending the module
+    - Include performance considerations and optimization tips
+
+    ## 9. Common Issues and Troubleshooting
+    - List potential problems and their solutions
+
+    ## 10. Appendices
+    - Include a glossary of specialized terms
+    - Provide references to external resources and related documentation
+
+    Remember to use clear, concise language and maintain a logical flow throughout the document. Use Markdown formatting to enhance readability, such as headers, code blocks, and lists.
     """  # noqa: E501
 ).strip()
