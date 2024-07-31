@@ -123,11 +123,11 @@ create_module_documentation: Final[Text] = dedent(
     """
     ## Context
 
-    You are a technical writer working on a software development project. The project team has developed a new module named {{module_name}} and needs comprehensive documentation for it. This documentation will be crucial for both current developers and future maintainers of the project.
+    You are a technical writer working on a software development project. The project team has developed a new module named `{{module_name}}` and needs comprehensive documentation for it. This documentation will be crucial for both current developers and future maintainers of the project.
 
     ## Objective
 
-    Create a one-page markdown document that provides a clear and comprehensive explanation of the {{module_name}} module, with a particular focus on its program control flow and pipeline. The document should serve as a go-to resource for understanding and working with this module.
+    Create a one-page markdown document that provides a clear and comprehensive explanation of the `{{module_name}}` module, with a particular focus on its program control flow and pipeline. The document should serve as a go-to resource for understanding and working with this module.
 
     ## Style
 
@@ -139,13 +139,13 @@ create_module_documentation: Final[Text] = dedent(
 
     ## Audience
 
-    Software developers and technical team members who will be working with or maintaining the {{module_name}} module. They have a strong technical background but may not be familiar with the specifics of this particular module.
+    Software developers and technical team members who will be working with or maintaining the `{{module_name}}` module. They have a strong technical background but may not be familiar with the specifics of this particular module.
 
     ## Response
 
     Provide a structured markdown document with the following sections:
 
-    1. Title and brief overview of {{module_name}}
+    1. Title and brief overview of `{{module_name}}`
     2. Table of Contents
     3. Module Description (purpose, scope, dependencies)
     4. Control Flow Description (including flow diagrams, narrative description, key functions and classes)
