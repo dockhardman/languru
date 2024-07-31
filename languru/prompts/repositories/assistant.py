@@ -123,74 +123,39 @@ create_module_documentation: Final[Text] = dedent(
     """
     ## Context
 
-    The user needs guidance on creating a comprehensive software document in Markdown for a module, with a focus on program control flow and pipeline. This task requires a structured approach to cover all essential aspects of the module's functionality and usage.
+    You are a technical writer working on a software development project. The project team has developed a new module named {{module_name}} and needs comprehensive documentation for it. This documentation will be crucial for both current developers and future maintainers of the project.
 
     ## Objective
 
-    To provide a clear, step-by-step guide for creating a well-structured, informative, and user-friendly software document that effectively communicates the module's purpose, functionality, and implementation details.
+    Create a one-page markdown document that provides a clear and comprehensive explanation of the {{module_name}} module, with a particular focus on its program control flow and pipeline. The document should serve as a go-to resource for understanding and working with this module.
 
     ## Style
 
-    - Structured: Organized into clear sections with a logical flow
-    - Comprehensive: Covering all essential aspects of the module
-    - Instructional: Providing clear guidance on what to include and how to present information
-    - Technical: Using appropriate technical language and concepts
+    Technical and informative, yet clear and concise. Use markdown formatting to structure the document effectively. Include visual aids such as flowcharts or diagrams where appropriate. Provide code snippets to illustrate key points.
 
     ## Tone
 
-    - Professional: Maintaining a formal and authoritative voice
-    - Clear and concise: Using straightforward language to explain complex concepts
-    - Helpful: Offering practical advice and best practices
+    Professional and instructive. The document should convey expertise and authority on the subject matter while remaining approachable and easy to understand.
 
     ## Audience
 
-    - Technical writers tasked with creating software documentation
-    - Developers responsible for documenting their own modules
-    - Project managers overseeing documentation efforts
+    Software developers and technical team members who will be working with or maintaining the {{module_name}} module. They have a strong technical background but may not be familiar with the specifics of this particular module.
 
     ## Response
 
-    # Creating a Comprehensive Software Document for a Module
+    Provide a structured markdown document with the following sections:
 
-    ## 1. Title and Overview
-    - Begin with a clear, descriptive title
-    - Provide a brief introduction to the module, its purpose, and significance
+    1. Title and brief overview of {{module_name}}
+    2. Table of Contents
+    3. Module Description (purpose, scope, dependencies)
+    4. Control Flow Description (including flow diagrams, narrative description, key functions and classes)
+    5. Pipeline Overview (stages, data flow, parallelism/concurrency, error handling)
+    6. Detailed Walkthrough (initialization, execution steps, termination)
+    7. Code Examples
+    8. Best Practices
+    9. Common Issues and Troubleshooting
+    10. Appendices (glossary, references)
 
-    ## 2. Table of Contents
-    - Create a well-organized list of sections for easy navigation
-
-    ## 3. Module Description
-    - Explain the module's purpose and scope
-    - List dependencies and prerequisites
-
-    ## 4. Control Flow Description
-    - Include flow diagrams or flowcharts
-    - Provide a step-by-step narrative of the control flow
-    - Describe key functions and classes, including signatures and responsibilities
-
-    ## 5. Pipeline Overview
-    - Break down the pipeline into distinct stages
-    - Describe data flow through each stage
-    - Explain parallelism, concurrency, and error handling
-
-    ## 6. Detailed Walkthrough
-    - Cover initialization, execution steps, and termination
-    - Include input and output details for each stage
-
-    ## 7. Code Examples
-    - Provide well-commented code snippets to illustrate key points
-
-    ## 8. Best Practices
-    - Offer guidance on using and extending the module
-    - Include performance considerations and optimization tips
-
-    ## 9. Common Issues and Troubleshooting
-    - List potential problems and their solutions
-
-    ## 10. Appendices
-    - Include a glossary of specialized terms
-    - Provide references to external resources and related documentation
-
-    Remember to use clear, concise language and maintain a logical flow throughout the document. Use Markdown formatting to enhance readability, such as headers, code blocks, and lists.
+    Ensure that each section is concise yet informative, focusing on the most critical aspects of the module's functionality and usage. Use markdown formatting to enhance readability, including headers, lists, code blocks, and emphasis where appropriate. The entire document should fit on one page when rendered, so prioritize the most essential information.
     """  # noqa: E501
 ).strip()
