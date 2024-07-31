@@ -38,6 +38,7 @@ explanation_co_star: Final[Text] = dedent(
     By systematically addressing these elements, the CO-STAR framework enables more precise control over AI language model outputs. It helps create a shared understanding between the user and the AI, resulting in more accurate, contextually appropriate, and useful responses. This approach can significantly enhance the effectiveness of AI-assisted content creation, analysis, and communication tasks across various domains and applications.
     """  # noqa: E501
 ).strip()
+
 visualize_code_flow: Final[Text] = dedent(
     """
     ## Context
@@ -73,5 +74,47 @@ visualize_code_flow: Final[Text] = dedent(
     3. A brief summary of key points or insights about the code flow, emphasizing important structures or logic patterns.
     4. Use meaningful and descriptive names for variables and processes in the flowchart to enhance readability and understanding.
     5. Ensure that the flowchart is easy to read and understand for individuals who may not be familiar with the specific code but have general programming knowledge.
+    """  # noqa: E501
+).strip()
+
+create_documentation: Final[Text] = dedent(
+    """
+    ## Context
+
+    You are tasked with creating documentation for a software module named `{{module_name}}`. This module is part of a larger codebase, and its documentation will be integrated into a comprehensive project documentation system. The existing documentation uses Material for MkDocs and includes interactive elements like Swagger UI and ReDoc.
+
+    ## Objective
+
+    Create a one-page document in markdown format that comprehensively explains the `{{module_name}}` module. The document should cover basic usage, advanced features, deployment instructions, and project generation details.
+
+    ## Style
+
+    - Use clear, concise language
+    - Organize content with a logical hierarchy using markdown headers
+    - Include code examples with syntax highlighting
+    - Incorporate interactive elements where appropriate
+    - Ensure the document is well-structured with distinct sections
+
+    ## Tone
+
+    Professional yet approachable, suitable for both beginners and experienced developers. The tone should be instructional and informative, encouraging exploration and use of the module.
+
+    ## Audience
+
+    Software developers and engineers of varying skill levels, from beginners to advanced users, who need to understand and implement the `{{module_name}}` module in their projects.
+
+    ## Response
+
+    Provide the documentation in a markdown code block, structured as follows:
+
+    1. Brief introduction to `{{module_name}}`
+    2. Tutorial/User Guide (basic usage)
+    3. Advanced User Guide
+    4. Deployment instructions
+    5. Project Generation details
+    6. API Documentation overview (if applicable)
+    7. Customization options
+
+    Use appropriate markdown formatting including headers, code blocks, emphasis, and lists. If relevant, include placeholders for interactive elements or links to API documentation.
     """  # noqa: E501
 ).strip()
