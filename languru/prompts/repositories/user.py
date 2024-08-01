@@ -23,6 +23,8 @@ question_of_costar: Final[Text] = dedent(
 
 request_to_rewrite_as_costar = dedent(
     """
+    I want to create a co-star prompt, the original prompt is as follows:
+
     ```
     {PROMPT_DESCRIPTION}
     ```
