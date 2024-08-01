@@ -51,3 +51,16 @@ def test_threads_apis(test_client):
     )
     res.raise_for_status()
     thread = Thread.model_validate(res.json())
+
+    # Retrieve the thread
+    res = test_client.get(f"/v1/threads/{thread.id}")
+    res.raise_for_status()
+    retrieved_thread = Thread.model_validate(res.json())
+    assert retrieved_thread.id == thread.id
+
+    # List threads
+    res = test_client.get("/v1/threads")
+    res.raise_for_status()
+    retrieved_threads = [Thread.model_validate(thread) for thread in res.json()["data"]]
+    assert len(retrieved_threads) == 1
+    assert retrieved_threads[0].id == thread.id
