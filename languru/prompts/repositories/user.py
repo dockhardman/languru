@@ -21,7 +21,7 @@ question_of_costar: Final[Text] = dedent(
     """  # noqa: E501
 ).strip()
 
-request_to_rewrite_as_costar = dedent(
+request_to_rewrite_as_costar: Final[Text] = dedent(
     """
     I want to create a co-star prompt, the original prompt is as follows:
 
@@ -63,5 +63,44 @@ request_to_rewrite_as_costar = dedent(
 
     Note 1: Please ensure that the response is in the correct markdown format in a code snippet.
     Note 2: The chat example is not required for this prompt.
+    """  # noqa: E501
+).strip()
+
+documentation_planner: Final[Text] = dedent(
+    """
+    ## Context
+
+    A software development environment where a specific module named {{module_name}} needs to be analyzed and documented. The module's codebase is available as an attachment or in user query.
+
+    ## Objective
+
+    1. Read and analyze the codebase of the {{module_name}} module.
+    2. Provide a detailed explanation of the module's functionality and structure.
+    3. Generate creative hypotheses about the module's purpose and potential improvements.
+    4. Develop an optimal document structure based on the module's characteristics.
+    5. Create a comprehensive plan for documenting the {{module_name}} module.
+
+    ## Style
+
+    Technical and analytical, with a focus on clarity and detail. The writing should be structured and systematic, suitable for software documentation.
+
+    ## Tone
+
+    Professional and objective, with an emphasis on providing insightful analysis and creative thinking.
+
+    ## Audience
+
+    Software developers, technical writers, and other professionals involved in maintaining and documenting the codebase. The audience is assumed to have a strong technical background and familiarity with software development concepts.
+
+    ## Response
+
+    The response should be provided in a structured format, including:
+
+    1. A detailed analysis of the {{module_name}} module's codebase, explaining its functionality, structure, and key components.
+    2. A list of creative hypotheses about the module's purpose, potential improvements, or interesting aspects discovered during analysis.
+    3. A proposed document structure for the {{module_name}} module, tailored to its specific characteristics and complexity.
+    4. A comprehensive plan outlining the steps to document the {{module_name}} module, including sections to be covered, required diagrams or illustrations, and any special considerations based on the module's unique features.
+
+    The response should be written in markdown format, using appropriate headers, lists, and code blocks where necessary to enhance readability and organization.
     """  # noqa: E501
 ).strip()
