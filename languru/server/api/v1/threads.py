@@ -188,7 +188,6 @@ async def create_message(
 
     message = await run_func(
         openai_backend.threads.messages.create,
-        thread_id=thread_id,
         message=message_create_request.to_openai_message(thread_id=thread_id),
     )
     return message
