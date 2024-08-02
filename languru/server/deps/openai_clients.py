@@ -18,6 +18,7 @@ from languru.openai_plugins.clients.google import GoogleOpenAI
 from languru.openai_plugins.clients.groq import GroqOpenAI
 from languru.openai_plugins.clients.pplx import PerplexityOpenAI
 from languru.openai_plugins.clients.voyage import VoyageOpenAI
+from languru.server.config import APP_STATE_SETTINGS
 from languru.server.utils.common import get_value_from_app
 from languru.types.models import (
     MODELS_ANTHROPIC,
@@ -112,7 +113,10 @@ class OpenaiDepends:
         """Returns the OpenAI client based on the request parameters."""
 
         logger = get_value_from_app(
-            request.app, key="logger", value_typing=Logger, default=languru_logger
+            request.app,
+            key=APP_STATE_SETTINGS,
+            value_typing=Logger,
+            default=languru_logger,
         )
         organization_type = (
             organization_type or organization or org_type or org or api_type
@@ -379,17 +383,3 @@ class OpenaiClients(OpenaiModels, OpenaiDepends):
 
 
 openai_clients = OpenaiClients()
-
-
-# class Model(BaseModel):
-#     id: str
-#     """The model identifier, which can be referenced in the API endpoints."""
-
-#     created: int
-#     """The Unix timestamp (in seconds) when the model was created."""
-
-#     object: Literal["model"]
-#     """The object type, which is always "model"."""
-
-#     owned_by: str
-#     """The organization that owns the model."""
