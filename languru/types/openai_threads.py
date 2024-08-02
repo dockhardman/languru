@@ -26,6 +26,37 @@ from pydantic import BaseModel, Field
 from languru.utils.openai_utils import rand_openai_id
 
 
+def to_openai_threads_message(
+    thread_id: Text,
+    *,
+    role: Literal["user", "assistant"],
+    content: Optional[Union[Text, List["MessageContent"]]] = None,
+    message_id: Optional[Text] = None,
+    attachments: Optional[List["AttachmentTool"]] = None,
+    metadata: Optional[Dict[Text, Text]] = None,
+    status: Literal["in_progress", "incomplete", "completed"] = "completed",
+    created_at: Optional[int] = None,
+) -> OpenaiMessage:
+    """Converts a message to an OpenAI Threads message."""
+
+    data = {
+        "id": message_id or rand_openai_id("message"),
+        "thread_id": thread_id,
+        "role": role,
+        "content": (
+            [TextContentBlock.model_validate({"text": {"value": content}})]
+            if isinstance(content, Text)
+            else content
+        ),
+        "attachments": attachments,
+        "metadata": metadata or {},
+        "status": status,
+        "object": "thread.message",
+        "created_at": created_at or int(time.time()),
+    }
+    return OpenaiMessage.model_validate(data)
+
+
 class TextContentBlockText(OpenaiText):
     annotations: List[OpenaiAnnotation] = Field(
         default_factory=list, description="A list of annotations for the text."
@@ -370,7 +401,7 @@ class ThreadCreateAndRunRequest(BaseModel):
         thread_id: Text,
         *,
         run_id: Optional[Text] = None,
-        assistant_instructions: Optional[Text] = None
+        assistant_instructions: Optional[Text] = None,
     ) -> OpenaiRun:
         data = self.model_dump()
         data["id"] = run_id or rand_openai_id("run")
