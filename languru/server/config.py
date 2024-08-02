@@ -3,7 +3,7 @@ import logging.config
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Text
+from typing import TYPE_CHECKING, Final, Text
 
 import pytz
 from colorama import Fore, Style, init
@@ -18,6 +18,14 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 console = Console()
+
+
+APP_STATE_LANGURU_SETTINGS: Final[Text] = "languru_settings"
+APP_STATE_SETTINGS: Final[Text] = "settings"
+APP_STATE_LOGGER: Final[Text] = "logger"
+APP_STATE_OPENAI_CLIENTS: Final[Text] = "openai_clients"
+APP_STATE_OPENAI_BACKEND: Final[Text] = "openai_backend"
+APP_STATE_EXECUTOR: Final[Text] = "executor"
 
 
 class ServerBaseSettings(BaseSettings):
