@@ -80,6 +80,15 @@ def create_app(settings: "ServerBaseSettings", **kwargs):
     async def health():
         return {"status": "ok"}
 
+    @app.get("/stats")
+    async def stats():
+        return {
+            "status": "ok",
+            "pending_tasks": __executor._work_queue.qsize(),
+            "total_workers": len(__executor._threads),
+            "idle_workers": __executor._idle_semaphore._value,
+        }
+
     from languru.server.api.v1 import router as api_v1_router
 
     app.include_router(router=api_v1_router, prefix="/v1")
