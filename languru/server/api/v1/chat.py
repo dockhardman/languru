@@ -1,54 +1,20 @@
-from logging import Logger
-from typing import Optional, Tuple
+from typing import Tuple
 
-from fastapi import APIRouter, Body, Depends, Request
-from fastapi.exceptions import HTTPException
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from openai.types.chat import ChatCompletion
 from pyassorted.asyncio.executor import run_func, run_generator
 
-from languru.config import logger as languru_logger
-from languru.examples.openapi.chat import chat_openapi_examples
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
-from languru.server.deps.openai_clients import openai_clients
-from languru.server.utils.common import get_value_from_app, to_openapi_examples
+from languru.server.deps.openai_clients import (
+    depends_openai_client_chat_completion_request,
+)
 from languru.types.chat.completions import ChatCompletionRequest
-from languru.types.organizations import OrganizationType
-from languru.utils.common import display_object
 from languru.utils.http import simple_sse_encode
 
 router = APIRouter()
-
-
-def depends_openai_client_chat_completion_request(
-    request: "Request",
-    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
-    chat_completion_request: ChatCompletionRequest = Body(
-        ...,
-        openapi_examples=to_openapi_examples(chat_openapi_examples),
-    ),
-) -> Tuple[OpenAI, ChatCompletionRequest]:
-    logger = get_value_from_app(
-        request.app, key="logger", value_typing=Logger, default=languru_logger
-    )
-
-    if org_type is None:
-        org_type = openai_clients.org_from_model(chat_completion_request.model)
-    if org_type is None:
-        raise HTTPException(status_code=400, detail="Organization type not found.")
-
-    chat_completion_request.model = openai_clients.model_strip_org(
-        chat_completion_request.model, org_type
-    )
-    openai_client = openai_clients.org_to_openai_client(org_type)
-    logger.debug(
-        f"Organization type: '{org_type}', "
-        + f"openAI client: '{display_object(openai_client)}', "
-        + f"model: '{chat_completion_request.model}'"
-    )
-    return (openai_client, chat_completion_request)
 
 
 class ChatCompletionHandler:
