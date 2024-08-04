@@ -428,6 +428,8 @@ class ThreadCreateAndRunRequest(BaseModel):
         data["status"] = status
         data["instructions"] = data["instructions"] or default_instructions or ""
         data["temperature"] = data["temperature"] or default_temperature
+        data["parallel_tool_calls"] = data["parallel_tool_calls"] or False
+        data["tools"] = data["tools"] or []
         return OpenaiRun.model_validate(data)
 
 

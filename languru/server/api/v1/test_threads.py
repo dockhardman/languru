@@ -13,6 +13,7 @@ from openai.types.beta.threads.run import Run
 from languru.tasks.openai_threads import TERMINAL_RUN_STATUSES
 from languru.types.openai_assistants import AssistantCreateRequest
 from languru.types.openai_threads import (
+    ThreadCreateAndRunRequest,
     ThreadCreateRequest,
     ThreadsMessageUpdate,
     ThreadsRunCreate,
@@ -38,6 +39,16 @@ test_messages_begin = json.dumps(
     ]
 )
 test_user_query = json.dumps({"content": "What is 2 + 2?", "role": "user"})
+test_additional_messages = json.dumps(
+    [
+        {
+            "role": "assistant",
+            "content": (
+                "<thinking>The question is simple, I can answer directly.</thinking>"
+            ),
+        }
+    ]
+)
 
 
 @pytest.fixture(scope="module")
@@ -201,15 +212,7 @@ def test_threads_runs_apis(test_client):
                 "assistant_id": assistant.id,
                 "thread_id": thread.id,
                 "additional_instructions": "Your name is John.",
-                "additional_messages": [
-                    {
-                        "role": "assistant",
-                        "content": (
-                            "<thinking>The question is simple, "
-                            + "I can answer directly.</thinking>"
-                        ),
-                    }
-                ],
+                "additional_messages": json.loads(test_additional_messages),
                 "temperature": 0.0,
             }
         ).model_dump(exclude_none=True),
@@ -259,3 +262,101 @@ def test_threads_runs_apis(test_client):
     else:
         assert False, "Run did not complete in time."
     assert retrieved_run.status == "completed"
+
+
+def test_threads_create_and_run(test_client):
+    # Create an assistant
+    res = test_client.post(
+        "/v1/assistants",
+        json=AssistantCreateRequest.model_validate(
+            json.loads(test_assistant_create_request)
+        ).model_dump(exclude_none=True),
+    )
+    res.raise_for_status()
+    assistant = Assistant.model_validate(res.json())
+
+    # Create a thread
+    res = test_client.post(
+        "/v1/threads/runs",
+        params={"delay": 1},
+        json=ThreadCreateAndRunRequest.model_validate(
+            {
+                "assistant_id": assistant.id,
+                "thread": {
+                    "messages": json.loads(test_messages_begin)
+                    + [json.loads(test_user_query)]
+                    + json.loads(test_additional_messages)
+                },
+            }
+        ).model_dump(exclude_none=True),
+    )
+    res.raise_for_status()
+    run = Run.model_validate(res.json())
+    assert run.status == "queued"
+
+    # Poll the run until completion
+    for _ in range(10):
+        retrieved_run = Run.model_validate(
+            test_client.get(f"/v1/threads/{run.thread_id}/runs/{run.id}").json()
+        )
+        if retrieved_run.status in TERMINAL_RUN_STATUSES:
+            break
+        time.sleep(0.5)
+    else:
+        assert False, "Run did not complete in time."
+    assert retrieved_run.status == "completed"
+
+
+def test_threads_runs_cancel(test_client):
+    # Create an assistant, a thread and an user message
+    assistant = Assistant.model_validate(
+        test_client.post(
+            "/v1/assistants",
+            json=AssistantCreateRequest.model_validate(
+                json.loads(test_assistant_create_request)
+            ).model_dump(exclude_none=True),
+        ).json()
+    )
+    thread = Thread.model_validate(
+        test_client.post(
+            "/v1/threads",
+            json=ThreadCreateRequest.model_validate(
+                {"messages": [json.loads(test_user_query)]}
+            ).model_dump(exclude_none=True),
+        ).json()
+    )
+
+    # Create a run
+    run = Run.model_validate(
+        test_client.post(
+            f"/v1/threads/{thread.id}/runs",
+            params={"delay": 500},
+            json=ThreadsRunCreate.model_validate(
+                {
+                    "assistant_id": assistant.id,
+                    "thread_id": thread.id,
+                    "temperature": 0.0,
+                }
+            ).model_dump(exclude_none=True),
+        ).json()
+    )
+
+    # Cancel the run
+    assert (
+        Run.model_validate(
+            test_client.post(f"/v1/threads/{thread.id}/runs/{run.id}/cancel").json()
+        ).status
+        == "cancelling"
+    )
+
+    # Poll the run until completion
+    for _ in range(10):
+        retrieved_run = Run.model_validate(
+            test_client.get(f"/v1/threads/{thread.id}/runs/{run.id}").json()
+        )
+        if retrieved_run.status in TERMINAL_RUN_STATUSES:
+            break
+        time.sleep(0.5)
+    else:
+        assert False, "Run did not cancelled in time."
+    assert retrieved_run.status == "cancelled"

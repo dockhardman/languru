@@ -34,7 +34,7 @@ def _update_run(
 ) -> "Run":
     """Update the task in-place."""
 
-    openai_backend.threads.runs.update(
+    run = openai_backend.threads.runs.update(
         run_id=run.id,
         thread_id=run.thread_id,
         status=status,
@@ -184,19 +184,23 @@ def task_openai_threads_runs_create(
     time_start = datetime.now(pytz.utc)
     console.print(
         f"[{time_start.isoformat(timespec='seconds')}] "
-        + f"Starting `task_openai_threads_runs_create` with run: {run}"
+        + "Received `task_openai_threads_runs_create`."
     )
 
     if delay:
         console.print(f"Run '{run.id}' delaying for {delay} milliseconds...")
         time.sleep(delay / 1000)
 
+    # Refresh the run from the backend
+    run = openai_backend.threads.runs.retrieve(run_id=run.id, thread_id=run.thread_id)
+    console.print(f"[{time_start.isoformat(timespec='seconds')}] Executing run: {run}")
+
     # Cancel the run if it is already cancelled
     run = _update_run_if_cancelled(run, openai_backend)
 
     # Return if the run is already in a terminal state
     if run.status in TERMINAL_RUN_STATUSES:
-        console.print(f"Run '{run.id}' is already in a terminal state: {run.status}")
+        console.print(f"Run '{run.id}' is already in a terminal state: '{run.status}'")
         return run  # RETURN: run
 
     # Initialize the run

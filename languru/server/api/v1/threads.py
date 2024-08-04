@@ -38,144 +38,6 @@ from languru.utils.openai_utils import rand_openai_id
 router = APIRouter()
 
 
-@router.get("/threads")
-async def list_threads(
-    request: Request,
-    after: Optional[Text] = Query(
-        None,
-        description="`after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include after=obj_foo in order to fetch the next page of the list.",  # noqa: E501
-    ),
-    before: Optional[Text] = Query(
-        None,
-        description="`before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include before=obj_foo in order to fetch the previous page of the list.",  # noqa: E501
-    ),
-    limit: int = Query(
-        20,
-        ge=1,
-        le=100,
-        description="A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 20.",  # noqa: E501
-    ),
-    order: Optional[Literal["asc", "desc"]] = Query(
-        None,
-        description="Sort order by the `created_at` timestamp of the objects. `asc` for ascending order and `desc` for descending order.",  # noqa: E501
-    ),
-    settings: ServerBaseSettings = Depends(app_settings),
-    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
-) -> OpenaiPage[Thread]:
-    """List all threads."""
-
-    threads = await run_func(
-        openai_backend.threads.list,
-        after=after,
-        before=before,
-        limit=limit,
-        order=order,
-    )
-    return OpenaiPage(
-        data=threads,
-        object="list",
-        first_id=threads[0].id if threads else None,
-        last_id=threads[-1].id if threads else None,
-    )
-
-
-# https://platform.openai.com/docs/api-reference/threads/createThread
-@router.post("/threads")
-async def create_thread(
-    request: Request,
-    thread_create_request: ThreadCreateRequest = Body(
-        ...,
-        description="The parameters for creating a thread.",
-    ),
-    settings: ServerBaseSettings = Depends(app_settings),
-    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
-) -> Thread:
-    """Create a thread."""
-
-    thread_id = rand_openai_id("thread")
-    thread = await run_func(
-        openai_backend.threads.create,
-        thread=thread_create_request.to_openai_thread(thread_id),
-        messages=[
-            m.to_openai_message(thread_id=thread_id)
-            for m in thread_create_request.messages or []
-        ],
-    )
-    return thread
-
-
-# https://platform.openai.com/docs/api-reference/threads/getThread
-@router.get("/threads/{thread_id}")
-async def get_thread(
-    request: Request,
-    thread_id: Text = QueryPath(
-        ...,
-        description="The ID of the thread to retrieve.",
-    ),
-    settings: ServerBaseSettings = Depends(app_settings),
-    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
-) -> Thread:
-    """Get a thread."""
-
-    try:
-        thread = await run_func(
-            openai_backend.threads.retrieve,
-            thread_id=thread_id,
-        )
-    except NotFound as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    return thread
-
-
-# https://platform.openai.com/docs/api-reference/threads/modifyThread
-@router.post("/threads/{thread_id}")
-async def update_thread(
-    request: Request,
-    thread_id: Text = QueryPath(
-        ...,
-        description="The ID of the thread to update.",
-    ),
-    thread_update_request: ThreadUpdateRequest = Body(
-        ...,
-        description="The parameters for updating a thread.",
-    ),
-    settings: ServerBaseSettings = Depends(app_settings),
-    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
-) -> Thread:
-    """Update a thread."""
-
-    thread = await run_func(
-        openai_backend.threads.update,
-        thread_id=thread_id,
-        metadata=thread_update_request.metadata,
-        tool_resources=thread_update_request.tool_resources,
-    )
-    return thread
-
-
-# https://platform.openai.com/docs/api-reference/threads/deleteThread
-@router.delete("/threads/{thread_id}")
-async def delete_thread(
-    request: Request,
-    thread_id: Text = QueryPath(
-        ...,
-        description="The ID of the thread to delete.",
-    ),
-    settings: ServerBaseSettings = Depends(app_settings),
-    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
-) -> ThreadDeleted:
-    """Delete a thread."""
-
-    try:
-        thread = await run_func(
-            openai_backend.threads.delete,
-            thread_id=thread_id,
-        )
-    except NotFound as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    return thread
-
-
 # https://platform.openai.com/docs/api-reference/messages/createMessage
 @router.post("/threads/{thread_id}/messages")
 async def create_message(
@@ -587,4 +449,151 @@ async def cancel_run(
 ) -> Run:
     """Cancel a run in a thread."""
 
-    raise HTTPException(status_code=501, detail="Not implemented")
+    try:
+        run = await run_func(
+            openai_backend.threads.runs.update,
+            run_id=run_id,
+            thread_id=thread_id,
+            status="cancelling",
+        )
+        return run
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/threads")
+async def list_threads(
+    request: Request,
+    after: Optional[Text] = Query(
+        None,
+        description="`after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include after=obj_foo in order to fetch the next page of the list.",  # noqa: E501
+    ),
+    before: Optional[Text] = Query(
+        None,
+        description="`before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include before=obj_foo in order to fetch the previous page of the list.",  # noqa: E501
+    ),
+    limit: int = Query(
+        20,
+        ge=1,
+        le=100,
+        description="A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 20.",  # noqa: E501
+    ),
+    order: Optional[Literal["asc", "desc"]] = Query(
+        None,
+        description="Sort order by the `created_at` timestamp of the objects. `asc` for ascending order and `desc` for descending order.",  # noqa: E501
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> OpenaiPage[Thread]:
+    """List all threads."""
+
+    threads = await run_func(
+        openai_backend.threads.list,
+        after=after,
+        before=before,
+        limit=limit,
+        order=order,
+    )
+    return OpenaiPage(
+        data=threads,
+        object="list",
+        first_id=threads[0].id if threads else None,
+        last_id=threads[-1].id if threads else None,
+    )
+
+
+# https://platform.openai.com/docs/api-reference/threads/createThread
+@router.post("/threads")
+async def create_thread(
+    request: Request,
+    thread_create_request: ThreadCreateRequest = Body(
+        ...,
+        description="The parameters for creating a thread.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Thread:
+    """Create a thread."""
+
+    thread_id = rand_openai_id("thread")
+    thread = await run_func(
+        openai_backend.threads.create,
+        thread=thread_create_request.to_openai_thread(thread_id),
+        messages=[
+            m.to_openai_message(thread_id=thread_id)
+            for m in thread_create_request.messages or []
+        ],
+    )
+    return thread
+
+
+# https://platform.openai.com/docs/api-reference/threads/getThread
+@router.get("/threads/{thread_id}")
+async def get_thread(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread to retrieve.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Thread:
+    """Get a thread."""
+
+    try:
+        thread = await run_func(
+            openai_backend.threads.retrieve,
+            thread_id=thread_id,
+        )
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return thread
+
+
+# https://platform.openai.com/docs/api-reference/threads/modifyThread
+@router.post("/threads/{thread_id}")
+async def update_thread(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread to update.",
+    ),
+    thread_update_request: ThreadUpdateRequest = Body(
+        ...,
+        description="The parameters for updating a thread.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> Thread:
+    """Update a thread."""
+
+    thread = await run_func(
+        openai_backend.threads.update,
+        thread_id=thread_id,
+        metadata=thread_update_request.metadata,
+        tool_resources=thread_update_request.tool_resources,
+    )
+    return thread
+
+
+# https://platform.openai.com/docs/api-reference/threads/deleteThread
+@router.delete("/threads/{thread_id}")
+async def delete_thread(
+    request: Request,
+    thread_id: Text = QueryPath(
+        ...,
+        description="The ID of the thread to delete.",
+    ),
+    settings: ServerBaseSettings = Depends(app_settings),
+    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+) -> ThreadDeleted:
+    """Delete a thread."""
+
+    try:
+        thread = await run_func(
+            openai_backend.threads.delete,
+            thread_id=thread_id,
+        )
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return thread
