@@ -165,6 +165,10 @@ def task_openai_threads_runs_create(
         The OpenAI client instance
     openai_backend : OpenaiBackend
         The OpenAI backend instance
+    delay : Optional[int], optional
+        The delay in milliseconds before starting the run, by default None
+    sleep : Optional[int], optional
+        The sleep in milliseconds after completing the run, by default None
 
     Returns
     -------
@@ -184,8 +188,8 @@ def task_openai_threads_runs_create(
     )
 
     if delay:
-        console.print(f"Run '{run.id}' delaying for {delay} seconds...")
-        time.sleep(delay)
+        console.print(f"Run '{run.id}' delaying for {delay} milliseconds...")
+        time.sleep(delay / 1000)
 
     # Cancel the run if it is already cancelled
     run = _update_run_if_cancelled(run, openai_backend)
@@ -241,8 +245,8 @@ def task_openai_threads_runs_create(
         )
 
     if sleep:
-        console.print(f"Run '{run.id}' sleeping for {sleep} seconds...")
-        time.sleep(sleep)
+        console.print(f"Run '{run.id}' sleeping for {sleep} milliseconds...")
+        time.sleep(sleep / 1000)
 
     # Finish the run
     console.print(f"Run '{run.id}' completed: {run}")

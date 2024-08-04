@@ -338,10 +338,10 @@ async def delete_message(
 async def create_run(
     request: Request,
     delay: Optional[int] = Query(
-        None, description="The delay in seconds before task execution."
+        None, description="The delay in milliseconds before task execution."
     ),
     sleep: Optional[int] = Query(
-        None, description="The sleep in seconds after chat completion."
+        None, description="The sleep in milliseconds after chat completion."
     ),
     settings: ServerBaseSettings = Depends(app_settings),
     thread_id_run_messages_assistant_openai_client_backend: Tuple[

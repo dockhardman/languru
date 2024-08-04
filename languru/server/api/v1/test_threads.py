@@ -1,4 +1,5 @@
 import json
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,11 +10,13 @@ from openai.types.beta.threads.message import Message
 from openai.types.beta.threads.message_deleted import MessageDeleted
 from openai.types.beta.threads.run import Run
 
+from languru.tasks.openai_threads import TERMINAL_RUN_STATUSES
 from languru.types.openai_assistants import AssistantCreateRequest
 from languru.types.openai_threads import (
     ThreadCreateRequest,
     ThreadsMessageUpdate,
     ThreadsRunCreate,
+    ThreadsRunUpdate,
     ThreadUpdateRequest,
 )
 from tests.conftest import *  # noqa: F401, F403
@@ -192,6 +195,7 @@ def test_threads_runs_apis(test_client):
     # Create a run
     res = test_client.post(
         f"/v1/threads/{thread.id}/runs",
+        params={"delay": 1},
         json=ThreadsRunCreate.model_validate(
             {
                 "assistant_id": assistant.id,
@@ -212,3 +216,46 @@ def test_threads_runs_apis(test_client):
     )
     res.raise_for_status()
     run = Run.model_validate(res.json())
+    assert run.status == "queued"
+    assert run.assistant_id == assistant.id
+    assert run.thread_id == thread.id
+
+    # List runs
+    res = test_client.get(f"/v1/threads/{thread.id}/runs")
+    res.raise_for_status()
+    runs = [Run.model_validate(item) for item in res.json()["data"]]
+    assert len(runs) == 1
+    assert runs[0].id == run.id
+
+    # Retrieve the run
+    res = test_client.get(f"/v1/threads/{thread.id}/runs/{run.id}")
+    res.raise_for_status()
+    retrieved_run = Run.model_validate(res.json())
+    assert retrieved_run.id == run.id
+
+    # Update the run
+    res = test_client.post(
+        f"/v1/threads/{thread.id}/runs/{run.id}",
+        json=ThreadsRunUpdate.model_validate(
+            {"metadata": {"my_key": "my_value"}}
+        ).model_dump(exclude_none=True),
+    )
+    res.raise_for_status()
+    retrieved_run = Run.model_validate(res.json())
+    assert retrieved_run.id == run.id
+    assert (
+        retrieved_run.metadata
+        and retrieved_run.metadata.get("my_key") == "my_value"  # type: ignore
+    )
+
+    # Poll the run until completion
+    for _ in range(10):
+        retrieved_run = Run.model_validate(
+            test_client.get(f"/v1/threads/{thread.id}/runs/{run.id}").json()
+        )
+        if retrieved_run.status in TERMINAL_RUN_STATUSES:
+            break
+        time.sleep(0.5)
+    else:
+        assert False, "Run did not complete in time."
+    assert retrieved_run.status == "completed"
