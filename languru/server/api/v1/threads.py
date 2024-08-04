@@ -20,13 +20,13 @@ from languru.server.deps.common import app_settings
 from languru.server.deps.executor import depends_executor
 from languru.server.deps.openai_backend import depends_openai_backend
 from languru.server.deps.openai_threads import (
+    depends_thread_create_and_run,
     depends_thread_id_run_messages_assistant_openai_client_backend,
 )
 from languru.tasks.openai_threads import task_openai_threads_runs_create
 from languru.types.openai_page import OpenaiPage
 from languru.types.openai_threads import (
     RunSubmitToolOutputsRequest,
-    ThreadCreateAndRunRequest,
     ThreadCreateRequest,
     ThreadsMessageCreate,
     ThreadsMessageUpdate,
@@ -379,27 +379,41 @@ async def create_run(
 @router.post("/threads/runs")
 async def create_thread_and_run(
     request: Request,
-    thread_create_and_run_request: ThreadCreateAndRunRequest = Body(
-        ...,
-        description="The parameters for creating a thread and running an assistant.",
+    delay: Optional[int] = Query(
+        None, description="The delay in milliseconds before task execution."
     ),
+    sleep: Optional[int] = Query(
+        None, description="The sleep in milliseconds after chat completion."
+    ),
+    thread_run_messages_assistant_openai_client_backend: Tuple[
+        Thread, Run, List[Message], Assistant, OpenAI, OpenaiBackend
+    ] = Depends(depends_thread_create_and_run),
+    executor: ThreadPoolExecutor = Depends(depends_executor),
     settings: ServerBaseSettings = Depends(app_settings),
-    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
 ) -> Run:
     """Create a thread and run an assistant in it."""
 
-    thread, messages = thread_create_and_run_request.to_openai_thread_and_messages()
-    assistant = await run_func(
-        openai_backend.assistants.retrieve,
-        assistant_id=thread_create_and_run_request.assistant_id,
-    )
-    run = thread_create_and_run_request.to_openai_run(
-        thread_id=thread.id, assistant_instructions=assistant.instructions
-    )
-    thread = await run_func(
-        openai_backend.threads.create, thread=thread, messages=messages
-    )
+    (
+        _,
+        run,
+        messages,
+        _,
+        openai_client,
+        openai_backend,
+    ) = thread_run_messages_assistant_openai_client_backend
+
+    # Save the in-queue run
     run = await run_func(openai_backend.threads.runs.create, run=run)
+
+    executor.submit(
+        task_openai_threads_runs_create,
+        run=run,
+        messages=messages,
+        openai_client=openai_client,
+        openai_backend=openai_backend,
+        delay=delay,
+        sleep=sleep,
+    )
     return run
 
 
