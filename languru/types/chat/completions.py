@@ -1,9 +1,10 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Text, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Text, Union
 
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from openai.types.beta.threads.message import Message as ThreadsMessage
+    from openai.types.beta.threads.run import Run as ThreadsRun
 
 
 class LogitBias(BaseModel):
@@ -102,3 +103,31 @@ class ChatCompletionRequest(BaseModel):
         if "model" not in kwargs:
             raise ValueError("Parameter model is required")
         return cls.model_validate(kwargs)
+
+    @classmethod
+    def from_openai_threads_run(
+        cls,
+        run: "ThreadsRun",
+        messages: Sequence["ThreadsMessage"],
+        *,
+        stream: Optional[bool] = None
+    ):
+        """Builds a ChatCompletionRequest object from an OpenAI Threads run"""
+
+        chat_messages: List["Message"] = []
+        if run.instructions:
+            chat_messages.append(
+                Message.model_validate({"role": "system", "content": run.instructions})
+            )
+        for m in messages:
+            chat_messages.append(Message.from_openai_threads_message(m))
+        chat_completion_request = ChatCompletionRequest.model_validate(
+            {
+                "messages": chat_messages,
+                "model": run.model,
+                "temperature": run.temperature,
+            }
+        )
+        if stream is not None:
+            chat_completion_request.stream = stream
+        return chat_completion_request

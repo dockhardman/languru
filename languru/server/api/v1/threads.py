@@ -337,6 +337,12 @@ async def delete_message(
 @router.post("/threads/{thread_id}/runs")
 async def create_run(
     request: Request,
+    delay: Optional[int] = Query(
+        None, description="The delay in seconds before task execution."
+    ),
+    sleep: Optional[int] = Query(
+        None, description="The sleep in seconds after chat completion."
+    ),
     settings: ServerBaseSettings = Depends(app_settings),
     thread_id_run_messages_assistant_openai_client_backend: Tuple[
         Text, Run, List[Message], Assistant, OpenAI, OpenaiBackend
@@ -363,6 +369,8 @@ async def create_run(
         messages=messages,
         openai_client=openai_client,
         openai_backend=openai_backend,
+        delay=delay,
+        sleep=sleep,
     )
     return run
 
