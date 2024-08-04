@@ -416,15 +416,18 @@ class ThreadCreateAndRunRequest(BaseModel):
         thread_id: Text,
         *,
         run_id: Optional[Text] = None,
-        assistant_instructions: Optional[Text] = None,
+        status: RunStatus = "queued",
+        default_instructions: Optional[Text] = None,
+        default_temperature: Optional[float] = None,
     ) -> OpenaiRun:
         data = self.model_dump()
         data["id"] = run_id or rand_openai_id("run")
         data["object"] = "thread.run"
         data["created_at"] = int(time.time())
         data["thread_id"] = thread_id
-        if assistant_instructions:
-            data["instructions"] = assistant_instructions
+        data["status"] = status
+        data["instructions"] = data["instructions"] or default_instructions or ""
+        data["temperature"] = data["temperature"] or default_temperature
         return OpenaiRun.model_validate(data)
 
 
