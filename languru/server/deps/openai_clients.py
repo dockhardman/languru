@@ -2,22 +2,16 @@ import time
 from logging import Logger
 from typing import Any, Dict, List, Optional, Sequence, Text, Tuple, Union
 
-from fastapi import Body, Depends
-from fastapi import Path as QueryPath
 from fastapi import Query, Request
 from fastapi.exceptions import HTTPException
 from openai import AzureOpenAI, OpenAI, OpenAIError
 from openai.types import Model
-from openai.types.beta.threads.run import Run as ThreadsRun
-from pyassorted.asyncio.executor import run_func
 from pydantic import BaseModel
 
 from languru.config import logger as languru_logger
-from languru.examples.openapi.chat import chat_openapi_examples
 from languru.exceptions import (
     CredentialsNotProvided,
     ModelNotFound,
-    NotFound,
     OrganizationNotFound,
 )
 from languru.openai_plugins.clients.anthropic import AnthropicOpenAI
@@ -25,11 +19,8 @@ from languru.openai_plugins.clients.google import GoogleOpenAI
 from languru.openai_plugins.clients.groq import GroqOpenAI
 from languru.openai_plugins.clients.pplx import PerplexityOpenAI
 from languru.openai_plugins.clients.voyage import VoyageOpenAI
-from languru.resources.sql.openai.backend import OpenaiBackend
 from languru.server.config import APP_STATE_SETTINGS
-from languru.server.deps.openai_backend import depends_openai_backend
-from languru.server.utils.common import get_value_from_app, to_openapi_examples
-from languru.types.chat.completions import ChatCompletionRequest
+from languru.server.utils.common import get_value_from_app
 from languru.types.models import (
     MODELS_ANTHROPIC,
     MODELS_AZURE_OPENAI,
@@ -39,9 +30,7 @@ from languru.types.models import (
     MODELS_PERPLEXITY,
     MODELS_VOYAGE,
 )
-from languru.types.openai_threads import ThreadsRunCreate
 from languru.types.organizations import OrganizationType, to_org_type
-from languru.utils.common import display_object
 
 
 class OpenaiModels:
@@ -413,81 +402,3 @@ def openai_client_from_model(
     model_without_org = openai_clients.model_strip_org(model, org_type)
     openai_client = openai_clients.org_to_openai_client(org_type)
     return (openai_client, org_type, model_without_org)
-
-
-def depends_openai_client_chat_completion_request(
-    request: "Request",
-    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
-    chat_completion_request: ChatCompletionRequest = Body(
-        ...,
-        openapi_examples=to_openapi_examples(chat_openapi_examples),
-    ),
-) -> Tuple[OpenAI, ChatCompletionRequest]:
-    """Returns the OpenAI client and the chat completion request."""
-
-    logger = get_value_from_app(
-        request.app, key="logger", value_typing=Logger, default=languru_logger
-    )
-
-    openai_client, org_type, chat_completion_request.model = openai_client_from_model(
-        chat_completion_request.model, org_type=org_type
-    )
-
-    logger.debug(
-        "Depends OpenAI client chat completion request: "
-        + f"organization type: '{org_type}', "
-        + f"openAI client: '{display_object(openai_client)}', "
-        + f"model: '{chat_completion_request.model}'"
-    )
-    return (openai_client, chat_completion_request)
-
-
-async def depends_thread_id_run_openai_client_backend(
-    request: "Request",
-    org_type: Optional[OrganizationType] = Depends(openai_clients.depends_org_type),
-    thread_id: Text = QueryPath(
-        ...,
-        description="The ID of the thread to create a run in.",
-    ),
-    run_create_request: ThreadsRunCreate = Body(
-        ...,
-        description="The parameters for creating a run.",
-    ),
-    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
-) -> Tuple[Text, ThreadsRun, OpenAI, OpenaiBackend]:
-    """Returns the thread ID, the OpenAI threads run, the OpenAI client, and the backend."""  # noqa: E501
-
-    logger = get_value_from_app(
-        request.app, key="logger", value_typing=Logger, default=languru_logger
-    )
-
-    # Retrieve the model if not specified
-    if run_create_request.model is None:
-        logger.debug(
-            "No model specified. Using assistant "
-            + f"'{run_create_request.assistant_id}' model."
-        )
-        try:
-            assistant_retrieved = await run_func(
-                openai_backend.assistants.retrieve,
-                assistant_id=run_create_request.assistant_id,
-            )
-            run_create_request.model = assistant_retrieved.model
-        except NotFound:
-            raise HTTPException(status_code=404, detail="Assistant not found.")
-
-    # Retrieve the OpenAI client and the model name without organization type
-    openai_client, org_type, run_create_request.model = openai_client_from_model(
-        run_create_request.model, org_type=org_type
-    )
-
-    # Create the OpenAI threads run
-    run = run_create_request.to_openai_run(thread_id=thread_id, status="queued")
-
-    logger.debug(
-        "Depends OpenAI client threads run create request: "
-        + f"organization type: '{org_type}', "
-        + f"openAI client: '{display_object(openai_client)}', "
-        + f"model: '{run_create_request.model}'"
-    )
-    return (thread_id, run, openai_client, openai_backend)

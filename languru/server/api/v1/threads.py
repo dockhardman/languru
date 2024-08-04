@@ -18,7 +18,7 @@ from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
 from languru.server.deps.executor import depends_executor
 from languru.server.deps.openai_backend import depends_openai_backend
-from languru.server.deps.openai_clients import (
+from languru.server.deps.openai_threads import (
     depends_thread_id_run_openai_client_backend,
 )
 from languru.tasks.openai_threads import task_openai_threads_runs_create

@@ -8,7 +8,7 @@ from pyassorted.asyncio.executor import run_func, run_generator
 
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
-from languru.server.deps.openai_clients import (
+from languru.server.deps.openai_chat import (
     depends_openai_client_chat_completion_request,
 )
 from languru.types.chat.completions import ChatCompletionRequest
