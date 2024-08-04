@@ -7,21 +7,34 @@ from openai.types.beta.thread import Thread
 from openai.types.beta.thread_deleted import ThreadDeleted
 from openai.types.beta.threads.message import Message
 from openai.types.beta.threads.message_deleted import MessageDeleted
+from openai.types.beta.threads.run import Run
 
 from languru.types.openai_assistants import AssistantCreateRequest
 from languru.types.openai_threads import (
     ThreadCreateRequest,
     ThreadsMessageUpdate,
+    ThreadsRunCreate,
     ThreadUpdateRequest,
 )
 from tests.conftest import *  # noqa: F401, F403
 
+test_assistant_create_request = json.dumps(
+    {
+        "model": "gpt-4o-mini",
+        "description": (
+            "You are a personal math tutor. "
+            + "Respond briefly and concisely to the user's questions."
+        ),
+        "name": "Math Tutor",
+    }
+)
 test_messages_begin = json.dumps(
     [
         {"content": "Hello, I need help with a math problem.", "role": "user"},
         {"content": "Sure, what is the problem?", "role": "assistant"},
     ]
 )
+test_user_query = json.dumps({"content": "What is 2 + 2?", "role": "user"})
 
 
 @pytest.fixture(scope="module")
@@ -104,8 +117,7 @@ def test_threads_messages_apis(test_client):
 
     # Add a message
     res = test_client.post(
-        f"/v1/threads/{thread.id}/messages",
-        json={"content": "What is 2 + 2?", "role": "user"},
+        f"/v1/threads/{thread.id}/messages", json=json.loads(test_user_query)
     )
     res.raise_for_status()
     message_created = Message.model_validate(res.json())
@@ -154,15 +166,49 @@ def test_threads_runs_apis(test_client):
     res = test_client.post(
         "/v1/assistants",
         json=AssistantCreateRequest.model_validate(
-            {
-                "model": "gpt-4o-mini",
-                "description": (
-                    "You are a personal math tutor. "
-                    + "Respond briefly and concisely to the user's questions."
-                ),
-                "name": "Math Tutor",
-            }
+            json.loads(test_assistant_create_request)
         ).model_dump(exclude_none=True),
     )
     res.raise_for_status()
     assistant = Assistant.model_validate(res.json())
+
+    # Create a thread
+    res = test_client.post(
+        "/v1/threads",
+        json=ThreadCreateRequest.model_validate(
+            {"messages": json.loads(test_messages_begin)}
+        ).model_dump(exclude_none=True),
+    )
+    res.raise_for_status()
+    thread = Thread.model_validate(res.json())
+
+    # Create user message
+    res = test_client.post(
+        f"/v1/threads/{thread.id}/messages", json=json.loads(test_user_query)
+    )
+    res.raise_for_status()
+    assert Message.model_validate(res.json())
+
+    # Create a run
+    res = test_client.post(
+        f"/v1/threads/{thread.id}/runs",
+        json=ThreadsRunCreate.model_validate(
+            {
+                "assistant_id": assistant.id,
+                "thread_id": thread.id,
+                "additional_instructions": "Your name is John.",
+                "additional_messages": [
+                    {
+                        "role": "assistant",
+                        "content": (
+                            "<thinking>The question is simple, "
+                            + "I can answer directly.</thinking>"
+                        ),
+                    }
+                ],
+                "temperature": 0.0,
+            }
+        ).model_dump(exclude_none=True),
+    )
+    res.raise_for_status()
+    run = Run.model_validate(res.json())
