@@ -137,7 +137,8 @@ def display_messages(
     is_print: bool = True,
     table_title: Text = "Messages",
     table_width: int = 120,
-    extra_newline_start: bool = True,
+    extra_newline_table_start: bool = True,
+    extra_newline_message_end: bool = True,
 ) -> Text:
     """Display messages in a human-readable format."""
 
@@ -181,7 +182,11 @@ def display_messages(
                     _content += str(content_block)
             content = _content
         else:
-            content = str(content).strip()
+            content = str(content)
+
+        content = content.strip()
+        if extra_newline_message_end:
+            content += "\n"
         if is_print:
             table = cast(Table, table)
             table.add_row(role.rjust(9), content)
@@ -189,7 +194,7 @@ def display_messages(
         out = out.strip()
 
     if is_print:
-        if extra_newline_start:
+        if extra_newline_table_start:
             console.print("\n")
         console.print(table)
     return out

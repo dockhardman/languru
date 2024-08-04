@@ -226,6 +226,7 @@ class ThreadsRunCreate(BaseModel):
         default_instructions: Optional[Text] = None,
         default_temperature: Optional[float] = None,
         enable_additional_instructions: bool = True,
+        additional_instructions_separator: Text = "\n",
     ) -> OpenaiRun:
         data = self.model_dump(exclude_none=True)
         data["id"] = run_id or rand_openai_id("run")
@@ -234,7 +235,8 @@ class ThreadsRunCreate(BaseModel):
         data["thread_id"] = thread_id
         data["status"] = status
         data["instructions"] = self.instructions or default_instructions or ""
-        if enable_additional_instructions:
+        if enable_additional_instructions and self.additional_instructions:
+            data["instructions"] += additional_instructions_separator
             data["instructions"] += self.additional_instructions or ""
         data["temperature"] = self.temperature or default_temperature
         data["parallel_tool_calls"] = self.parallel_tool_calls or False

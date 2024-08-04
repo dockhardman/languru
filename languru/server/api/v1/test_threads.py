@@ -20,12 +20,12 @@ from tests.conftest import *  # noqa: F401, F403
 
 test_assistant_create_request = json.dumps(
     {
-        "model": "gpt-4o-mini",
-        "description": (
+        "name": "Math Tutor",
+        "instructions": (
             "You are a personal math tutor. "
             + "Respond briefly and concisely to the user's questions."
         ),
-        "name": "Math Tutor",
+        "model": "gpt-4o-mini",
     }
 )
 test_messages_begin = json.dumps(
