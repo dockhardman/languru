@@ -19,6 +19,7 @@ from typing import (
     overload,
 )
 
+from openai.types.beta.threads.message import Message as ThreadsMessage
 from pydantic import BaseModel
 from rich import box
 from rich import print as rich_print
@@ -130,11 +131,13 @@ def display_messages(
         Sequence["Message"],
         Sequence[Dict[Text, Any]],
         Sequence["ChatCompletionMessageParam"],
+        Sequence["ThreadsMessage"],
     ],
     *,
     is_print: bool = True,
     table_title: Text = "Messages",
     table_width: int = 120,
+    extra_newline_start: bool = True,
 ) -> Text:
     """Display messages in a human-readable format."""
 
@@ -157,7 +160,28 @@ def display_messages(
     # Read messages
     for m in _messages:
         role = str(m.get("role") or "Unknown").capitalize()
-        content = str(m.get("content") or "n/a")
+        content = m.get("content") or "n/a"
+        if isinstance(content, List):  # OpenAI Threads messages
+            _content = ""
+            for content_block in content:
+                content_block = cast(Dict, content_block)
+                if content_block.get("type") == "image_file":
+                    _image_file = content_block.get("image_file") or {}
+                    _image_id = _image_file.get("file_id") or "n/a"
+                    _content += f"<image_file file_id={_image_id}/>"
+                elif content_block.get("type") == "image_url":
+                    _image_url = content_block.get("image_url") or {}
+                    _url = _image_url.get("url") or "n/a"
+                    _content += f"<image_url url={_url}/>"
+                elif content_block.get("type") == "text":
+                    _content_text = content_block.get("text") or {}
+                    _content_text_value = _content_text.get("value") or "n/a"
+                    _content += str(_content_text_value)
+                else:
+                    _content += str(content_block)
+            content = _content
+        else:
+            content = str(content).strip()
         if is_print:
             table = cast(Table, table)
             table.add_row(role.rjust(9), content)
@@ -165,6 +189,8 @@ def display_messages(
         out = out.strip()
 
     if is_print:
+        if extra_newline_start:
+            console.print("\n")
         console.print(table)
     return out
 

@@ -223,13 +223,22 @@ class ThreadsRunCreate(BaseModel):
         thread_id: Text,
         run_id: Optional[Text] = None,
         status: RunStatus = "queued",
+        default_instructions: Optional[Text] = None,
+        default_temperature: Optional[float] = None,
+        enable_additional_instructions: bool = True,
     ) -> OpenaiRun:
-        data = self.model_dump()
+        data = self.model_dump(exclude_none=True)
         data["id"] = run_id or rand_openai_id("run")
         data["object"] = "thread.run"
         data["created_at"] = int(time.time())
         data["thread_id"] = thread_id
         data["status"] = status
+        data["instructions"] = self.instructions or default_instructions or ""
+        if enable_additional_instructions:
+            data["instructions"] += self.additional_instructions or ""
+        data["temperature"] = self.temperature or default_temperature
+        data["parallel_tool_calls"] = self.parallel_tool_calls or False
+        data["tools"] = self.tools or []
         return OpenaiRun.model_validate(data)
 
 
