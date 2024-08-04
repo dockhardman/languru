@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, cast
 import pytz
 
 from languru.config import console
+from languru.utils.common import display_messages
 
 if TYPE_CHECKING:
     from openai import OpenAI
@@ -20,6 +21,8 @@ def task_openai_threads_runs_create(
     *,
     openai_client: "OpenAI",
     openai_backend: "OpenaiBackend",
+    verbose: bool = True,
+    **kwargs,
 ) -> "Run":
     """Create a new OpenAI Threads run and generate chat completions
 
@@ -91,6 +94,9 @@ def task_openai_threads_runs_create(
         {"messages": chat_messages, "model": run.model, "temperature": run.temperature}
     )
     chat_completion_request.stream = False  # Ensure synchronous completion
+    if verbose:
+        display_messages(chat_messages, table_title=f"Run '{run.id}' Input Messages")
+        console.print(f"Chat completion request: {chat_completion_request}")
 
     # Generate chat completions
     try:
@@ -99,6 +105,11 @@ def task_openai_threads_runs_create(
         )
         chat_completion_res = cast(ChatCompletion, chat_completion_res)
         chat_answer = ensure_openai_chat_completion_content(chat_completion_res)
+        if verbose:
+            display_messages(
+                [{"role": "assistant", "content": chat_answer}],
+                table_title=f"Run '{run.id}' Output Messages",
+            )
         run.completed_at = int(time.time())
         run.status = "completed"
         if chat_completion_res.usage:
@@ -122,7 +133,7 @@ def task_openai_threads_runs_create(
         run.status = "failed"
 
     # Finish the run
-    console.print(f"Run `{run.id}` completed: {run}")
+    console.print(f"Run '{run.id}' completed: {run}")
     openai_backend.threads.runs.update(
         run_id=run.id,
         thread_id=run.thread_id,
