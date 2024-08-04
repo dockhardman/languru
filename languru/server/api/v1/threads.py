@@ -1,8 +1,10 @@
-from typing import Literal, Optional, Text
+from concurrent.futures import ThreadPoolExecutor
+from typing import Literal, Optional, Text, Tuple
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi import Path as QueryPath
 from fastapi import Query, Request
+from openai import OpenAI
 from openai.types.beta.thread import Thread
 from openai.types.beta.thread_deleted import ThreadDeleted
 from openai.types.beta.threads.message import Message
@@ -14,7 +16,12 @@ from languru.exceptions import NotFound
 from languru.resources.sql.openai.backend import OpenaiBackend
 from languru.server.config import ServerBaseSettings
 from languru.server.deps.common import app_settings
+from languru.server.deps.executor import depends_executor
 from languru.server.deps.openai_backend import depends_openai_backend
+from languru.server.deps.openai_clients import (
+    depends_thread_id_run_openai_client_backend,
+)
+from languru.tasks.openai_threads import task_openai_threads_runs_create
 from languru.types.openai_page import OpenaiPage
 from languru.types.openai_threads import (
     RunSubmitToolOutputsRequest,
@@ -22,7 +29,6 @@ from languru.types.openai_threads import (
     ThreadCreateRequest,
     ThreadsMessageCreate,
     ThreadsMessageUpdate,
-    ThreadsRunCreate,
     ThreadsRunUpdate,
     ThreadUpdateRequest,
 )
@@ -330,22 +336,36 @@ async def delete_message(
 @router.post("/threads/{thread_id}/runs")
 async def create_run(
     request: Request,
-    thread_id: Text = QueryPath(
-        ...,
-        description="The ID of the thread to create a run in.",
-    ),
-    run_create_request: ThreadsRunCreate = Body(
-        ...,
-        description="The parameters for creating a run.",
-    ),
     settings: ServerBaseSettings = Depends(app_settings),
-    openai_backend: OpenaiBackend = Depends(depends_openai_backend),
+    thread_id_run_openai_client_backend: Tuple[
+        Text, Run, OpenAI, OpenaiBackend
+    ] = Depends(depends_thread_id_run_openai_client_backend),
+    executor: ThreadPoolExecutor = Depends(depends_executor),
 ) -> Run:
     """Create a run in a thread."""
 
-    run = await run_func(
-        openai_backend.threads.runs.create,
-        run=run_create_request.to_openai_run(thread_id=thread_id),
+    (
+        thread_id,
+        run,
+        openai_client,
+        openai_backend,
+    ) = thread_id_run_openai_client_backend
+
+    # Get the threads messages
+    messages = await run_func(
+        openai_backend.threads.messages.list,
+        thread_id=thread_id,
+    )
+
+    # Save the in-queue run
+    run = await run_func(openai_backend.threads.runs.create, run=run)
+
+    executor.submit(
+        task_openai_threads_runs_create,
+        run=run,
+        messages=messages,
+        openai_client=openai_client,
+        openai_backend=openai_backend,
     )
     return run
 

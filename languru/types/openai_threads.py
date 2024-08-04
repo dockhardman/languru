@@ -219,13 +219,17 @@ class ThreadsRunCreate(BaseModel):
     )
 
     def to_openai_run(
-        self, thread_id: Text, run_id: Optional[Text] = None
+        self,
+        thread_id: Text,
+        run_id: Optional[Text] = None,
+        status: RunStatus = "queued",
     ) -> OpenaiRun:
         data = self.model_dump()
         data["id"] = run_id or rand_openai_id("run")
         data["object"] = "thread.run"
         data["created_at"] = int(time.time())
         data["thread_id"] = thread_id
+        data["status"] = status
         return OpenaiRun.model_validate(data)
 
 
