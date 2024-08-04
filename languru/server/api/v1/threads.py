@@ -1,10 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import Literal, Optional, Text, Tuple
+from typing import List, Literal, Optional, Text, Tuple
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi import Path as QueryPath
 from fastapi import Query, Request
 from openai import OpenAI
+from openai.types.beta.assistant import Assistant
 from openai.types.beta.thread import Thread
 from openai.types.beta.thread_deleted import ThreadDeleted
 from openai.types.beta.threads.message import Message
@@ -19,7 +20,7 @@ from languru.server.deps.common import app_settings
 from languru.server.deps.executor import depends_executor
 from languru.server.deps.openai_backend import depends_openai_backend
 from languru.server.deps.openai_threads import (
-    depends_thread_id_run_openai_client_backend,
+    depends_thread_id_run_messages_assistant_openai_client_backend,
 )
 from languru.tasks.openai_threads import task_openai_threads_runs_create
 from languru.types.openai_page import OpenaiPage
@@ -337,25 +338,21 @@ async def delete_message(
 async def create_run(
     request: Request,
     settings: ServerBaseSettings = Depends(app_settings),
-    thread_id_run_openai_client_backend: Tuple[
-        Text, Run, OpenAI, OpenaiBackend
-    ] = Depends(depends_thread_id_run_openai_client_backend),
+    thread_id_run_messages_assistant_openai_client_backend: Tuple[
+        Text, Run, List[Message], Assistant, OpenAI, OpenaiBackend
+    ] = Depends(depends_thread_id_run_messages_assistant_openai_client_backend),
     executor: ThreadPoolExecutor = Depends(depends_executor),
 ) -> Run:
     """Create a run in a thread."""
 
     (
-        thread_id,
+        _,
         run,
+        messages,
+        _,
         openai_client,
         openai_backend,
-    ) = thread_id_run_openai_client_backend
-
-    # Get the threads messages
-    messages = await run_func(
-        openai_backend.threads.messages.list,
-        thread_id=thread_id,
-    )
+    ) = thread_id_run_messages_assistant_openai_client_backend
 
     # Save the in-queue run
     run = await run_func(openai_backend.threads.runs.create, run=run)
