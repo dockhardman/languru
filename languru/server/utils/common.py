@@ -59,7 +59,7 @@ def get_value_from_app(
             out = app.extra[key]
         else:
             if isinstance(app.extra[key], value_typing) is False:
-                logger.warning(f"Key {key} not of type {value_typing} in app.extra")
+                logger.warning(f"Key '{key}' not of type {value_typing} in app.extra")
             out = app.extra[key]
     if out is NOT_SET:
         raise ValueError(

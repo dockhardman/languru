@@ -19,7 +19,7 @@ from languru.openai_plugins.clients.google import GoogleOpenAI
 from languru.openai_plugins.clients.groq import GroqOpenAI
 from languru.openai_plugins.clients.pplx import PerplexityOpenAI
 from languru.openai_plugins.clients.voyage import VoyageOpenAI
-from languru.server.config import APP_STATE_SETTINGS
+from languru.server.config import APP_STATE_LOGGER
 from languru.server.utils.common import get_value_from_app
 from languru.types.models import (
     MODELS_ANTHROPIC,
@@ -115,7 +115,7 @@ class OpenaiDepends:
 
         logger = get_value_from_app(
             request.app,
-            key=APP_STATE_SETTINGS,
+            key=APP_STATE_LOGGER,
             value_typing=Logger,
             default=languru_logger,
         )
