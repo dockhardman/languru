@@ -38,13 +38,8 @@ async def app_lifespan(app: FastAPI):
     )
     openai_backend.touch()
 
-    # Initialize thread pool executor
-    executor = get_value_from_app(
-        app, key=APP_STATE_EXECUTOR, value_typing=ThreadPoolExecutor
-    )
-
     # Yield
-    with executor:
+    with refresh_executor_of_app(app):  # Refresh thread pool executor
         yield
 
 
@@ -122,3 +117,19 @@ def run_app(settings: "ServerBaseSettings", **kwargs):
             port=settings.PORT,
             workers=settings.WORKERS,
         )
+
+
+def refresh_executor_of_app(app: "FastAPI") -> "ThreadPoolExecutor":
+    """Refresh the executor of the app."""
+
+    executor = get_value_from_app(
+        app, key=APP_STATE_EXECUTOR, value_typing=ThreadPoolExecutor
+    )
+    if executor._shutdown:
+        executor = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="languru.server.app.state.executor",
+        )
+        app.extra[APP_STATE_EXECUTOR] = executor
+        setattr(app.state, APP_STATE_EXECUTOR, executor)
+    return executor
