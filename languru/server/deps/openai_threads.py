@@ -139,12 +139,27 @@ async def depends_thread_create_and_run(
     thread_create_and_run_request: ThreadCreateAndRunRequest = Body(
         ...,
         description="The parameters for creating a thread and a run.",
+        openapi_examples={
+            "quick_thread_and_run": {
+                "summary": "Quick thread and run",
+                "value": {
+                    "thread": {
+                        "messages": [{"role": "user", "content": "What is 2 + 2?"}],
+                    },
+                    "assistant_id": "<assistant_id>",
+                    "model": "gpt-4o-mini",
+                },
+            }
+        },
     ),
     openai_backend: OpenaiBackend = Depends(depends_openai_backend),
 ) -> Tuple[Thread, ThreadsRun, List[ThreadsMessage], Assistant, OpenAI, OpenaiBackend]:
 
     logger = get_value_from_app(
         request.app, key="logger", value_typing=Logger, default=languru_logger
+    )
+    logger.debug(
+        f"Depends thread create and run request: '{thread_create_and_run_request}'"
     )
 
     thread = (

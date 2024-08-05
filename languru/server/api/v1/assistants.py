@@ -71,6 +71,18 @@ async def create_assistant(
     assistant_create_request: AssistantCreateRequest = Body(
         ...,
         description="The request to create an assistant.",
+        openapi_examples={
+            "math_tutor": {
+                "summary": "Math Tutor",
+                "value": {
+                    "model": "gpt-4o-mini",
+                    "instructions": "You are a personal math tutor. Respond briefly and concisely to the user's questions.",  # noqa: E501
+                    "name": "Math Tutor",
+                    "response_format": "none",
+                    "temperature": 0.7,
+                },
+            }
+        },
     ),
     settings: ServerBaseSettings = Depends(app_settings),
     openai_backend: OpenaiBackend = Depends(depends_openai_backend),
