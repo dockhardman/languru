@@ -1,8 +1,9 @@
 import time
 from logging import Logger
-from typing import Any, Dict, List, Optional, Sequence, Text, Union
+from typing import Any, Dict, List, Optional, Sequence, Text, Tuple, Union
 
 from fastapi import Query, Request
+from fastapi.exceptions import HTTPException
 from openai import AzureOpenAI, OpenAI, OpenAIError
 from openai.types import Model
 from pydantic import BaseModel
@@ -18,6 +19,7 @@ from languru.openai_plugins.clients.google import GoogleOpenAI
 from languru.openai_plugins.clients.groq import GroqOpenAI
 from languru.openai_plugins.clients.pplx import PerplexityOpenAI
 from languru.openai_plugins.clients.voyage import VoyageOpenAI
+from languru.server.config import APP_STATE_LOGGER
 from languru.server.utils.common import get_value_from_app
 from languru.types.models import (
     MODELS_ANTHROPIC,
@@ -112,7 +114,10 @@ class OpenaiDepends:
         """Returns the OpenAI client based on the request parameters."""
 
         logger = get_value_from_app(
-            request.app, key="logger", value_typing=Logger, default=languru_logger
+            request.app,
+            key=APP_STATE_LOGGER,
+            value_typing=Logger,
+            default=languru_logger,
         )
         organization_type = (
             organization_type or organization or org_type or org or api_type
@@ -381,15 +386,19 @@ class OpenaiClients(OpenaiModels, OpenaiDepends):
 openai_clients = OpenaiClients()
 
 
-# class Model(BaseModel):
-#     id: str
-#     """The model identifier, which can be referenced in the API endpoints."""
+def openai_client_from_model(
+    model: Text,
+    *,
+    org_type: Optional[OrganizationType] = None,
+    openai_clients: OpenaiClients = openai_clients,
+) -> Tuple[OpenAI, OrganizationType, Text]:
+    """Returns the OpenAI client and the model name without organization type."""
 
-#     created: int
-#     """The Unix timestamp (in seconds) when the model was created."""
+    if org_type is None:
+        org_type = openai_clients.org_from_model(model)
+    if org_type is None:
+        raise HTTPException(status_code=400, detail="Organization type not found.")
 
-#     object: Literal["model"]
-#     """The object type, which is always "model"."""
-
-#     owned_by: str
-#     """The organization that owns the model."""
+    model_without_org = openai_clients.model_strip_org(model, org_type)
+    openai_client = openai_clients.org_to_openai_client(org_type)
+    return (openai_client, org_type, model_without_org)

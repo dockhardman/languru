@@ -19,6 +19,32 @@ def get_value_from_app(
     default: Any = NOT_SET,
     logger: Optional[logging.Logger] = None,
 ) -> T:
+    """Get value from app.state or app.extra.
+
+    Parameters
+    ----------
+    app : FastAPI
+        The FastAPI app instance.
+    key : Text
+        The key to get from app.state or app.extra.
+    value_typing : Optional[Type[T]], optional
+        The type to check the value against, by default None.
+    default : Any, optional
+        The default value to return if key is not found, by default NOT_SET.
+    logger : Optional[logging.Logger], optional
+        The logger to use, by default None.
+
+    Returns
+    -------
+    T
+        The value from app.state or app.extra.
+
+    Raises
+    ------
+    ValueError
+        If key is not found in app.state or app.extra.
+    """
+
     logger = logger or languru_logger
     out = default
     if hasattr(app.state, key):
@@ -33,7 +59,7 @@ def get_value_from_app(
             out = app.extra[key]
         else:
             if isinstance(app.extra[key], value_typing) is False:
-                logger.warning(f"Key {key} not of type {value_typing} in app.extra")
+                logger.warning(f"Key '{key}' not of type {value_typing} in app.extra")
             out = app.extra[key]
     if out is NOT_SET:
         raise ValueError(
