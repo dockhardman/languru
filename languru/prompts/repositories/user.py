@@ -63,8 +63,12 @@ request_to_rewrite_as_costar: Final[Text] = dedent(
 
     Note 1: Please ensure that the response is in the correct markdown format in a code snippet.
     Note 2: The chat example is not required for this prompt.
+    Note 3: Keep prompt briefly and concisely.
     """  # noqa: E501
 ).strip()
+request_to_rewrite_as_costar_concise: Final[Text] = (
+    request_to_rewrite_as_costar + "\nNote 3: Keep prompt briefly and concisely."
+)
 
 documentation_planner: Final[Text] = dedent(
     """
