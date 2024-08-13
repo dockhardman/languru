@@ -134,6 +134,3 @@ graph TD
 
 The `languru.openai_plugins.clients.anthropic` module provides a seamless way to integrate Anthropic's powerful language models into projects with an OpenAI-compatible interface. By following the usage examples and best
 practices outlined in this documentation, developers can effectively leverage Anthropic's capabilities while maintaining code compatibility with OpenAI-based projects.
-
-Citations:
-[1] <https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/9194877/c58034c1-6668-4b63-8892-8d93da20fe7c/test.txt>
