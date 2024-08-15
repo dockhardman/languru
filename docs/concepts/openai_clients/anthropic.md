@@ -1,136 +1,129 @@
-# `languru.openai_plugins.clients.anthropic`
+# Anthropic
 
-## Overview
+## Introduction
 
-The `languru.openai_plugins.clients.anthropic` module is designed to provide an OpenAI-compatible interface for Anthropic's API. It allows users to interact with Anthropic's language models using a familiar OpenAI-style
-API, facilitating easy integration and migration between the two services.
+The `languru.openai_plugins.clients.anthropic` module is designed to interact with the Anthropic AI platform, providing functionality for chat completions and model management. This documentation aims to provide a clear and concise overview of the module's functionality, ensuring that developers and users can quickly understand and utilize its capabilities.
 
-## Key Components
+## Module Overview
 
-1. `AnthropicChatCompletions`
-2. `AnthropicChat`
-3. `AnthropicModels`
-4. `AnthropicOpenAI`
+The `languru.openai_plugins.clients.anthropic` module consists of several key components:
 
-## Detailed Component Descriptions
+- **AnthropicChatCompletions**: Handles chat completion requests and streaming functionalities.
+- **AnthropicModels**: Manages model retrieval and listing.
+- **AnthropicOpenAI**: The main class that encapsulates the Anthropic client and its functionalities.
 
 ### AnthropicChatCompletions
 
-This class is responsible for handling chat completions using Anthropic's API. It provides methods for both streaming and non-streaming chat completions.
-
-#### Key Methods
-
-- `create()`: Creates chat completions
-- `_create()`: Internal method for non-streaming completions
-- `_create_stream()`: Internal method for streaming completions
-- `generator_generate_content_chunks()`: Generates content chunks for streaming
-
-#### Usage Example
-
-```python
-anthropic_client = AnthropicOpenAI(api_key="your_api_key")
-chat_completions = anthropic_client.chat.completions.create(
-    messages=[{"role": "user", "content": "Hello, how are you?"}],
-    model="claude-2"
-)
-print(chat_completions.choices[0].message.content)
+```mermaid
+classDiagram
+    class AnthropicChatCompletions {
+        +create(messages, model, ...) ChatCompletion | Stream[ChatCompletionChunk]
+        +_create(messages, model, ...) ChatCompletion
+        +_create_stream(messages, model, ...) Stream[ChatCompletionChunk]
+    }
 ```
 
-### AnthropicChat
-
-This class serves as a wrapper for `AnthropicChatCompletions`, providing a property to access chat completion functionality.
-
-#### Key Properties
-
-- `completions`: Returns an instance of `AnthropicChatCompletions`
+- **create**: Creates a chat completion. It can return either a `ChatCompletion` object or a stream of `ChatCompletionChunk` objects depending on the `stream` parameter.
+- **_create**: An internal method that handles the creation of a chat completion without streaming.
+- **_create_stream**: An internal method that handles the creation of a chat completion stream.
 
 ### AnthropicModels
 
-This class handles operations related to Anthropic's language models, such as retrieving model information and listing available models.
-
-#### Key Methods
-
-- `retrieve()`: Retrieves information about a specific model
-- `list()`: Lists all available Anthropic models
-
-#### Usage Example
-
-```python
-anthropic_client = AnthropicOpenAI(api_key="your_api_key")
-models = anthropic_client.models.list()
-for model in models:
-    print(model.id)
+```mermaid
+classDiagram
+    class AnthropicModels {
+        +retrieve(model, ...) Model
+        +list(...) SyncPage[Model]
+    }
 ```
+
+- **retrieve**: Retrieves a specific model by its ID.
+- **list**: Lists all supported models.
 
 ### AnthropicOpenAI
 
-This is the main client class that integrates all the functionality for interacting with Anthropic's API using an OpenAI-compatible interface.
+```mermaid
+classDiagram
+    class AnthropicOpenAI {
+        +__init__(api_key, ...) void
+        +chat: AnthropicChat
+        +models: AnthropicModels
+        +anthropic_client: anthropic.Anthropic
+    }
+```
 
-#### Key Attributes
+- ****init****: Initializes the AnthropicOpenAI client with an API key.
+- **chat**: An instance of `AnthropicChat` for handling chat-related functionalities.
+- **models**: An instance of `AnthropicModels` for managing models.
+- **anthropic_client**: The underlying Anthropic client.
 
-- `chat`: Instance of `AnthropicChat`
-- `models`: Instance of `AnthropicModels`
-- `anthropic_client`: Instance of Anthropic's official client
+## Usage Examples
 
-#### Usage Example
+### Creating a Chat Completion
 
 ```python
 from languru.openai_plugins.clients.anthropic import AnthropicOpenAI
 
-client = AnthropicOpenAI(api_key="your_anthropic_api_key")
-response = client.chat.completions.create(
-    model="claude-2",
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "What is the capital of France?"}
-    ]
+# Initialize the AnthropicOpenAI client
+client = AnthropicOpenAI(api_key="your_api_key")
+
+# Create a chat completion
+completion = client.chat.completions.create(
+    messages=[{"role": "user", "content": "Hello, how are you?"}],
+    model="claude-v1",
 )
-print(response.choices[0].message.content)
+
+print(completion)
 ```
 
-## Dependencies
+### Streaming a Chat Completion
 
-- `anthropic`: Anthropic's official Python client
-- `openai`: OpenAI's Python client (used for type compatibility)
-- `httpx`: HTTP client library
-- `pydantic`: Data validation and settings management
-- `languru.config`: Configuration settings
-- `languru.exceptions`: Custom exception classes
-- `languru.types.chat.anthropic`: Anthropic-specific chat types
-- `languru.types.chat.completions`: General chat completion types
-- `languru.types.models`: Model definitions
-- `languru.utils.openai_utils`: Utility functions for OpenAI compatibility
-- `languru.utils.sse`: Server-Sent Events utilities
+```python
+from languru.openai_plugins.clients.anthropic import AnthropicOpenAI
 
-## Workflow
+# Initialize the AnthropicOpenAI client
+client = AnthropicOpenAI(api_key="your_api_key")
 
-The following diagram illustrates the high-level workflow of the `languru.openai_plugins.clients.anthropic` module:
+# Create a chat completion stream
+stream = client.chat.completions.create(
+    messages=[{"role": "user", "content": "Hello, how are you?"}],
+    model="claude-v1",
+    stream=True,
+)
 
-```mermaid
-graph TD
-    A[User] -->|Creates| B[AnthropicOpenAI]
-    B -->|Has| C[AnthropicChat]
-    B -->|Has| D[AnthropicModels]
-    C -->|Uses| E[AnthropicChatCompletions]
-    E -->|Calls| F[Anthropic API]
-    D -->|Calls| F
-    F -->|Returns| G[Response]
-    G -->|Processed by| E
-    E -->|Returns to| A
+for chunk in stream:
+    print(chunk)
 ```
 
-## Performance Considerations
+### Retrieving a Model
 
-1. Streaming: The module supports both streaming and non-streaming completions. Streaming is recommended for long-running completions to improve responsiveness.
-2. Error Handling: The module includes custom error handling to manage API-specific errors and provide meaningful feedback.
+```python
+from languru.openai_plugins.clients.anthropic import AnthropicOpenAI
 
-## Limitations and Best Practices
+# Initialize the AnthropicOpenAI client
+client = AnthropicOpenAI(api_key="your_api_key")
 
-1. API Key: Always use environment variables or secure configuration management to store the Anthropic API key.
-2. Model Compatibility: Not all OpenAI features have direct equivalents in Anthropic's API. Be aware of potential differences when migrating from OpenAI to Anthropic.
-3. Rate Limiting: Be mindful of Anthropic's rate limits and implement appropriate error handling and retries.
+# Retrieve a model
+model = client.models.retrieve("claude-v1")
+
+print(model)
+```
+
+### Listing Models
+
+```python
+from languru.openai_plugins.clients.anthropic import AnthropicOpenAI
+
+# Initialize the AnthropicOpenAI client
+client = AnthropicOpenAI(api_key="your_api_key")
+
+# List all supported models
+models = client.models.list()
+
+for model in models.data:
+    print(model)
+```
 
 ## Conclusion
 
-The `languru.openai_plugins.clients.anthropic` module provides a seamless way to integrate Anthropic's powerful language models into projects with an OpenAI-compatible interface. By following the usage examples and best
-practices outlined in this documentation, developers can effectively leverage Anthropic's capabilities while maintaining code compatibility with OpenAI-based projects.
+The `languru.openai_plugins.clients.anthropic` module provides a comprehensive interface for interacting with the Anthropic AI platform. By following this documentation, developers and users can quickly understand and utilize the module's functionalities to create chat completions and manage models.
