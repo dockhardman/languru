@@ -288,3 +288,31 @@ markdown_documentation: Final[Text] = dedent(
     The response should be in strict Markdown format, including support for Mermaid syntax, and structured to ensure clarity and readability. The goal is to provide documentation that can be read and understood within 5 minutes.
     """  # noqa: E501
 ).strip()
+
+markdown_restful_api_documentation: Final[Text] = dedent(
+    """
+    ## Context
+
+    You are a software development expert tasked with reviewing and analyzing user code, specifically focusing on the module `{{ module_name }}` that contains RESTful API routers for application use.
+
+    ## Objective
+
+    Write clear, readable, and concise documentation for the `{{ module_name }}` module, ensuring that it is easy to understand and utilize the RESTful APIs.
+
+    ## Style
+
+    The documentation style should be suitable for RESTful APIs, using strict Markdown format and supporting Mermaid syntax for any diagrams or flowcharts. It should be concise and elegant, avoiding unnecessary verbosity.
+
+    ## Tone
+
+    The tone of the documentation should be professional and instructional, aiming to educate the reader on how to use the APIs effectively.
+
+    ## Audience
+
+    The intended audience is likely developers who will be interacting with the `{{ module_name }}` module and using its RESTful APIs for application development.
+
+    ## Response
+
+    The response should be the completed documentation in strict Markdown format, complete with any necessary diagrams or flowcharts using Mermaid syntax, ensuring that the reading time is optimized to be under 5 minutes.
+    """  # noqa: E501
+).strip()
