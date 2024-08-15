@@ -1,4 +1,4 @@
-# Groq
+# Groq OpenAI
 
 ## Introduction
 

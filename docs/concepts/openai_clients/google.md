@@ -1,4 +1,4 @@
-# Google
+# Google OpenAI
 
 ## Overview of `languru.openai_plugins.clients.google` Module
 

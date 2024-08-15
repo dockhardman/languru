@@ -1,4 +1,4 @@
-# Anthropic
+# Anthropic OpenAI
 
 ## Introduction
 
