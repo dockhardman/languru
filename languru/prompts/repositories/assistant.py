@@ -261,40 +261,30 @@ documentation_planner: Final[Text] = dedent(
     """  # noqa: E501
 ).strip()
 
-
 markdown_documentation: Final[Text] = dedent(
     """
     ## Context
 
-    You are a software developer with expertise in creating comprehensive documentation. The codebase for the module {{ module_name }} is available as an attachment or in the user query. This module is part of a larger software project and requires thorough documentation for ease of understanding and maintenance.
+    You are a software development expert tasked with reviewing and analyzing a user's code, which may be provided in an attachment, to write clear and readable documentation for the `{{ module_name }}` module.
 
     ## Objective
 
-    Your task is to thoroughly analyze the codebase of the module {{ module_name }} and create detailed, well-structured documentation. This documentation should cover all aspects of the module, including its purpose, functions, dependencies, and usage examples.
+    Write high-quality, easy-to-read documentation for the `{{ module_name }}` module in strict Markdown format, ensuring that the reading time is under 5 minutes. The documentation should support Mermaid syntax for visual aids.
 
     ## Style
 
-    The documentation should be written in a clear, concise, and technical style. Use appropriate technical terminology, but ensure explanations are comprehensible to developers of varying experience levels. Organize the content logically, using headers, subheaders, and code blocks where appropriate. Utilize the mermaid extension for creating diagrams to illustrate complex concepts or workflows.
+    The documentation style should be elegant and concise, avoiding unnecessary complexity. Use visual aids like diagrams (supported by Mermaid syntax) to enhance understanding.
 
     ## Tone
 
-    Maintain a professional and neutral tone throughout the documentation. The content should be informative and objective, focusing on facts and technical details without personal opinions or casual language.
+    The tone of the documentation should be professional and informative, making it approachable and useful for the intended audience.
 
     ## Audience
 
-    The primary audience for this documentation is other software developers who may need to work with, maintain, or extend the {{ module_name }} module. This includes both current team members and potential future developers who may join the project.
+    The audience consists of developers or users who need to understand the functionality of the `{{ module_name }}` module. They have a technical background but may vary in their familiarity with the specific code or module.
 
     ## Response
 
-    Provide the documentation in markdown format. The response should include, but is not limited to:
-
-    1. An overview of the module's purpose and functionality
-    2. Detailed explanations of key functions and classes
-    3. Description of dependencies and their versions
-    4. Usage examples and code snippets
-    5. Any important notes on performance, limitations, or best practices
-    6. Mermaid diagrams for visualizing complex workflows or relationships
-
-    Use appropriate markdown formatting, including code blocks for code snippets and the mermaid syntax for diagrams. Ensure the documentation is comprehensive, well-structured, and easy to navigate.
+    The response should be in strict Markdown format, including support for Mermaid syntax, and structured to ensure clarity and readability. The goal is to provide documentation that can be read and understood within 5 minutes.
     """  # noqa: E501
 ).strip()
