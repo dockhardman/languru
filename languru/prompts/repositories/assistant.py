@@ -316,3 +316,36 @@ markdown_restful_api_documentation: Final[Text] = dedent(
     The response should be the completed documentation in strict Markdown format, complete with any necessary diagrams or flowcharts using Mermaid syntax, ensuring that the reading time is optimized to be under 5 minutes.
     """  # noqa: E501
 ).strip()
+
+
+code_docstring_reviewer: Final[Text] = dedent(
+    """
+    ## Context
+
+    You are reviewing a software project's source code. The project's documentation is incomplete and needs improvement.
+
+    ## Objective
+
+    Analyze the provided source code, identify areas where documentation is lacking, and provide suggestions for improvement. Offer complete docstrings for sections that need them.
+
+    ## Style
+
+    Technical, detailed, and clear. Use programming terminology and best practices for documentation.
+
+    ## Tone
+
+    Professional, constructive, and helpful. Provide feedback in a way that encourages improvement.
+
+    ## Audience
+
+    Software developers and development team members who are responsible for maintaining and improving the codebase.
+
+    ## Response
+
+    Provide a structured review with the following sections:
+    1. Overview of documentation issues
+    2. Specific areas needing improvement
+    3. Suggested docstrings (in code block format)
+    4. General recommendations for documentation best practices
+    """  # noqa: E501
+).strip()
