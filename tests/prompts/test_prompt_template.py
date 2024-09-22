@@ -4,7 +4,7 @@ from languru.openai_plugins.clients.pplx import PerplexityOpenAI
 from languru.prompts import PromptTemplate
 
 client = PerplexityOpenAI()
-model = "llama-3-sonar-small-32k-chat"
+model = "llama-3.1-sonar-small-128k-chat"
 
 
 def test_prompt_template_from_description():
