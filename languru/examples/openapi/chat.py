@@ -58,7 +58,7 @@ chat_perplexity = {
     "summary": "Perplexity Online",
     "description": "Chat completion request",
     "value": {
-        "model": "llama-3-sonar-small-32k-online",
+        "model": "llama-3.1-sonar-small-128k-chat",
         "messages": [
             {"role": "system", "content": "Respond accurately and concisely."},
             {"role": "user", "content": "Why is the apple red?"},
