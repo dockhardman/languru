@@ -25,6 +25,7 @@ openai = "^1.10.0"
 packaging = ">=23"
 pillow = "^10.0.0"
 playwright = { version = "*", optional = true }
+playwright-stealth = { version = "*", optional = true }
 pyassorted = "<1,>=0.10.0"
 pydantic = "^2"
 pydantic-settings = "^2"
@@ -37,13 +38,14 @@ sentencepiece = { version = "<1,>=0.1.99" }
 sqlalchemy = "^2"
 tiktoken = { version = ">=0.3,<1" }
 typing-extensions = "^4"
+uuid-utils = "*"
 voyageai = "^0"
 
 [tool.poetry.scripts]
 languru = "languru.cli.main:languru_cli"
 
 [tool.poetry.extras]
-all = ["fastapi", "googlesearch-python", "playwright", "sentencepiece", "tiktoken"]
+all = ["fastapi", "googlesearch-python", "playwright", "playwright-stealth", "sentencepiece", "tiktoken"]
 clawler = ["googlesearch-python", "playwright"]
 server = ["fastapi"]
 
