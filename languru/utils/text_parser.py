@@ -1,13 +1,20 @@
+import hashlib
 import re
 import string
 import unicodedata
-from typing import List, Optional, Sequence, Text
+from typing import List, Sequence, Text
 
 full_width_punctuation = "".join(
     chr(ord(ch) + 0xFEE0) if ch in string.punctuation else ch
     for ch in string.punctuation
 )
 strip_punctuation = string.punctuation + full_width_punctuation + " "
+
+
+def hash_text(text: Text) -> Text:
+    """Hash a string using SHA-256."""
+
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def full_to_half(text: Text) -> Text:
@@ -52,24 +59,3 @@ def split_strip(
     # Split the text using the pattern
     splitted_content = re.split(pattern, content)
     return [s.strip(strip_punctuation) for s in splitted_content]
-
-
-def extract_markdown_section_content(markdown: Text, section: Text) -> Optional[Text]:
-    """Extract content from a specific section of a markdown string.
-
-    Parameters
-    ----------
-    markdown : Text
-        The input markdown string.
-    section : Text
-        The section header to search for.
-
-    Returns
-    -------
-    Optional[Text]
-        The content of the specified section if found, otherwise None.
-    """
-
-    pattern = rf"#+\s.*?{section}:?(.*?)(?=## |\Z)"
-    match = re.search(pattern, markdown, re.DOTALL | re.IGNORECASE)
-    return match.group(1).strip() if match else None
