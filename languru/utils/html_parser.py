@@ -1,8 +1,11 @@
 import re
-from typing import Optional, Text
+from typing import TYPE_CHECKING, Optional, Text
 from urllib.parse import unquote
 
 from languru.config import console
+
+if TYPE_CHECKING:
+    from bs4 import BeautifulSoup
 
 
 def html_to_markdown(html: Text) -> Text:
@@ -63,54 +66,93 @@ def parse_html_main_content(html_content: Text) -> Optional[Text]:
 
     # Create a BeautifulSoup object to parse the HTML content
     soup = BeautifulSoup(html_content, "html.parser")
+
+    # Remove all script tags
+    soup = remove_javascript(soup)
+    soup = remove_font(soup)
+
     for a in soup.find_all("a", href=True):
         a["href"] = unquote(a["href"])
-    main_content = (
-        soup.find("article")
-        or soup.find("main")
-        or soup.find("div", class_="article-content")
-        or soup.find("div", class_="post-content")
-        or soup.find("div", class_="entry-content")
-        or soup.find("div", class_="content")
-        or soup.find("div", class_="main-content")
-        or soup.find("div", id="content")
-        or soup.find("div", id="main-content")
-        or soup.find("div", class_="article")
-        or soup.find("div", class_="post")
-        or soup.find("div", class_="entry")
-        or soup.find("section", class_="article-content")
-        or soup.find("section", class_="post-content")
-        or soup.find("div", class_="article-body")
-        or soup.find("div", class_="post-body")
-        or soup.find("div", class_="story-content")
-        or soup.find("div", id="article-content")
-        or soup.find("div", class_="article-main")
-        or soup.find("div", class_="blog-post")
-        or soup.find("div", class_="blog-post-content")
-        or soup.find("div", class_="news-article")
-        or soup.find("div", class_="single-post")
-        or soup.find("div", class_="story-body")
-        or soup.find("div", class_="post-container")
-        or soup.find("div", class_="post-text")
-        or soup.find("div", class_="rich-text")
-        or soup.find("div", class_="page-content")
-        or soup.find("div", class_="cms-content")
-        or soup.find("div", class_="mw-parser-output")  # for Wikipedia
-        or soup.find("div", class_="bodyContent")  # for some wikis
-        or soup.find("div", id="bodyContent")  # for some wikis
-        or soup.find("div", id="main_content")
-        or soup.find("div", id="main_body")
-        or soup.find("div", class_="body")
-        or soup.find("div", id="article_show_content")
-        or soup.find("id", class_="article_show_content")
-    )
+
+    main_content = find_main_content(soup)
+
     if main_content:
-        content_elements = main_content.find_all(  # type: ignore
-            ["p", "h1", "h2", "h3"]
-        )
-        html_main_content = "".join(str(elem) for elem in content_elements)
-        console.print(f"HTML main content length: {len(html_main_content)}")
-        return html_main_content
+        # Extract text
+        text = main_content.get_text(separator="\n", strip=True)
+
+        # Clean up the text
+        text = re.sub(r"\n+", "\n", text)  # Remove multiple newlines
+        text = re.sub(r"\s+", " ", text)  # Replace multiple spaces with single space
+        text = text.strip()
+
+        console.print(f"HTML main content length: {len(text)}")
+        return text
     else:
         console.print("No main content found on the page.")
         return None
+
+
+def remove_font(soup: "BeautifulSoup") -> "BeautifulSoup":
+    for tag in soup.find_all(True):
+        if tag.has_attr("style"):
+            del tag["style"]
+        if tag.has_attr("font"):
+            del tag["font"]
+    return soup
+
+
+def remove_javascript(soup: "BeautifulSoup") -> "BeautifulSoup":
+    # Remove all script tags
+    for script in soup(["script", "style"]):
+        script.decompose()
+
+    # Remove inline JavaScript
+    for tag in soup.find_all(True):
+        for attr in list(tag.attrs):
+            if attr.startswith("on") or (
+                isinstance(tag.get(attr), str) and tag[attr].startswith("javascript:")
+            ):
+                del tag[attr]
+
+    # Remove any remaining JavaScript code within HTML tags
+    for tag in soup.find_all(True):
+        if tag.string:
+            tag.string = re.sub(r"javascript:", "", tag.string)
+
+    return soup
+
+
+def find_main_content(soup: "BeautifulSoup"):
+    # Use CSS selectors to match multiple possible content holders
+    content_selectors = [
+        "#content",
+        "#main-content",
+        ".article-content",
+        ".blog-post-content",
+        ".content",
+        ".entry-content",
+        ".main-content",
+        ".news-article",
+        ".post-content",
+        "article",
+        "main",
+        '[role="main"]',
+    ]
+    # Try to find the main content using the selectors
+    for selector in content_selectors:
+        main_content = soup.select_one(selector)
+        if main_content:
+            break
+
+    # If no main content found, fall back to the body
+    if not main_content:
+        main_content = soup.body
+
+    if main_content:
+        # Remove unwanted elements
+        for unwanted in main_content.select(
+            "script, style, nav, header, footer, aside"
+        ):
+            unwanted.decompose()
+
+    return main_content

@@ -10,7 +10,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
 from playwright_stealth import stealth_sync
-from rich.panel import Panel
+from rich.style import Style
 from yarl import URL
 
 from languru.config import console, logger
@@ -24,9 +24,18 @@ if TYPE_CHECKING:
 
 class CrawlerClient:
 
-    def __init__(self, debug: bool = False):
-        self.web_cache = Cache(self.get_web_cache_dirpath())
+    def __init__(
+        self,
+        *,
+        cache_dirpath: Optional[Text] = None,
+        screenshot_dirpath: Optional[Text] = None,
+        debug: bool = False,
+    ):
+        self.cache_dirpath = cache_dirpath
+        self.screenshot_dirpath = screenshot_dirpath
         self.debug = debug
+
+        self.web_cache = Cache(self.get_web_cache_dirpath(cache_dirpath))
 
     def search(
         self,
@@ -92,26 +101,35 @@ class CrawlerClient:
                     content = page.content()
                     self._debug_print(content, title=f"Content of '{url}'")
 
-                    page.screenshot(type="jpeg", path=self.get_img_filepath())
+                    page.screenshot(
+                        type="jpeg",
+                        path=self.get_img_filepath(self.screenshot_dirpath),
+                    )
                     cache[url] = content
                     return content
 
                 except PlaywrightTimeoutError:
                     console.print_exception()
-                    page.screenshot(type="jpeg", path=self.get_img_filepath())
+                    page.screenshot(
+                        type="jpeg",
+                        path=self.get_img_filepath(self.screenshot_dirpath),
+                    )
                     return None
 
     def as_markdown(self, html_content: Text) -> Optional[Text]:
         if not html_content:
             return None
 
-        markdown_content = parse_html_main_content(html_content)
-        if markdown_content:
-            markdown_content = html_to_markdown(markdown_content)
+        html_main_content = parse_html_main_content(html_content)
+
+        if html_main_content:
+            markdown_content = html_to_markdown(html_main_content)
             markdown_content = clean_markdown_links(markdown_content)
-            if self.debug:
-                print(Panel(markdown_content, title="Parsed Markdown Content"))
-        return markdown_content
+            self._debug_print(markdown_content, title="Parsed Markdown Content")
+            return markdown_content
+
+        console.print("Can not parse html content.")
+        return None
 
     def get_web_cache_dirpath(self, dirpath: Optional[Text] = None) -> Path:
         if dirpath is None:
@@ -156,6 +174,12 @@ class CrawlerClient:
             # Optionally, wait for user input before continuing
             input("Press Enter after you've completed the verification...")
 
-    def _debug_print(self, content: Text, title: Text = "Title"):
+    def _debug_print(
+        self, content: Text, title: Text = "Title", truncate: int = 204700
+    ):
         if self.debug:
-            console.print(Panel(content, title=title))
+            tag_style = Style(color="green", underline=True, bold=True)
+            content = content[:truncate]
+            console.print(f"\n<{title}>\n", style=tag_style)
+            console.print(content)
+            console.print(f"\n</{title}>\n", style=tag_style)
