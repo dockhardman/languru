@@ -1,0 +1,38 @@
+import hashlib
+from typing import TYPE_CHECKING, Optional, Text
+
+import uuid_utils as uuid
+from pydantic import BaseModel, Field
+from yarl import URL
+
+if TYPE_CHECKING:
+    from googlesearch import SearchResult
+
+
+def hash_text(text: Text) -> Text:
+    """Hash a string using SHA-256."""
+
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+class Document(BaseModel):
+    id: Text = Field(default_factory=uuid.uuid7)
+
+
+class HtmlDocument(Document):
+    url: Text
+    url_hash: Optional[Text] = Field(default=None)
+    title: Text
+    description: Text
+    html_content: Optional[Text] = Field(default=None)
+    markdown_content: Optional[Text] = Field(default=None)
+
+    @classmethod
+    def from_search_result(cls, result: "SearchResult"):
+        url = str(URL(result.url))
+        return cls(
+            url=url,
+            url_hash=hash_text(url),
+            title=result.title,
+            description=result.description,
+        )

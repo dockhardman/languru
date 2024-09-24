@@ -1,9 +1,10 @@
 import re
 import time
 from pathlib import Path
-from typing import Optional, Text, Union, cast
+from typing import TYPE_CHECKING, List, Optional, Text, Union, cast
 
 from diskcache import Cache
+from googlesearch import search as google_search
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
@@ -13,6 +14,10 @@ from rich.panel import Panel
 from yarl import URL
 
 from languru.config import console, logger
+from languru.types.web.documents import HtmlDocument
+
+if TYPE_CHECKING:
+    from googlesearch import SearchResult
 
 
 class CrawlerClient:
@@ -20,6 +25,30 @@ class CrawlerClient:
     def __init__(self, debug: bool = False):
         self.web_cache = Cache(self.get_web_cache_dirpath())
         self.debug = debug
+
+    def search(
+        self,
+        query: Text,
+        num_results: int = 5,
+        lang: Text = "zh-TW",
+        advanced: bool = True,
+        sleep_interval: int = 0,
+        region: Text = "zh-TW",
+    ) -> List["HtmlDocument"]:
+        out: List["HtmlDocument"] = []
+        for _res in google_search(
+            query,
+            num_results=num_results,
+            lang=lang,
+            advanced=advanced,
+            sleep_interval=sleep_interval,
+            region=region,
+        ):
+            _res = cast("SearchResult", _res)
+            out.append(HtmlDocument.from_search_result(_res))
+            if self.debug:
+                console.print(f"Fetched url: {_res.url}")
+        return out
 
     def request_url(
         self,
