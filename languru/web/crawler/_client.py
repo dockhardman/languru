@@ -15,6 +15,8 @@ from yarl import URL
 
 from languru.config import console, logger
 from languru.types.web.documents import HtmlDocument
+from languru.utils.html_parser import html_to_markdown, parse_html_main_content
+from languru.utils.md_parser import clean_markdown_links
 
 if TYPE_CHECKING:
     from googlesearch import SearchResult
@@ -98,6 +100,18 @@ class CrawlerClient:
                     console.print_exception()
                     page.screenshot(type="jpeg", path=self.get_img_filepath())
                     return None
+
+    def as_markdown(self, html_content: Text) -> Optional[Text]:
+        if not html_content:
+            return None
+
+        markdown_content = parse_html_main_content(html_content)
+        if markdown_content:
+            markdown_content = html_to_markdown(markdown_content)
+            markdown_content = clean_markdown_links(markdown_content)
+            if self.debug:
+                print(Panel(markdown_content, title="Parsed Markdown Content"))
+        return markdown_content
 
     def get_web_cache_dirpath(self, dirpath: Optional[Text] = None) -> Path:
         if dirpath is None:
