@@ -43,7 +43,7 @@ voyageai = "^0"
 languru = "languru.cli.main:languru_cli"
 
 [tool.poetry.extras]
-all = ["fastapi", "sentencepiece", "tiktoken"]
+all = ["fastapi", "googlesearch-python", "playwright", "sentencepiece", "tiktoken"]
 clawler = ["googlesearch-python", "playwright"]
 server = ["fastapi"]
 

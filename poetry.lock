@@ -5361,11 +5361,11 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 type = ["pytest-mypy"]
 
 [extras]
-all = ["fastapi", "sentencepiece", "tiktoken"]
+all = ["fastapi", "googlesearch-python", "playwright", "sentencepiece", "tiktoken"]
 clawler = ["googlesearch-python", "playwright"]
 server = ["fastapi"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "94faa72bbe973beade89d5a22cab0999ca91b484d000b0fea84fd0cd4b36ffdd"
+content-hash = "a29dc6beb066518f1a69d0b59aff52495c64dc702d2f59367984ea88ffa00b7f"
