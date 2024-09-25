@@ -105,19 +105,21 @@ class CrawlerClient:
                     content = page.content()
                     self._debug_print(content, title=f"Content of '{url}'")
 
-                    page.screenshot(
-                        type="jpeg",
-                        path=self.get_img_filepath(self.screenshot_dirpath),
-                    )
+                    if self.screenshot_dirpath:
+                        page.screenshot(
+                            type="jpeg",
+                            path=self.get_img_filepath(self.screenshot_dirpath),
+                        )
                     cache[url] = content
                     return content
 
                 except PlaywrightTimeoutError:
                     console.print_exception()
-                    page.screenshot(
-                        type="jpeg",
-                        path=self.get_img_filepath(self.screenshot_dirpath),
-                    )
+                    if self.screenshot_dirpath:
+                        page.screenshot(
+                            type="jpeg",
+                            path=self.get_img_filepath(self.screenshot_dirpath),
+                        )
                     return None
 
     def as_markdown(

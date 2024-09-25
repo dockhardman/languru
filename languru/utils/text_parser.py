@@ -2,7 +2,7 @@ import hashlib
 import re
 import string
 import unicodedata
-from typing import List, Sequence, Text
+from typing import List, Optional, Sequence, Text
 
 full_width_punctuation = "".join(
     chr(ord(ch) + 0xFEE0) if ch in string.punctuation else ch
@@ -36,7 +36,7 @@ def full_to_half(text: Text) -> Text:
 
 def split_strip(
     content: Text,
-    separators: Sequence[Text] = (",", "、", "，", "/", "\\", "|", "“", "\n"),
+    separators: Sequence[Text] = (",", "、", "，", "/", "\\", "|", "“", "\n", " or "),
 ) -> List[Text]:
     """Split a string by specified separators and strip punctuation.
 
@@ -57,5 +57,20 @@ def split_strip(
     # Escape special regex characters and join separators
     pattern = "|".join(map(re.escape, separators))
     # Split the text using the pattern
-    splitted_content = re.split(pattern, content)
-    return [s.strip(strip_punctuation) for s in splitted_content]
+    splitted_contents = re.split(pattern, content)
+
+    return [s.strip(strip_punctuation) for s in splitted_contents]
+
+
+def search_line_in_content(
+    content: Text,
+    *,
+    prefix: Optional[Text] = None,
+) -> Optional[Text]:
+
+    for line in content.splitlines():
+        line = line.strip(" -_*")
+        if prefix:
+            if line.startswith(prefix):
+                return "".join(line.split(prefix)[1:]).strip()
+    return None
