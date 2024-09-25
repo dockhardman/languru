@@ -68,3 +68,56 @@ request_to_rewrite_as_costar: Final[Text] = dedent(
 request_to_rewrite_as_costar_concise: Final[Text] = (
     request_to_rewrite_as_costar + "\nNote 3: Keep prompt briefly and concisely."
 )
+
+
+request_to_rewrite_as_costar_concise_v2: Final[Text] = dedent(
+    """
+    I want to create a co-star prompt, the original prompt is as follows:
+
+    ```
+    {{ PROMPT_DESCRIPTION }}
+    ```
+
+    Please rewrite the prompt above as CO-STAR framework step by step:
+
+    1. Analyze the prompt and provide a detailed explanation.
+    2. Come up with some hypotheses creatively.
+    3. Finally, provide a response in a xml code block format as shown below:
+
+    ```xml
+    <context description={THE_MOST_CONCISE_AND_PRECISE_CONTEXT_DESCRIPTION}>
+    {CONTEXT}
+    </context>
+
+    <objective description={THE_MOST_CONCISE_AND_PRECISE_OBJECTIVE_DESCRIPTION}>
+    {OBJECTIVE}
+    </objective>
+
+    <style description={THE_MOST_CONCISE_AND_PRECISE_STYLE_DESCRIPTION}>
+    {STYLE}
+    </style>
+
+    <tone description={THE_MOST_CONCISE_AND_PRECISE_TONE_DESCRIPTION}>
+    {TONE}
+    </tone>
+
+    <audience description={THE_MOST_CONCISE_AND_PRECISE_AUDIENCE_DESCRIPTION}>
+    {AUDIENCE}
+    </audience>
+
+    <response description={THE_MOST_CONCISE_AND_PRECISE_RESPONSE_DESCRIPTION}>
+    {RESPONSE}
+    </response>
+    ```
+
+    Note 1: Please ensure that the response is in the correct markdown format in a code snippet.
+    Note 2: The chat example is not required for this prompt.
+    Note 3: Keep prompt briefly and concisely.
+    """  # noqa: E501
+).strip()
+
+request_to_distill_into_a_sentence: Final[Text] = dedent(
+    """
+    Could you distill the document above into a sentence which be the most concise and precise response description?
+    """  # noqa: E501
+).strip()
