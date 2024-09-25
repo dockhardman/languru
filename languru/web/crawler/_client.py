@@ -47,6 +47,10 @@ class CrawlerClient:
         region: Text = "zh-TW",
     ) -> List["HtmlDocument"]:
         out: List["HtmlDocument"] = []
+        query = query.replace('"', "").replace("'", "").strip()
+        if not query:
+            raise ValueError("Query is empty")
+
         for _res in google_search(
             query,
             num_results=num_results,
