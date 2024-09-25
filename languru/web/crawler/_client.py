@@ -116,11 +116,13 @@ class CrawlerClient:
                     )
                     return None
 
-    def as_markdown(self, html_content: Text) -> Optional[Text]:
+    def as_markdown(
+        self, html_content: Text, *, url: Optional[Text] = None
+    ) -> Optional[Text]:
         if not html_content:
             return None
 
-        html_main_content = parse_html_main_content(html_content)
+        html_main_content = parse_html_main_content(html_content, url=url)
 
         if html_main_content:
             markdown_content = html_to_markdown(html_main_content)

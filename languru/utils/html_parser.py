@@ -43,7 +43,9 @@ def html_to_markdown(html: Text) -> Text:
     return markdown
 
 
-def parse_html_main_content(html_content: Text) -> Optional[Text]:
+def parse_html_main_content(
+    html_content: Text, *, url: Optional[Text] = None
+) -> Optional[Text]:
     """
     Extract the main content from HTML.
 
@@ -88,7 +90,7 @@ def parse_html_main_content(html_content: Text) -> Optional[Text]:
         console.print(f"HTML main content length: {len(text)}")
         return text
     else:
-        console.print("No main content found on the page.")
+        console.print(f"No main content found on the page: {url}")
         return None
 
 
@@ -122,46 +124,57 @@ def remove_javascript(soup: "BeautifulSoup") -> "BeautifulSoup":
     return soup
 
 
+def clean_up_content(content_block):
+    # Decompose less relevant tags
+    for unwanted in content_block.select(
+        "script, style, nav, header, footer, aside, form"
+    ):
+        unwanted.decompose()
+    return content_block
+
+
 def find_main_content(soup: "BeautifulSoup"):
     # Use CSS selectors to match multiple possible content holders
     content_selectors = [
-        "#content",
-        "#main-content",
-        ".article-content",
-        ".blog-post-content",
-        ".content",
-        ".entry-content",
-        ".main-content",
-        ".news-article",
-        ".post-content",
-        "article",
-        "main",
-        '[role="main"]',
+        "main",  # Prioritizing semantic tags
+        "article",  # Prioritizing semantic tags
+        '[role="main"]',  # Prioritizing semantic tags
+        ".post",  # Common content class names
+        ".article",  # Common content class names
+        ".content",  # Common content class names
+        ".entry",  # Common content class names
+        'div[class*="content"]',  # Wildcard matches for content-related ids/classes
+        'div[id*="content"]',  # Wildcard matches for content-related ids/classes
+        # "#content",
+        # "#main-content",
+        # ".article-content",
+        # ".blog-post-content",
+        # ".content",
+        # ".entry-content",
+        # ".main-content",
+        # ".news-article",
+        # ".post-content",
+        # "article",
+        # "main",
+        # '[role="main"]',
     ]
     # Try to find the main content using the selectors
     for selector in content_selectors:
         main_content = soup.select_one(selector)
-        if main_content:
-            break
+        if main_content and len(main_content.get_text(strip=True)) > 200:
+            return clean_up_content(main_content)
 
-    # If no main content found with selectors, look for large blocks of text
-    if not main_content:
-        potential_blocks = [
-            tag
-            for tag in soup.find_all(["div", "section", "article"])
-            if len(tag.get_text(strip=True)) > 200
-        ]
+    # Fallback to analyzing large text blocks if no main content is detected
+    potential_blocks = [
+        tag
+        for tag in soup.find_all(["div", "section", "article"])
+        if len(tag.get_text(strip=True)) > 200
+        and not tag.find(["nav", "header", "footer", "aside", "form"])
+    ]
+    if potential_blocks:
         main_content = max(
-            potential_blocks,
-            key=lambda tag: len(tag.get_text(strip=True)),
-            default=soup.body,
+            potential_blocks, key=lambda tag: len(tag.get_text(strip=True))
         )
+        return clean_up_content(main_content)
 
-    # Clean up the selected main content block
-    if main_content:
-        for unwanted in main_content.select(
-            "script, style, nav, header, footer, aside, form"
-        ):
-            unwanted.decompose()
-
-    return main_content
+    return None
