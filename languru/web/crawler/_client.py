@@ -174,9 +174,7 @@ class CrawlerClient:
             # Optionally, wait for user input before continuing
             input("Press Enter after you've completed the verification...")
 
-    def _debug_print(
-        self, content: Text, title: Text = "Title", truncate: int = 204700
-    ):
+    def _debug_print(self, content: Text, title: Text = "Title", truncate: int = 200):
         if self.debug:
             tag_style = Style(color="green", underline=True, bold=True)
             content = content[:truncate]

@@ -144,14 +144,23 @@ def find_main_content(soup: "BeautifulSoup"):
         if main_content:
             break
 
-    # If no main content found, fall back to the body
+    # If no main content found with selectors, look for large blocks of text
     if not main_content:
-        main_content = soup.body
+        potential_blocks = [
+            tag
+            for tag in soup.find_all(["div", "section", "article"])
+            if len(tag.get_text(strip=True)) > 200
+        ]
+        main_content = max(
+            potential_blocks,
+            key=lambda tag: len(tag.get_text(strip=True)),
+            default=soup.body,
+        )
 
+    # Clean up the selected main content block
     if main_content:
-        # Remove unwanted elements
         for unwanted in main_content.select(
-            "script, style, nav, header, footer, aside"
+            "script, style, nav, header, footer, aside, form"
         ):
             unwanted.decompose()
 

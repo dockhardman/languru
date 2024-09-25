@@ -4,6 +4,8 @@ from rich.panel import Panel
 from rich.style import Style
 from rich.text import Text as RichText
 
+from languru.config import console
+
 
 def display_messages_with_panel(
     messages: List[Dict], title: Text = "Messages", *, print_panel: bool = True
@@ -38,5 +40,5 @@ def display_messages_with_panel(
             content += RichText(m["role"], style=Style(color="white", italic=True))
         content += RichText(":\n" + m["content"] + "\n\n")
     if print_panel:
-        print(Panel(content, title=title))
+        console.print(Panel(content, title=title))
     return content
