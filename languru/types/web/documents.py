@@ -1,4 +1,5 @@
 import hashlib
+import time
 from typing import TYPE_CHECKING, Optional, Text
 
 import uuid_utils as uuid
@@ -16,7 +17,7 @@ def hash_text(text: Text) -> Text:
 
 
 class Document(BaseModel):
-    id: Text = Field(default_factory=uuid.uuid7)
+    id: Text = Field(default_factory=lambda: str(uuid.uuid7()))
 
 
 class HtmlDocument(Document):
@@ -26,6 +27,8 @@ class HtmlDocument(Document):
     description: Text
     html_content: Optional[Text] = Field(default=None)
     markdown_content: Optional[Text] = Field(default=None)
+    document_id: Optional[Text] = Field(default=None)
+    created_at: int = Field(default_factory=lambda: int(time.time()))
 
     @classmethod
     def from_search_result(cls, result: "SearchResult"):
