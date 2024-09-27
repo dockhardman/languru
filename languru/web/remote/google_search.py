@@ -98,7 +98,6 @@ class GoogleSearchRemote:
                     # Input text into the search box
                     search_box = page.locator('textarea[name="q"]')
                     search_box.fill(query)
-                    print("gggg1")
 
                     # Click the search button
                     search_button = page.get_by_role(
@@ -110,9 +109,7 @@ class GoogleSearchRemote:
                         search_button = page.locator('input[name="btnK"]').first
                         search_button.wait_for(state="visible")
 
-                    print("gggg2")
-                    search_button.click()
-                    print("gggg3")
+                    search_button.click(timeout=1000, force=True)
 
                     # Wait for the results page to load
                     page.wait_for_load_state("domcontentloaded")
@@ -120,12 +117,15 @@ class GoogleSearchRemote:
 
                     # Wait for the search results to load
                     page.wait_for_selector("div.g", state="visible")
+                    self._simulate_human_behavior(page, timeout_ms=timeout_ms)
 
                     # Get the page content
                     content = page.content()
 
                     # Parse the search results
-                    search_results = self.parse_search_results(content)
+                    search_results = self.parse_search_results(
+                        self.drop_no_used_attrs(content)
+                    )
 
                     if self.screenshot_dirpath:
                         page.screenshot(
@@ -152,28 +152,90 @@ class GoogleSearchRemote:
         result_divs = soup.find_all("div", class_="g")
 
         for div in result_divs:
-            print()
-            print()
-            print()
-            print("div", div)
-            print()
-            print()
-            print()
-            title_elem = div.find("h3", class_="r")
-            url_elem = div.find("a")
-            description_elem = div.find("div", class_="s")
+            # Extract URL
+            a_tag = div.find("a")
+            if not a_tag or "href" not in a_tag.attrs:  # No URL found
+                continue
+            url: Optional[Text] = a_tag["href"]
+            # Extract title
+            title_tag = soup.find("h3")
+            title: Optional[Text] = title_tag.get_text() if title_tag else None
 
-            if title_elem and url_elem and description_elem:
+            # More reliable way to extract Description
+            # Strategy: find the closest following sibling or div/span
+            # after the title that contains text
+            description: Optional[Text] = None
+            # Step 1: Find all span tags
+            span_tags = div.find_all("span")
+            matching_spans = [
+                span.text.strip().strip(" .\n").strip()
+                for span in span_tags
+                if span.text.strip().endswith("...")
+            ]
+            if matching_spans:
+                description = "\n".join(matching_spans)
+            # Step 2: Look for the first sibling with text
+            if not description and title_tag:
+                # Look for the first sibling with text
+                for sibling in title_tag.find_next_siblings():
+                    if sibling and sibling.get_text(strip=True):
+                        description = sibling.get_text(strip=True)
+                        break
+
+            if url and title and description:
                 result = SearchResult.model_validate(
-                    {
-                        "url": url_elem["href"],
-                        "title": title_elem.text,
-                        "description": description_elem.text,
-                    }
+                    {"url": url, "title": title, "description": description}
                 )
                 search_results.append(result)
+            else:
+                if self.debug:
+                    console.print("")
+                    console.print(f"Could not parse search result:\n{div=}")
+                    console.print("")
 
         return search_results
+
+    def drop_no_used_attrs(self, html_content: Text) -> Text:
+        soup = BeautifulSoup(html_content, "html.parser")
+        for tag in soup.find_all():
+            if "jsname" in tag.attrs:
+                del tag["jsname"]
+            if "data-ved" in tag.attrs:
+                del tag["data-ved"]
+            if "data-csiid" in tag.attrs:
+                del tag["data-csiid"]
+            if "data-atf" in tag.attrs:
+                del tag["data-atf"]
+            if "ping" in tag.attrs:
+                del tag["ping"]
+            if "src" in tag.attrs:
+                del tag["src"]
+            if "jsaction" in tag.attrs:
+                del tag["jsaction"]
+            if "jscontroller" in tag.attrs:
+                del tag["jscontroller"]
+            if "style" in tag.attrs:
+                del tag["style"]
+
+            if "class" in tag.attrs:
+                filtered_classes = [
+                    cls for cls in tag["class"] if not (len(cls) == 6 and cls.isalnum())
+                ]
+                if filtered_classes:
+                    tag["class"] = filtered_classes
+                else:
+                    del tag["class"]
+
+        return str(soup)
+
+    def drop_all_styles(self, html_content: Text) -> Text:
+        soup = BeautifulSoup(html_content, "html.parser")
+        for tag in soup.find_all():
+            # Check if the tag has a 'style' attribute
+            if "style" in tag.attrs:
+                # Remove the 'style' attribute
+                del tag["style"]
+        return str(soup)
 
     def get_web_cache_dirpath(self, dirpath: Optional[Text] = None) -> Path:
         if dirpath is None:
