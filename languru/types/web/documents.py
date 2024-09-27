@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field
 from yarl import URL
 
 if TYPE_CHECKING:
-    from googlesearch import SearchResult
+    from googlesearch import SearchResult as GoogleSearchResult
+
+    from languru.web.remote.google_search import SearchResult
 
 
 def hash_text(text: Text) -> Text:
@@ -31,7 +33,7 @@ class HtmlDocument(Document):
     created_at: int = Field(default_factory=lambda: int(time.time()))
 
     @classmethod
-    def from_search_result(cls, result: "SearchResult"):
+    def from_search_result(cls, result: "SearchResult | GoogleSearchResult"):
         url = str(URL(result.url))
         return cls(
             url=url,

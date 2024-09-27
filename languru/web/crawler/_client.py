@@ -1,10 +1,9 @@
 import re
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Text, Union, cast
+from typing import List, Optional, Text, Union, cast
 
 from diskcache import Cache
-from googlesearch import search as google_search
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
@@ -17,9 +16,7 @@ from languru.config import console, logger
 from languru.types.web.documents import HtmlDocument
 from languru.utils.html_parser import html_to_markdown, parse_html_main_content
 from languru.utils.md_parser import clean_markdown_links
-
-if TYPE_CHECKING:
-    from googlesearch import SearchResult
+from languru.web.remote.google_search import GoogleSearchRemote
 
 
 class CrawlerClient:
@@ -36,6 +33,7 @@ class CrawlerClient:
         self.debug = debug
 
         self.web_cache = Cache(self.get_web_cache_dirpath(cache_dirpath))
+        self._gs_remote = GoogleSearchRemote()
 
     def search(
         self,
@@ -51,15 +49,14 @@ class CrawlerClient:
         if not query:
             raise ValueError("Query is empty")
 
-        for _res in google_search(
+        for _res in self._gs_remote.search(
             query,
             num_results=num_results,
-            lang=lang,
-            advanced=advanced,
-            sleep_interval=sleep_interval,
-            region=region,
+            # lang=lang,
+            # advanced=advanced,
+            # sleep_interval=sleep_interval,
+            # region=region,
         ):
-            _res = cast("SearchResult", _res)
             out.append(HtmlDocument.from_search_result(_res))
             if self.debug:
                 console.print(f"Fetched url: {_res.url}")
