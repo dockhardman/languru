@@ -56,7 +56,7 @@ class CrawlerClient:
             # advanced=advanced,
             # sleep_interval=sleep_interval,
             # region=region,
-        ):
+        )[:num_results]:
             out.append(HtmlDocument.from_search_result(_res))
             if self.debug:
                 console.print(f"Fetched url: {_res.url}")
@@ -79,7 +79,13 @@ class CrawlerClient:
 
         with sync_playwright() as p:
             p = cast(Playwright, p)
-            with p.chromium.launch(headless=False) as browser:
+            with p.chromium.launch(
+                headless=False,
+                args=[
+                    "--start-maximized",
+                    "--disable-features=DownloadBubble",
+                ],
+            ) as browser:
                 context = browser.new_context(
                     viewport={"width": 1280, "height": 800},
                     java_script_enabled=True,
@@ -87,6 +93,7 @@ class CrawlerClient:
                     geolocation={"latitude": 40.7128, "longitude": -74.0060},
                     permissions=["geolocation"],
                     color_scheme="no-preference",
+                    accept_downloads=False,
                 )
                 page = context.new_page()
                 if is_stealth:

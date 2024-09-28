@@ -71,7 +71,13 @@ class GoogleSearchRemote:
         with sync_playwright() as p:
             p = cast(Playwright, p)
 
-            with p.chromium.launch(headless=False) as browser:
+            with p.chromium.launch(
+                headless=False,
+                args=[
+                    "--start-maximized",
+                    "--disable-features=DownloadBubble",
+                ],
+            ) as browser:
                 context = browser.new_context(
                     viewport={"width": 1280, "height": 800},
                     java_script_enabled=True,
@@ -82,6 +88,7 @@ class GoogleSearchRemote:
                     },
                     permissions=["geolocation"],
                     color_scheme="no-preference",
+                    accept_downloads=False,
                 )
                 page = context.new_page()
                 if is_stealth:
@@ -116,7 +123,7 @@ class GoogleSearchRemote:
                     # page.wait_for_selector("#search")
 
                     # Wait for the search results to load
-                    page.wait_for_selector("div.g", state="visible")
+                    page.wait_for_selector("div.g", state="visible", timeout=10000)
                     self._simulate_human_behavior(page, timeout_ms=timeout_ms)
 
                     # Get the page content
