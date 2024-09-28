@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Text
 from urllib.parse import unquote
 
 from languru.config import console
+from languru.utils.common import debug_print_banner
 
 if TYPE_CHECKING:
     from bs4 import BeautifulSoup
@@ -177,4 +178,82 @@ def find_main_content(soup: "BeautifulSoup"):
         )
         return clean_up_content(main_content)
 
+    return None
+
+
+def drop_no_used_attrs(html_content: "Text | BeautifulSoup") -> Text:
+    from bs4 import BeautifulSoup
+
+    soup = (
+        BeautifulSoup(html_content, "html.parser")
+        if isinstance(html_content, Text)
+        else html_content
+    )
+    for tag in soup.find_all():
+        if "jsname" in tag.attrs:
+            del tag["jsname"]
+        if "data-ved" in tag.attrs:
+            del tag["data-ved"]
+        if "data-csiid" in tag.attrs:
+            del tag["data-csiid"]
+        if "data-atf" in tag.attrs:
+            del tag["data-atf"]
+        if "ping" in tag.attrs:
+            del tag["ping"]
+        if "src" in tag.attrs:
+            del tag["src"]
+        if "jsaction" in tag.attrs:
+            del tag["jsaction"]
+        if "jscontroller" in tag.attrs:
+            del tag["jscontroller"]
+        if "style" in tag.attrs:
+            del tag["style"]
+
+        if "class" in tag.attrs:
+            filtered_classes = [
+                cls for cls in tag["class"] if not (len(cls) == 6 and cls.isalnum())
+            ]
+            if filtered_classes:
+                tag["class"] = filtered_classes
+            else:
+                del tag["class"]
+
+    return str(soup)
+
+
+def drop_all_styles(html_content: "Text | BeautifulSoup") -> Text:
+    from bs4 import BeautifulSoup
+
+    soup = (
+        BeautifulSoup(html_content, "html.parser")
+        if isinstance(html_content, Text)
+        else html_content
+    )
+    for tag in soup.find_all():
+        # Check if the tag has a 'style' attribute
+        if "style" in tag.attrs:
+            # Remove the 'style' attribute
+            del tag["style"]
+    return str(soup)
+
+
+def as_markdown(
+    html_content: Text, *, url: Optional[Text] = None, debug: bool = True
+) -> Optional[Text]:
+    from languru.utils.md_parser import clean_markdown_links
+
+    if not html_content:
+        return None
+
+    html_main_content = parse_html_main_content(html_content, url=url)
+
+    if html_main_content:
+        markdown_content = html_to_markdown(html_main_content)
+        markdown_content = clean_markdown_links(markdown_content)
+        debug_print_banner(
+            markdown_content, title="Parsed Markdown Content", debug=debug
+        )
+        return markdown_content
+
+    console.print("Can not parse html content.")
     return None

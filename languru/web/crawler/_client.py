@@ -1,22 +1,72 @@
-import re
 import time
 from pathlib import Path
-from typing import List, Optional, Text, Union, cast
+from typing import Callable, List, Optional, Text, Union, cast
 
 from diskcache import Cache
-from playwright.sync_api import Page
+from playwright.sync_api import BrowserContext
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
 from playwright_stealth import stealth_sync
-from rich.style import Style
 from yarl import URL
 
-from languru.config import console, logger
+from languru.config import console
 from languru.types.web.documents import HtmlDocument
-from languru.utils.html_parser import html_to_markdown, parse_html_main_content
-from languru.utils.md_parser import clean_markdown_links
-from languru.web.remote.google_search import GoogleSearchRemote
+from languru.utils._playwright import simulate_captcha, simulate_human_behavior
+from languru.utils.common import debug_print_banner
+from languru.utils.html_parser import as_markdown, drop_no_used_attrs
+from languru.web.remote.google_search import google_search_with_new_page
+
+cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
+
+
+def request_with_new_page(
+    url: Union[URL, Text],
+    browser_context: "BrowserContext",
+    *,
+    timeout_ms: int = 30000,
+    is_stealth: bool = False,
+    screenshot_filepath: Optional[Union[Path, Text]] = None,
+    cache_result: Cache = cache,
+    close_page: bool = True,
+    debug: bool = False,
+) -> Optional[Text]:
+
+    content: Optional[Text] = None
+    page = browser_context.new_page()
+    if is_stealth:
+        stealth_sync(page)
+
+    try:
+        page.goto(str(url), timeout=timeout_ms, wait_until="domcontentloaded")
+        simulate_human_behavior(page, timeout_ms=timeout_ms)
+
+        # Check for CAPTCHA
+        simulate_captcha(page)
+
+        content = page.content()
+        content = drop_no_used_attrs(content)
+        if debug:
+            debug_print_banner(content, title=f"Content of '{url}'")
+
+        if screenshot_filepath:
+            page.screenshot(
+                type="jpeg",
+                path=screenshot_filepath,
+            )
+        cache_result[url] = content
+
+    except PlaywrightTimeoutError:
+        console.print_exception()
+        if screenshot_filepath:
+            page.screenshot(type="jpeg", path=screenshot_filepath)
+
+    try:
+        if close_page:
+            page.close()
+    except Exception:
+        pass
+    return content
 
 
 class CrawlerClient:
@@ -33,49 +83,21 @@ class CrawlerClient:
         self.debug = debug
 
         self.web_cache = Cache(self.get_web_cache_dirpath(cache_dirpath))
-        self._gs_remote = GoogleSearchRemote()
 
-    def search(
+    def search_with_browser(
         self,
         query: Text,
-        num_results: int = 5,
-        lang: Text = "zh-TW",
-        advanced: bool = True,
-        sleep_interval: int = 0,
-        region: Text = "zh-TW",
+        num_results: int = 10,
+        *args,
+        timeout_ms: int = 30000,
+        is_stealth: bool = False,
+        filter_out_urls: Callable[[Text], bool] = lambda x: False,
+        **kwargs,
     ) -> List["HtmlDocument"]:
         out: List["HtmlDocument"] = []
         query = query.replace('"', "").replace("'", "").strip()
         if not query:
             raise ValueError("Query is empty")
-
-        for _res in self._gs_remote.search(
-            query,
-            num_results=num_results,
-            # lang=lang,
-            # advanced=advanced,
-            # sleep_interval=sleep_interval,
-            # region=region,
-        )[:num_results]:
-            out.append(HtmlDocument.from_search_result(_res))
-            if self.debug:
-                console.print(f"Fetched url: {_res.url}")
-        return out
-
-    def request_url(
-        self,
-        url: Union[URL, Text],
-        *,
-        timeout: int = 30000,
-        is_stealth: bool = False,
-        cache: Optional["Cache"] = None,
-    ) -> Optional[Text]:
-        url = str(url)
-        cache = cache or self.web_cache
-
-        if url in cache and cache[url]:
-            logger.debug(f"Cache hit for '{url}'")
-            return cache[url]  # type: ignore
 
         with sync_playwright() as p:
             p = cast(Playwright, p)
@@ -95,53 +117,40 @@ class CrawlerClient:
                     color_scheme="no-preference",
                     accept_downloads=False,
                 )
-                page = context.new_page()
-                if is_stealth:
-                    stealth_sync(page)
 
-                try:
-                    page.goto(str(url), timeout=timeout, wait_until="domcontentloaded")
-                    self._simulate_human_behavior(page, timeout=timeout)
+                # Search google home page with browser
+                google_search_results = google_search_with_new_page(
+                    query,
+                    browser_context=context,
+                    num_results=num_results,
+                    screenshot_filepath=self.get_img_filepath(self.screenshot_dirpath),
+                    cache_result=self.web_cache,
+                )
+                for _gg_res in google_search_results[:num_results]:
+                    if filter_out_urls(_gg_res.url):
+                        continue
 
-                    # Check for CAPTCHA
-                    self._simulate_captcha(page)
+                    html_doc = HtmlDocument.from_search_result(_gg_res)
 
-                    content = page.content()
-                    self._debug_print(content, title=f"Content of '{url}'")
-
-                    if self.screenshot_dirpath:
-                        page.screenshot(
-                            type="jpeg",
-                            path=self.get_img_filepath(self.screenshot_dirpath),
+                    # Request url content with browser
+                    html_doc.html_content = request_with_new_page(
+                        html_doc.url,
+                        browser_context=context,
+                        timeout_ms=timeout_ms,
+                        is_stealth=is_stealth,
+                        screenshot_filepath=self.get_img_filepath(
+                            self.screenshot_dirpath
+                        ),
+                        cache_result=self.web_cache,
+                        debug=self.debug,
+                    )
+                    if html_doc.html_content:
+                        html_doc.markdown_content = as_markdown(
+                            html_doc.html_content, debug=self.debug
                         )
-                    cache[url] = content
-                    return content
+                    out.append(html_doc)
 
-                except PlaywrightTimeoutError:
-                    console.print_exception()
-                    if self.screenshot_dirpath:
-                        page.screenshot(
-                            type="jpeg",
-                            path=self.get_img_filepath(self.screenshot_dirpath),
-                        )
-                    return None
-
-    def as_markdown(
-        self, html_content: Text, *, url: Optional[Text] = None
-    ) -> Optional[Text]:
-        if not html_content:
-            return None
-
-        html_main_content = parse_html_main_content(html_content, url=url)
-
-        if html_main_content:
-            markdown_content = html_to_markdown(html_main_content)
-            markdown_content = clean_markdown_links(markdown_content)
-            self._debug_print(markdown_content, title="Parsed Markdown Content")
-            return markdown_content
-
-        console.print("Can not parse html content.")
-        return None
+        return out
 
     def get_web_cache_dirpath(self, dirpath: Optional[Text] = None) -> Path:
         if dirpath is None:
@@ -162,34 +171,3 @@ class CrawlerClient:
         if postfix is None:
             postfix = str(int(time.time() * 1000))
         return _dirpath.joinpath(f"screenshot-{postfix}.jpg")
-
-    def _simulate_human_behavior(self, page: "Page", timeout: int = 3000):
-        # Wait for the network to be idle
-        page.wait_for_load_state("domcontentloaded", timeout=timeout)
-        # Scroll the page
-        page.evaluate(
-            """
-            window.scrollTo(0, 200);
-            """
-        )
-        # Wait a bit more for any scrolling-triggered content
-        page.wait_for_timeout(3000)
-
-    def _simulate_captcha(self, page: "Page"):
-        content = page.content()
-        # Check for CAPTCHA
-        if re.search(r"verifying you are human", content, re.IGNORECASE) or re.search(
-            r"check you are human", content, re.IGNORECASE
-        ):
-            console.print("CAPTCHA detected. Please solve it manually.")
-            page.pause()
-            # Optionally, wait for user input before continuing
-            input("Press Enter after you've completed the verification...")
-
-    def _debug_print(self, content: Text, title: Text = "Title", truncate: int = 200):
-        if self.debug:
-            tag_style = Style(color="green", underline=True, bold=True)
-            content = content[:truncate]
-            console.print(f"\n<{title}>\n", style=tag_style)
-            console.print(content)
-            console.print(f"\n</{title}>\n", style=tag_style)

@@ -19,12 +19,6 @@ from languru.utils.bs import drop_no_used_attrs
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
 
-class SearchResult(BaseModel):
-    url: Text
-    title: Text
-    description: Text
-
-
 def google_search_with_new_page(
     query: Text,
     browser_context: "BrowserContext",
@@ -37,6 +31,7 @@ def google_search_with_new_page(
     ),
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
+    close_page: bool = True,
 ) -> List["SearchResult"]:
     """
     Search for a query on Google and return the search results.
@@ -82,9 +77,10 @@ def google_search_with_new_page(
 
         # Get the page content
         content = page.content()
+        content = drop_no_used_attrs(content)
 
         # Parse the search results
-        search_results = parse_search_results(drop_no_used_attrs(content))
+        search_results = parse_search_results(content)
 
         if screenshot_filepath:
             page.screenshot(type="jpeg", path=screenshot_filepath)
@@ -96,7 +92,8 @@ def google_search_with_new_page(
             page.screenshot(type="jpeg", path=screenshot_filepath)
 
     try:
-        page.close()
+        if close_page:
+            page.close()
     except Exception:
         pass
     return search_results[:num_results]
@@ -158,6 +155,12 @@ def parse_search_results(
                 console.print("")
 
     return search_results
+
+
+class SearchResult(BaseModel):
+    url: Text
+    title: Text
+    description: Text
 
 
 class GoogleSearchRemote:
