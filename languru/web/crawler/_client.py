@@ -1,4 +1,5 @@
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, List, Optional, Text, Union, cast
 
@@ -18,6 +19,29 @@ from languru.utils.html_parser import as_markdown, drop_no_used_attrs
 from languru.web.remote.google_search import google_search_with_page
 
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
+
+
+@contextmanager
+def browser_context():
+    with sync_playwright() as p:
+        p = cast(Playwright, p)
+        with p.chromium.launch(
+            headless=False,
+            args=[
+                "--start-maximized",
+                "--disable-features=DownloadBubble",
+            ],
+        ) as browser:
+            context = browser.new_context(
+                viewport={"width": 1280, "height": 800},
+                java_script_enabled=True,
+                timezone_id="America/New_York",
+                geolocation={"latitude": 40.7128, "longitude": -74.0060},
+                permissions=["geolocation"],
+                color_scheme="no-preference",
+                accept_downloads=False,
+            )
+            yield context
 
 
 def request_with_page(
@@ -88,11 +112,12 @@ class CrawlerClient:
 
         self.web_cache = Cache(self.get_web_cache_dirpath(cache_dirpath))
 
-    def search_with_browser(
+    def search_with_context(
         self,
         query: Text,
-        num_results: int = 10,
+        context: "BrowserContext",
         *args,
+        num_results: int = 10,
         timeout_ms: int = 30000,
         is_stealth: bool = False,
         filter_out_urls: Callable[[Text], bool] = lambda x: False,
@@ -104,62 +129,41 @@ class CrawlerClient:
         if not query:
             raise ValueError("Query is empty")
 
-        with sync_playwright() as p:
-            p = cast(Playwright, p)
-            with p.chromium.launch(
-                headless=False,
-                args=[
-                    "--start-maximized",
-                    "--disable-features=DownloadBubble",
-                ],
-            ) as browser:
-                context = browser.new_context(
-                    viewport={"width": 1280, "height": 800},
-                    java_script_enabled=True,
-                    timezone_id="America/New_York",
-                    geolocation={"latitude": 40.7128, "longitude": -74.0060},
-                    permissions=["geolocation"],
-                    color_scheme="no-preference",
-                    accept_downloads=False,
+        # Search google home page with browser
+        google_search_results = google_search_with_page(
+            query,
+            browser_context=context,
+            num_results=num_results,
+            screenshot_filepath=None,
+            cache_result=self.web_cache,
+        )
+        for _gg_res in google_search_results[:num_results]:
+            if filter_out_urls(_gg_res.url):
+                continue
+
+            html_doc = HtmlDocument.from_search_result(_gg_res)
+
+            # Request url content with browser
+            html_doc.html_content = request_with_page(
+                html_doc.url,
+                browser_context=context,
+                timeout_ms=timeout_ms,
+                is_stealth=is_stealth,
+                screenshot_filepath=None,
+                cache_result=self.web_cache,
+                debug=self.debug,
+            )
+            if html_doc.html_content:
+                html_doc.markdown_content = as_markdown(
+                    html_doc.html_content, url=html_doc.url, debug=self.debug
                 )
+            else:
+                console.print(f"Failed to get content from {html_doc.url}")
 
-                # Search google home page with browser
-                google_search_results = google_search_with_page(
-                    query,
-                    browser_context=context,
-                    num_results=num_results,
-                    screenshot_filepath=self.get_img_filepath(self.screenshot_dirpath),
-                    cache_result=self.web_cache,
-                )
-                for _gg_res in google_search_results[:num_results]:
-                    if filter_out_urls(_gg_res.url):
-                        continue
+            out.append(html_doc)
 
-                    html_doc = HtmlDocument.from_search_result(_gg_res)
-
-                    # Request url content with browser
-                    html_doc.html_content = request_with_page(
-                        html_doc.url,
-                        browser_context=context,
-                        timeout_ms=timeout_ms,
-                        is_stealth=is_stealth,
-                        screenshot_filepath=self.get_img_filepath(
-                            self.screenshot_dirpath
-                        ),
-                        cache_result=self.web_cache,
-                        debug=self.debug,
-                    )
-                    if html_doc.html_content:
-                        html_doc.markdown_content = as_markdown(
-                            html_doc.html_content, url=html_doc.url, debug=self.debug
-                        )
-                    else:
-                        console.print(f"Failed to get content from {html_doc.url}")
-
-                    out.append(html_doc)
-
-                    if sleep_interval > 0:
-                        time.sleep(sleep_interval)
+            if sleep_interval > 0:
+                time.sleep(sleep_interval)
 
         return out
 

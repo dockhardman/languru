@@ -261,6 +261,6 @@ def debug_print_banner(
     if debug:
         tag_style = Style(color="green", underline=True, bold=True)
         content = content[:truncate]
-        console.print(f"\n<{title}>\n", style=tag_style)
+        console.print(f"\n<{title}>", style=tag_style)
         console.print(content)
-        console.print(f"\n</{title}>\n", style=tag_style)
+        console.print(f"</{title}>\n", style=tag_style)
