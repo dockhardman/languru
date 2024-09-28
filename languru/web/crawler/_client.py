@@ -30,6 +30,7 @@ def browser_context():
             args=[
                 "--start-maximized",
                 "--disable-features=DownloadBubble",
+                "--mute-audio",
             ],
         ) as browser:
             context = browser.new_context(
