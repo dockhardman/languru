@@ -256,7 +256,7 @@ def model_dump(obj: Any) -> Optional[Union[Dict, List[Dict]]]:
 
 
 def debug_print_banner(
-    content: Text, title: Text = "Title", truncate: int = 200, debug: bool = True
+    content: Text, title: Text = "Title", truncate: int = 500, debug: bool = True
 ):
     if debug:
         tag_style = Style(color="green", underline=True, bold=True)

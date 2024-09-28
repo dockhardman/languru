@@ -19,7 +19,7 @@ from languru.utils.bs import drop_no_used_attrs
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
 
-def google_search_with_new_page(
+def google_search_with_page(
     query: Text,
     browser_context: "BrowserContext",
     *,
@@ -31,7 +31,8 @@ def google_search_with_new_page(
     ),
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
-    close_page: bool = True,
+    close_page: Optional[bool] = None,
+    default_path_num: int = 0,
 ) -> List["SearchResult"]:
     """
     Search for a query on Google and return the search results.
@@ -41,7 +42,10 @@ def google_search_with_new_page(
         raise ValueError("Query is empty")
 
     search_results: List["SearchResult"] = []
-    page = browser_context.new_page()
+    if browser_context.pages:
+        page = browser_context.pages[default_path_num]
+    else:
+        page = browser_context.new_page()
     if is_stealth:
         stealth_sync(page)
 
@@ -234,7 +238,7 @@ class GoogleSearchRemote:
                     accept_downloads=False,
                 )
 
-                search_results = google_search_with_new_page(
+                search_results = google_search_with_page(
                     query,
                     browser_context=context,
                     num_results=num_results,
