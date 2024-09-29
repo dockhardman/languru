@@ -63,14 +63,11 @@ request_to_rewrite_as_costar: Final[Text] = dedent(
 
     Note 1: Please ensure that the response is in the correct markdown format in a code snippet.
     Note 2: The chat example is not required for this prompt.
+    Note 3: Keep all mentioned instructions in the co-star prompt as much as possible.
     """  # noqa: E501
 ).strip()
-request_to_rewrite_as_costar_concise: Final[Text] = (
-    request_to_rewrite_as_costar + "\nNote 3: Keep prompt briefly and concisely."
-)
 
-
-request_to_rewrite_as_costar_concise_v2: Final[Text] = dedent(
+request_to_rewrite_as_costar_concise: Final[Text] = dedent(
     """
     I want to create a co-star prompt, the original prompt is as follows:
 
@@ -112,7 +109,8 @@ request_to_rewrite_as_costar_concise_v2: Final[Text] = dedent(
 
     Note 1: Please ensure that the response is in the correct markdown format in a code snippet.
     Note 2: The chat example is not required for this prompt.
-    Note 3: Keep prompt briefly and concisely.
+    Note 3: Keep all mentioned instructions in the co-star prompt as much as possible.
+    Note 4: Keep prompt briefly and concisely.
     """  # noqa: E501
 ).strip()
 
