@@ -76,8 +76,7 @@ def request_with_page(
         # Check for CAPTCHA
         # simulate_captcha(page)
         if is_captcha(page):
-            console.print("Skipping the page due to captcha.")
-            return None
+            raise CaptchaError(f"Captcha detected on '{url}'")
 
         content = page.content()
         content = drop_no_used_attrs(content)
@@ -90,6 +89,10 @@ def request_with_page(
                 path=screenshot_filepath,
             )
         cache_result[url] = content
+
+    except CaptchaError:
+        console.print("Skipping the page due to captcha.")
+        content = None
 
     except PlaywrightTimeoutError:
         console.print_exception()
@@ -193,3 +196,7 @@ class CrawlerClient:
         if postfix is None:
             postfix = str(int(time.time() * 1000))
         return _dirpath.joinpath(f"screenshot-{postfix}.jpg")
+
+
+class CaptchaError(Exception):
+    pass
