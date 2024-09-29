@@ -14,15 +14,19 @@ aiohttp = "^3"
 anthropic = "<1,>0.27"
 click = "^8"
 colorama = "<1,>=0.4.6"
+coloredlogs = "*"
 diskcache = "^5"
 email-validator = "^2"
-fastapi = { extras = ["all"], version = "<1,>=0.109.0", optional = true }
+fastapi = { extras = ["all"], version = "<1,>=0.109.0" }
 google-cloud-aiplatform = "^1.38"
 google-generativeai = "<1,>=0.3.2,!=0.7.1"
+googlesearch-python = { version = "*", optional = true }
 groq = "<1,>=0.4.2"
 openai = "^1.10.0"
 packaging = ">=23"
 pillow = "^10.0.0"
+playwright = { version = "*", optional = true }
+playwright-stealth = { version = "*", optional = true }
 pyassorted = "<1,>=0.10.0"
 pydantic = "^2"
 pydantic-settings = "^2"
@@ -31,17 +35,19 @@ python = ">=3.10,<4.0"
 python-dotenv = "^1"
 pytz = ">=2024.1"
 rich = "^13"
-sentencepiece = { version = "<1,>=0.1.99", optional = true }
+sentencepiece = { version = "<1,>=0.1.99" }
 sqlalchemy = "^2"
-tiktoken = { version = ">=0.3,<1", optional = true }
+tiktoken = { version = ">=0.3,<1" }
 typing-extensions = "^4"
+uuid-utils = "*"
 voyageai = "^0"
 
 [tool.poetry.scripts]
 languru = "languru.cli.main:languru_cli"
 
 [tool.poetry.extras]
-all = ["fastapi", "sentencepiece", "tiktoken"]
+all = ["fastapi", "googlesearch-python", "playwright", "playwright-stealth", "sentencepiece", "tiktoken"]
+clawler = ["googlesearch-python", "playwright"]
 server = ["fastapi"]
 
 [tool.poetry.group.docs.dependencies]

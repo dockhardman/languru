@@ -23,7 +23,7 @@ from openai.types.beta.threads.message import Message as ThreadsMessage
 from pydantic import BaseModel
 from rich import box
 from rich import print as rich_print
-from rich.style import StyleType
+from rich.style import Style, StyleType
 from rich.table import Table
 from rich.text import Text as RichText
 
@@ -253,3 +253,17 @@ def model_dump(obj: Any) -> Optional[Union[Dict, List[Dict]]]:
     elif isinstance(obj, Sequence) and not isinstance(obj, Text):
         return [model_dump(item) for item in obj]
     return json.loads(json.dumps(obj, default=str))
+
+
+def debug_print_banner(
+    content: Text, title: Text = "Title", truncate: int = 500, debug: bool = True
+):
+    try:
+        if debug:
+            tag_style = Style(color="green", underline=True, bold=True)
+            content = content[:truncate]
+            console.print(f"\n<{title}>", style=tag_style)
+            console.print(content)
+            console.print(f"</{title}>\n", style=tag_style)
+    except Exception:
+        console.print_exception()
