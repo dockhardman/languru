@@ -1,6 +1,7 @@
 import hashlib
 import json
 from typing import Any, Dict, List, Literal, Sequence, Text, Union
+from xml.sax.saxutils import escape as xml_escape
 
 from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat.chat_completion import ChatCompletion
@@ -113,3 +114,58 @@ def messages_to_md5(messages: List[ChatCompletionMessageParam]) -> Text:
     return hashlib.md5(
         json.dumps(messages, sort_keys=True, default=str).encode()
     ).hexdigest()
+
+
+def messages_to_xml(
+    messages: List[ChatCompletionMessageParam],
+    *,
+    wrapper_tag: Text = "chat_records",
+    indent: Text = "",
+) -> Text:
+    """Convert a list of chat messages to an XML string.
+
+    This function takes a list of chat messages and converts them into an XML format.
+    Each message is represented as a child element under a specified wrapper tag.
+
+    Parameters
+    ----------
+    messages : List[ChatCompletionMessageParam]
+        A list of messages to be converted to XML. Each message should contain a 'role'
+        and 'content' field.
+
+    wrapper_tag : Text, optional
+        The tag name for the root element of the XML. Default is "chat_records".
+
+    indent : Text, optional
+        A string used for indentation in the XML output. Default is an empty string.
+
+    Returns
+    -------
+    Text
+        A string representation of the XML containing the chat messages.
+    """
+
+    import xml.etree.ElementTree as ET
+
+    from languru.utils._xml import pretty_xml
+
+    root = ET.Element(xml_escape(wrapper_tag))
+    for m in messages:
+        _role = m["role"]
+        _content: Union[Text, None] = None
+        if m.get("content"):
+            if isinstance(m.get("content"), Text):
+                _content = m["content"]  # type: ignore
+            else:
+                for _part in m["content"]:  # type: ignore
+                    assert isinstance(_part, Dict)
+                    if _part.get("text"):
+                        _content = _part["text"]  # type: ignore
+                    elif _part.get("refusal"):
+                        _content = _part["refusal"]  # type: ignore
+
+        if _content is not None:
+            child = ET.SubElement(root, _role)
+            child.text = f"\n{xml_escape(str(_content)).strip()}\n"
+
+    return pretty_xml(root, indent=indent)
