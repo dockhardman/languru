@@ -117,7 +117,7 @@ def messages_to_md5(messages: List[ChatCompletionMessageParam]) -> Text:
 
 
 def messages_to_xml(
-    messages: List[ChatCompletionMessageParam],
+    messages: List[ChatCompletionMessageParam] | List[Dict],
     *,
     wrapper_tag: Text = "chat_records",
     indent: Text = "",
