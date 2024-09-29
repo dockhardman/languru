@@ -150,6 +150,25 @@ class CrawlerClient:
         for _gg_res in google_search_results[:num_results]:
             if filter_out_urls(_gg_res.url):
                 continue
+            # Filter pdf, docx, etc.
+            if _gg_res.url.endswith(
+                (".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".xls", ".ppt")
+            ):
+                continue
+            if _gg_res.url.endswith(
+                (".img", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp")
+            ):
+                continue
+            if _gg_res.url.endswith(
+                (".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv")
+            ):
+                continue
+            if _gg_res.url.endswith(
+                (".rar", ".zip", ".7z", ".iso", ".dmg", ".pkg", ".deb", ".rpm", ".msi")
+            ):
+                continue
+            if _gg_res.url.endswith((".exe", ".app")):
+                continue
 
             html_doc = HtmlDocument.from_search_result(_gg_res)
 
