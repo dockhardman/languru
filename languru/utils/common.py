@@ -258,9 +258,12 @@ def model_dump(obj: Any) -> Optional[Union[Dict, List[Dict]]]:
 def debug_print_banner(
     content: Text, title: Text = "Title", truncate: int = 500, debug: bool = True
 ):
-    if debug:
-        tag_style = Style(color="green", underline=True, bold=True)
-        content = content[:truncate]
-        console.print(f"\n<{title}>", style=tag_style)
-        console.print(content)
-        console.print(f"</{title}>\n", style=tag_style)
+    try:
+        if debug:
+            tag_style = Style(color="green", underline=True, bold=True)
+            content = content[:truncate]
+            console.print(f"\n<{title}>", style=tag_style)
+            console.print(content)
+            console.print(f"</{title}>\n", style=tag_style)
+    except Exception:
+        console.print_exception()
