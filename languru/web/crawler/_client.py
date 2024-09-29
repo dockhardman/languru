@@ -13,8 +13,9 @@ from yarl import URL
 
 from languru.config import console
 from languru.types.web.documents import HtmlDocument
-from languru.utils._playwright import (  # simulate_captcha,
+from languru.utils._playwright import (
     is_captcha,
+    simulate_captcha,
     simulate_human_behavior,
 )
 from languru.utils.common import debug_print_banner
@@ -59,6 +60,7 @@ def request_with_page(
     close_page: Optional[bool] = None,
     debug: bool = False,
     default_path_num: int = 0,
+    skip_captcha: bool = True,
 ) -> Optional[Text]:
 
     content: Optional[Text] = None
@@ -74,9 +76,10 @@ def request_with_page(
         simulate_human_behavior(page, timeout_ms=timeout_ms)
 
         # Check for CAPTCHA
-        # simulate_captcha(page)
-        if is_captcha(page):
+        if is_captcha(page) and skip_captcha:
             raise CaptchaError(f"Captcha detected on '{url}'")
+        else:
+            simulate_captcha(page)
 
         content = page.content()
         content = drop_no_used_attrs(content)
@@ -132,6 +135,7 @@ class CrawlerClient:
         is_stealth: bool = False,
         filter_out_urls: Callable[[Text], bool] = lambda x: False,
         sleep_interval: int = 0,
+        skip_captcha: bool = True,
         **kwargs,
     ) -> List["HtmlDocument"]:
         out: List["HtmlDocument"] = []
@@ -181,6 +185,7 @@ class CrawlerClient:
                 screenshot_filepath=None,
                 cache_result=self.web_cache,
                 debug=self.debug,
+                skip_captcha=skip_captcha,
             )
             if html_doc.html_content:
                 html_doc.markdown_content = as_markdown(
