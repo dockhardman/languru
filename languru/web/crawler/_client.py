@@ -13,7 +13,10 @@ from yarl import URL
 
 from languru.config import console
 from languru.types.web.documents import HtmlDocument
-from languru.utils._playwright import simulate_captcha, simulate_human_behavior
+from languru.utils._playwright import (  # simulate_captcha,
+    is_captcha,
+    simulate_human_behavior,
+)
 from languru.utils.common import debug_print_banner
 from languru.utils.html_parser import as_markdown, drop_no_used_attrs
 from languru.web.remote.google_search import google_search_with_page
@@ -71,7 +74,10 @@ def request_with_page(
         simulate_human_behavior(page, timeout_ms=timeout_ms)
 
         # Check for CAPTCHA
-        simulate_captcha(page)
+        # simulate_captcha(page)
+        if is_captcha(page):
+            console.print("Skipping the page due to captcha.")
+            return None
 
         content = page.content()
         content = drop_no_used_attrs(content)

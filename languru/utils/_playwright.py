@@ -30,3 +30,14 @@ def simulate_captcha(page: "Page"):
         page.pause()
         # Optionally, wait for user input before continuing
         input("Press Enter after you've completed the verification...")
+
+
+def is_captcha(page: "Page") -> bool:
+    content = page.content()
+    # Check for CAPTCHA
+    if re.search(r"verifying you are human", content, re.IGNORECASE) or re.search(
+        r"check you are human", content, re.IGNORECASE
+    ):
+        console.print("The page is a captcha.")
+        return True
+    return False
