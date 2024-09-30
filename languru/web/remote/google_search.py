@@ -61,15 +61,8 @@ def google_search_with_page(
         search_box = page.locator('textarea[name="q"]')
         search_box.fill(query)
 
-        # Click the search button
-        search_button = page.get_by_role("button", name="Google Search").first
-        search_button.wait_for(state="visible")
-        search_button.scroll_into_view_if_needed()
-        if search_button.count() == 0:
-            search_button = page.locator('input[name="btnK"]').first
-            search_button.wait_for(state="visible")
-
-        search_button.click(timeout=1000, force=True)
+        # Press 'Enter' instead of clicking the search button
+        search_box.press("Enter", timeout=1000)
 
         # Wait for the results page to load
         page.wait_for_load_state("domcontentloaded")
@@ -80,7 +73,11 @@ def google_search_with_page(
             page.pause()
 
         # Wait for the search results to load
-        page.wait_for_selector("div.g", state="visible", timeout=10000)
+        try:
+            page.wait_for_selector("div.g", state="visible", timeout=10000)
+        except PlaywrightTimeoutError:
+            console.print("Could not find search results, skip it.")
+            return []
         simulate_human_behavior(page, timeout_ms=timeout_ms)
 
         # Get the page content
