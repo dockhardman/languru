@@ -91,6 +91,17 @@ def is_captcha(page: "Page") -> bool:
     soup = BeautifulSoup(content, "html.parser")
     current_url = page.url
 
+    # Check for captcha in selectors
+    for selector in (
+        "iframe[src*='recaptcha']",
+        "#captcha-form",
+        "form[action*='challenge']",
+        "div.g-recaptcha",
+        "input[name='captcha']",
+    ):
+        if page.query_selector(selector):
+            return True
+
     # Check for CAPTCHA
     if re.search(r"verifying you are human", content, re.IGNORECASE) or re.search(
         r"check you are human", content, re.IGNORECASE
