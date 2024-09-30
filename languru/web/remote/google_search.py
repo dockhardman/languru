@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from yarl import URL
 
 from languru.config import console
-from languru.utils._playwright import simulate_human_behavior
+from languru.utils._playwright import is_captcha, simulate_human_behavior
 from languru.utils.bs import drop_no_used_attrs
 
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
@@ -74,6 +74,10 @@ def google_search_with_page(
         # Wait for the results page to load
         page.wait_for_load_state("domcontentloaded")
         # page.wait_for_selector("#search")
+
+        if is_captcha(page):
+            page.bring_to_front()
+            page.pause()
 
         # Wait for the search results to load
         page.wait_for_selector("div.g", state="visible", timeout=10000)
