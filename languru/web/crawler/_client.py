@@ -173,6 +173,8 @@ class CrawlerClient:
                 continue
             if _gg_res.url.endswith((".exe", ".app")):
                 continue
+            if _gg_res.url.endswith((".xml",)):
+                continue
 
             html_doc = HtmlDocument.from_search_result(_gg_res)
 
