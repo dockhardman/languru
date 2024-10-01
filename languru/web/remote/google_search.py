@@ -9,10 +9,10 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
 from playwright_stealth import stealth_sync
-from pydantic import BaseModel
 from yarl import URL
 
 from languru.config import console
+from languru.types.web.search import SearchResult
 from languru.utils._playwright import (
     get_page,
     handle_captcha_page,
@@ -173,12 +173,6 @@ def parse_search_results(
                 console.print("")
 
     return search_results
-
-
-class SearchResult(BaseModel):
-    url: Text
-    title: Text
-    description: Text
 
 
 class GoogleSearchRemote:
