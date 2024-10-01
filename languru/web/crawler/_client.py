@@ -19,6 +19,7 @@ from languru.utils._playwright import (
     simulate_human_behavior,
 )
 from languru.utils.common import debug_print_banner
+from languru.utils.crawler import filter_out_extensions
 from languru.utils.html_parser import as_markdown, drop_no_used_attrs
 from languru.web.remote.google_search import google_search_with_page
 
@@ -155,25 +156,7 @@ class CrawlerClient:
             if filter_out_urls(_gg_res.url):
                 continue
             # Filter pdf, docx, etc.
-            if _gg_res.url.endswith(
-                (".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".xls", ".ppt")
-            ):
-                continue
-            if _gg_res.url.endswith(
-                (".img", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp")
-            ):
-                continue
-            if _gg_res.url.endswith(
-                (".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv")
-            ):
-                continue
-            if _gg_res.url.endswith(
-                (".rar", ".zip", ".7z", ".iso", ".dmg", ".pkg", ".deb", ".rpm", ".msi")
-            ):
-                continue
-            if _gg_res.url.endswith((".exe", ".app")):
-                continue
-            if _gg_res.url.endswith((".xml",)):
+            if filter_out_extensions(_gg_res.url):
                 continue
 
             html_doc = HtmlDocument.from_search_result(_gg_res)
