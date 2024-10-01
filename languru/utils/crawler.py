@@ -1,6 +1,10 @@
 from typing import Text
 
 
+def escape_query(query: Text) -> Text:
+    return query.replace("《", " ").replace("》", " ").strip()
+
+
 def filter_out_extensions(
     url: Text,
     *,

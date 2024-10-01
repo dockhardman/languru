@@ -15,6 +15,7 @@ from yarl import URL
 from languru.config import console
 from languru.utils._playwright import is_captcha, simulate_human_behavior
 from languru.utils.bs import drop_no_used_attrs
+from languru.utils.crawler import escape_query
 
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
@@ -40,6 +41,7 @@ def google_search_with_page(
     query = query.strip()
     if not query:
         raise ValueError("Query is empty")
+    query = escape_query(query)
 
     search_results: List["SearchResult"] = []
     if browser_context.pages:
@@ -210,6 +212,7 @@ class GoogleSearchRemote:
         query = query.strip()
         if not query:
             raise ValueError("Query is empty")
+        query = escape_query(query)
         timeout_ms = timeout_ms or self.timeout_ms
 
         # Check if the result is cached

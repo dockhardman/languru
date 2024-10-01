@@ -19,7 +19,7 @@ from languru.utils._playwright import (
     simulate_human_behavior,
 )
 from languru.utils.common import debug_print_banner
-from languru.utils.crawler import filter_out_extensions
+from languru.utils.crawler import escape_query, filter_out_extensions
 from languru.utils.html_parser import as_markdown, drop_no_used_attrs
 from languru.web.remote.google_search import google_search_with_page
 
@@ -143,6 +143,7 @@ class CrawlerClient:
         query = query.replace('"', "").replace("'", "").strip()
         if not query:
             raise ValueError("Query is empty")
+        query = escape_query(query)
 
         # Search google home page with browser
         google_search_results = google_search_with_page(
