@@ -13,7 +13,11 @@ from pydantic import BaseModel
 from yarl import URL
 
 from languru.config import console
-from languru.utils._playwright import is_captcha, simulate_human_behavior
+from languru.utils._playwright import (
+    handle_captcha_page,
+    simulate_human_behavior,
+    try_close_page,
+)
 from languru.utils.bs import drop_no_used_attrs
 from languru.utils.crawler import escape_query
 
@@ -34,6 +38,9 @@ def google_search_with_page(
     cache_result: Cache = cache,
     close_page: Optional[bool] = None,
     page_index: Optional[int] = None,
+    raise_captcha: bool = False,
+    skip_captcha: bool = False,
+    captcha_manual_solve: bool = False,  # Default behavior.
 ) -> List["SearchResult"]:
     """
     Search for a query on Google and return the search results.
@@ -81,9 +88,14 @@ def google_search_with_page(
         page.wait_for_load_state("domcontentloaded")
         # page.wait_for_selector("#search")
 
-        if is_captcha(page):
-            page.bring_to_front()
-            page.pause()
+        # Check for CAPTCHA
+        if not handle_captcha_page(
+            page,
+            raise_captcha=raise_captcha,
+            skip_captcha=skip_captcha,
+            captcha_manual_solve=captcha_manual_solve,
+        ):
+            return []
 
         # Wait for the search results to load
         try:
@@ -109,11 +121,7 @@ def google_search_with_page(
         if screenshot_filepath:
             page.screenshot(type="jpeg", path=screenshot_filepath)
 
-    try:
-        if close_page:
-            page.close()
-    except Exception:
-        pass
+    try_close_page(page)
     return search_results[:num_results]
 
 

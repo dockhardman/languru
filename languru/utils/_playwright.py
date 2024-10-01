@@ -1,10 +1,43 @@
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from languru.config import console
+from languru.exceptions import CaptchaDetected
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
+
+
+T = TypeVar("T")
+
+
+def try_close_page(page: "Page"):
+    try:
+        page.close()
+    except Exception:
+        pass
+
+
+def handle_captcha_page(
+    page: "Page",
+    *,
+    raise_captcha: bool = False,
+    skip_captcha: bool = False,
+    captcha_manual_solve: bool = False,  # Default behavior.
+) -> bool:  # Return True if captcha is solved, False if captcha is skipped.
+    if is_captcha(page):
+        if raise_captcha:
+            raise CaptchaDetected("Captcha detected")
+        elif skip_captcha:
+            try_close_page(page)
+            return False
+        elif captcha_manual_solve:
+            page.bring_to_front()
+            page.pause()
+        else:
+            page.bring_to_front()
+            page.pause()
+    return True
 
 
 def simulate_human_behavior(page: "Page", timeout_ms: int = 3000):

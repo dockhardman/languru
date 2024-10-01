@@ -12,12 +12,11 @@ from playwright_stealth import stealth_sync
 from yarl import URL
 
 from languru.config import console
-from languru.exceptions import CaptchaDetected
 from languru.types.web.documents import HtmlDocument
 from languru.utils._playwright import (
-    is_captcha,
-    simulate_captcha,
+    handle_captcha_page,
     simulate_human_behavior,
+    try_close_page,
 )
 from languru.utils.common import debug_print_banner
 from languru.utils.crawler import escape_query, filter_out_extensions
@@ -62,7 +61,9 @@ def request_with_page(
     close_page: Optional[bool] = None,
     debug: bool = False,
     page_index: Optional[int] = None,
-    skip_captcha: bool = True,
+    raise_captcha: bool = False,
+    skip_captcha: bool = False,
+    captcha_manual_solve: bool = False,  # Default behavior.
 ) -> Optional[Text]:
 
     content: Optional[Text] = None
@@ -89,10 +90,13 @@ def request_with_page(
         simulate_human_behavior(page, timeout_ms=timeout_ms)
 
         # Check for CAPTCHA
-        if is_captcha(page) and skip_captcha:
-            raise CaptchaDetected(f"Captcha detected on '{url}'")
-        else:
-            simulate_captcha(page)
+        if not handle_captcha_page(
+            page,
+            raise_captcha=raise_captcha,
+            skip_captcha=skip_captcha,
+            captcha_manual_solve=captcha_manual_solve,
+        ):
+            return None
 
         content = page.content()
         content = drop_no_used_attrs(content)
@@ -111,11 +115,7 @@ def request_with_page(
         if screenshot_filepath:
             page.screenshot(type="jpeg", path=screenshot_filepath)
 
-    try:
-        if close_page:
-            page.close()
-    except Exception:
-        pass
+    try_close_page(page)
     return content
 
 
