@@ -1,5 +1,7 @@
 import re
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Optional, TypeVar
+
+from playwright.sync_api import BrowserContext
 
 from languru.config import console
 from languru.exceptions import CaptchaDetected
@@ -16,6 +18,24 @@ def try_close_page(page: "Page"):
         page.close()
     except Exception:
         pass
+
+
+def get_page(
+    browser_context: "BrowserContext", page_index: Optional[int] = None
+) -> "Page":
+    # Get the page
+    if page_index is not None:
+        if len(browser_context.pages) > page_index:
+            page = browser_context.pages[page_index]
+        else:
+            console.print(
+                f"Page index {page_index} not found, creating a new page.",
+                style="yellow",
+            )
+            page = browser_context.new_page()
+    else:
+        page = browser_context.new_page()
+    return page
 
 
 def handle_captcha_page(

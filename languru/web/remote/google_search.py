@@ -14,6 +14,7 @@ from yarl import URL
 
 from languru.config import console
 from languru.utils._playwright import (
+    get_page,
     handle_captcha_page,
     simulate_human_behavior,
     try_close_page,
@@ -53,17 +54,7 @@ def google_search_with_page(
     search_results: List["SearchResult"] = []
 
     # Get the page
-    if page_index is not None:
-        if len(browser_context.pages) > page_index:
-            page = browser_context.pages[page_index]
-        else:
-            console.print(
-                f"Page index {page_index} not found, creating a new page.",
-                style="yellow",
-            )
-            page = browser_context.new_page()
-    else:
-        page = browser_context.new_page()
+    page = get_page(browser_context, page_index)
 
     # Stealth mode
     if is_stealth:
@@ -121,7 +112,8 @@ def google_search_with_page(
         if screenshot_filepath:
             page.screenshot(type="jpeg", path=screenshot_filepath)
 
-    try_close_page(page)
+    if close_page:
+        try_close_page(page)
     return search_results[:num_results]
 
 
