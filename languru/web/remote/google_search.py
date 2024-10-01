@@ -1,3 +1,7 @@
+"""
+Google Search
+"""
+
 import time
 from pathlib import Path
 from typing import List, Optional, Text, Union, cast
@@ -42,6 +46,7 @@ def google_search_with_page(
     raise_captcha: bool = False,
     skip_captcha: bool = False,
     captcha_manual_solve: bool = False,  # Default behavior.
+    debug: bool = False,
 ) -> List["SearchResult"]:
     """
     Search for a query on Google and return the search results.
@@ -101,7 +106,7 @@ def google_search_with_page(
         content = drop_no_used_attrs(content)
 
         # Parse the search results
-        search_results = parse_search_results(content)
+        search_results = parse_search_results(content, debug=debug)
 
         if screenshot_filepath:
             page.screenshot(type="jpeg", path=screenshot_filepath)

@@ -1,3 +1,7 @@
+"""
+Bing Search
+"""
+
 from pathlib import Path
 from typing import List, Optional, Text, Union
 
@@ -39,9 +43,10 @@ def search_with_page(
     raise_captcha: bool = False,
     skip_captcha: bool = False,
     captcha_manual_solve: bool = False,  # Default behavior.
+    debug: bool = False,
 ) -> List["SearchResult"]:
     """
-    Search for a query on Google and return the search results.
+    Search for a query on Bing and return the search results.
     """
     query = query.strip()
     if not query:
@@ -98,7 +103,7 @@ def search_with_page(
         content = drop_no_used_attrs(content)
 
         # Parse the search results
-        search_results = parse_search_results(content)
+        search_results = parse_search_results(content, debug=debug)
 
         if screenshot_filepath:
             page.screenshot(type="jpeg", path=screenshot_filepath)
