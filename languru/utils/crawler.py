@@ -37,3 +37,33 @@ def filter_out_extensions(
     if exclude_other and url.endswith((".xml",)):
         return True
     return False
+
+
+def filter_out_urls(url: Text) -> bool:
+    return (
+        "open.spotify.com" in url
+        or "www.tiktok.com" in url
+        or "tunebat.com" in url
+        or "quizlet.com" in url
+        or "taobao.com" in url
+        or "douyin.com" in url
+        or "pinduoduo.com" in url
+        or "xiaohongshu.com" in url
+        or "jd.com" in url
+        or "tmall.com" in url
+        or "1688.com" in url
+        or "smzdm.com" in url
+        or "meituan.com" in url
+        or "dianping.com" in url
+        or "vip.com" in url
+        or "vmall.com" in url
+        or "suning.com" in url
+        or "dangdang.com" in url
+        or "arco.org.tw" in url
+        or "www.cs.cmu.edu" in url
+        or "www.oldies.com" in url
+        or "www.hitfm.com.tw" in url
+        or "eodg.atm.ox.ac.uk" in url
+        or "rss.lizhi.fm" in url
+        or "/rss/" in url
+    )
