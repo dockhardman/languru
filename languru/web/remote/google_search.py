@@ -33,7 +33,7 @@ def google_search_with_page(
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
     close_page: Optional[bool] = None,
-    default_path_num: int = 0,
+    page_index: Optional[int] = None,
 ) -> List["SearchResult"]:
     """
     Search for a query on Google and return the search results.
@@ -44,10 +44,21 @@ def google_search_with_page(
     query = escape_query(query)
 
     search_results: List["SearchResult"] = []
-    if browser_context.pages:
-        page = browser_context.pages[default_path_num]
+
+    # Get the page
+    if page_index is not None:
+        if len(browser_context.pages) > page_index:
+            page = browser_context.pages[page_index]
+        else:
+            console.print(
+                f"Page index {page_index} not found, creating a new page.",
+                style="yellow",
+            )
+            page = browser_context.new_page()
     else:
         page = browser_context.new_page()
+
+    # Stealth mode
     if is_stealth:
         stealth_sync(page)
 

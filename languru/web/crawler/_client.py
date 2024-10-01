@@ -12,6 +12,7 @@ from playwright_stealth import stealth_sync
 from yarl import URL
 
 from languru.config import console
+from languru.exceptions import CaptchaDetected
 from languru.types.web.documents import HtmlDocument
 from languru.utils._playwright import (
     is_captcha,
@@ -60,15 +61,26 @@ def request_with_page(
     cache_result: Cache = cache,
     close_page: Optional[bool] = None,
     debug: bool = False,
-    default_path_num: int = 0,
+    page_index: Optional[int] = None,
     skip_captcha: bool = True,
 ) -> Optional[Text]:
 
     content: Optional[Text] = None
-    if browser_context.pages:
-        page = browser_context.pages[default_path_num]
+
+    # Get the page
+    if page_index is not None:
+        if len(browser_context.pages) > page_index:
+            page = browser_context.pages[page_index]
+        else:
+            console.print(
+                f"Page index {page_index} not found, creating a new page.",
+                style="yellow",
+            )
+            page = browser_context.new_page()
     else:
         page = browser_context.new_page()
+
+    # Stealth mode
     if is_stealth:
         stealth_sync(page)
 
@@ -78,7 +90,7 @@ def request_with_page(
 
         # Check for CAPTCHA
         if is_captcha(page) and skip_captcha:
-            raise CaptchaError(f"Captcha detected on '{url}'")
+            raise CaptchaDetected(f"Captcha detected on '{url}'")
         else:
             simulate_captcha(page)
 
@@ -93,10 +105,6 @@ def request_with_page(
                 path=screenshot_filepath,
             )
         cache_result[url] = content
-
-    except CaptchaError:
-        console.print("Skipping the page due to captcha.")
-        content = None
 
     except PlaywrightTimeoutError:
         console.print_exception()
@@ -206,7 +214,3 @@ class CrawlerClient:
         if postfix is None:
             postfix = str(int(time.time() * 1000))
         return _dirpath.joinpath(f"screenshot-{postfix}.jpg")
-
-
-class CaptchaError(Exception):
-    pass
