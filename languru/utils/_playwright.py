@@ -62,7 +62,7 @@ async def handle_captcha_page(
     return True
 
 
-async def simulate_human_behavior(page: "Page", timeout_ms: int = 3000):
+async def simulate_human_behavior(page: "Page", timeout_ms: int = 10000):
     """Simulate human-like behavior on a webpage.
 
     Parameters
@@ -130,7 +130,7 @@ async def is_captcha(page: "Page") -> bool:
 
     # Check for captcha in selectors
     for selector in (
-        "iframe[src*='recaptcha']",
+        # "iframe[src*='recaptcha']",
         "#captcha-form",
         "form[action*='challenge']",
         "div.g-recaptcha",

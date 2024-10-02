@@ -4,7 +4,7 @@ import random
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Callable, List, Optional, Text, Union
+from typing import Callable, List, Literal, Optional, Sequence, Text, Union
 
 from diskcache import Cache
 from playwright.async_api import BrowserContext, Page
@@ -28,9 +28,7 @@ from languru.utils.html_parser import (
     drop_all_tags,
     drop_no_used_attrs,
 )
-from languru.web.remote.bing import search_with_page as bing_search_with_page
-from languru.web.remote.google_search import search_with_page as google_search_with_page
-from languru.web.remote.yahoo_search import search_with_page as yahoo_search_with_page
+from languru.web.remote import get_search_engines
 
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
@@ -63,7 +61,7 @@ async def browser_context():
 async def open_page(
     context: "BrowserContext",
     url: Union[URL, Text],
-    timeout_ms: int = 30000,
+    timeout_ms: int = 10000,
     global_wait_seconds: float = 2.0,
 ) -> Optional["Page"]:
     try:
@@ -150,6 +148,12 @@ class CrawlerClient:
         query: Text,
         context: "BrowserContext",
         *,
+        search_engine: Sequence[Literal["google", "bing", "yahoo", "duckduckgo"]] = (
+            "google",
+            "bing",
+            "yahoo",
+            "duckduckgo",
+        ),
         num_results: int = 10,
         filter_out_urls: Callable[[Text], bool] = lambda x: False,
         sleep_interval: int = 0,
@@ -166,9 +170,9 @@ class CrawlerClient:
         out: List["HtmlDocument"] = []
 
         # Search google home page with browser
-        search_results = await random.choice(
-            [google_search_with_page, bing_search_with_page, yahoo_search_with_page]
-        )(
+        available_search_engines = get_search_engines(search_engine)
+        used_search_engine = random.choice(available_search_engines)
+        search_results = await used_search_engine(
             query,
             page=await get_page(context, page_index=0),
             num_results=num_results,
