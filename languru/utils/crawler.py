@@ -27,7 +27,7 @@ def filter_out_extensions(
     exclude_video: bool = True,
     exclude_archive: bool = True,
     exclude_executable: bool = True,
-    exclude_other: bool = True
+    exclude_other: bool = True,
 ) -> bool:
     if exclude_docs and url.endswith(
         (".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".xls", ".ppt")
@@ -83,9 +83,10 @@ def filter_out_urls(url: Text) -> bool:
 
 
 def add_extra_params_to_url(url: Text) -> Text:
-    # if "youtube.com" in url:
-    #     _url = URL(url)
-    #     _query: Dict = dict(_url.query)
-    #     _query.update({"autoplay": 0, "rel": 0})
-    #     url = str(_url.with_query(_query))
+    if False and "youtube.com" in url:
+        _url = URL(url)
+        _query: Dict = dict(_url.query)
+        _query.update({"autoplay": 0, "rel": 0})
+        url = str(_url.with_query(_query))
+        console.print(f"Added extra params to {url}", style="green")
     return url
