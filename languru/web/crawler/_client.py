@@ -15,6 +15,7 @@ from yarl import URL
 from languru.config import console
 from languru.types.web.documents import HtmlDocument
 from languru.utils._playwright import (
+    get_page,
     handle_captcha_page,
     simulate_human_behavior,
     try_close_page,
@@ -169,7 +170,7 @@ class CrawlerClient:
             [google_search_with_page, bing_search_with_page, yahoo_search_with_page]
         )(
             query,
-            browser_context=context,
+            page=await get_page(context, page_index=0),
             num_results=num_results,
             screenshot_filepath=None,
             cache_result=self.web_cache,
@@ -177,7 +178,6 @@ class CrawlerClient:
             skip_captcha=skip_search_captcha,
             manual_solve_captcha=manual_solve_search_captcha,
             close_page=False,
-            page_index=0,
         )
 
         # Filter out URLs

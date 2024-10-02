@@ -7,7 +7,7 @@ from typing import List, Optional, Text, Union
 
 from bs4 import BeautifulSoup
 from diskcache import Cache
-from playwright.async_api import BrowserContext
+from playwright.async_api import Page
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright_stealth import stealth_async
 from yarl import URL
@@ -15,7 +15,6 @@ from yarl import URL
 from languru.config import console
 from languru.types.web.search import SearchResult
 from languru.utils._playwright import (
-    get_page,
     handle_captcha_page,
     simulate_human_behavior,
     try_close_page,
@@ -30,7 +29,7 @@ cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
 async def search_with_page(
     query: Text,
-    browser_context: "BrowserContext",
+    page: "Page",
     *,
     num_results: int = 10,
     is_stealth: bool = False,
@@ -39,7 +38,6 @@ async def search_with_page(
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
     close_page: bool = True,
-    page_index: Optional[int] = None,
     raise_captcha: bool = False,
     skip_captcha: bool = False,
     manual_solve_captcha: bool = False,  # Default behavior.
@@ -48,15 +46,10 @@ async def search_with_page(
     """
     Search for a query on Bing and return the search results.
     """
-    query = query.strip()
-    if not query:
-        raise ValueError("Query is empty")
+
     query = escape_query(query)
 
     search_results: List["SearchResult"] = []
-
-    # Get the page
-    page = await get_page(browser_context, page_index)
 
     # Stealth mode
     if is_stealth:
