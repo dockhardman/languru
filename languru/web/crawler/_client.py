@@ -148,9 +148,8 @@ class CrawlerClient:
         self,
         query: Text,
         context: "BrowserContext",
-        *args,
+        *,
         num_results: int = 10,
-        timeout_ms: int = 30000,
         filter_out_urls: Callable[[Text], bool] = lambda x: False,
         sleep_interval: int = 0,
         raise_search_captcha: bool = False,
@@ -158,9 +157,7 @@ class CrawlerClient:
         manual_solve_search_captcha: bool = False,
         skip_url_captcha: bool = True,
         save_failed_url_filepath: Optional[Text] = None,
-        concurrent_pages_num: int = 1,
         filter_empty_content: bool = True,
-        **kwargs,
     ) -> List["HtmlDocument"]:
         """"""
 
