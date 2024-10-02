@@ -1,26 +1,24 @@
 import re
 from typing import TYPE_CHECKING, Optional, TypeVar
 
-from playwright.sync_api import BrowserContext
+from playwright.async_api import BrowserContext
 
 from languru.config import console
 from languru.exceptions import CaptchaDetected
+from languru.utils.common import try_await_or_none
 
 if TYPE_CHECKING:
-    from playwright.sync_api import Page
+    from playwright.async_api import Page
 
 
 T = TypeVar("T")
 
 
-def try_close_page(page: "Page"):
-    try:
-        page.close()
-    except Exception:
-        pass
+async def try_close_page(page: "Page"):
+    await try_await_or_none(page.close)
 
 
-def get_page(
+async def get_page(
     browser_context: "BrowserContext", page_index: Optional[int] = None
 ) -> "Page":
     # Get the page
@@ -32,39 +30,39 @@ def get_page(
                 f"Page index {page_index} not found, creating a new page.",
                 style="yellow",
             )
-            page = browser_context.new_page()
+            page = await browser_context.new_page()
     else:
-        page = browser_context.new_page()
+        page = await browser_context.new_page()
     return page
 
 
-def handle_captcha_page(
+async def handle_captcha_page(
     page: "Page",
     *,
     raise_captcha: bool = False,
     skip_captcha: bool = False,
     captcha_manual_solve: bool = False,  # Default behavior.
 ) -> bool:  # Return True if captcha is solved, False if captcha is skipped.
-    if is_captcha(page):
+    if await is_captcha(page):
         if raise_captcha:
             console.print("Captcha detected")
             raise CaptchaDetected("Captcha detected")
         elif skip_captcha:
             console.print("Captcha detected, skipping...")
-            try_close_page(page)
+            await try_close_page(page)
             return False
         elif captcha_manual_solve:
             console.print("Captcha detected, solving...")
-            page.bring_to_front()
-            page.pause()
+            await page.bring_to_front()
+            await page.pause()
         else:
             console.print("Captcha detected, solving...")
-            page.bring_to_front()
-            page.pause()
+            await page.bring_to_front()
+            await page.pause()
     return True
 
 
-def simulate_human_behavior(page: "Page", timeout_ms: int = 3000):
+async def simulate_human_behavior(page: "Page", timeout_ms: int = 3000):
     """Simulate human-like behavior on a webpage.
 
     Parameters
@@ -80,50 +78,32 @@ def simulate_human_behavior(page: "Page", timeout_ms: int = 3000):
         If an error occurs during the simulation process.
     """
 
-    try:
-        # Wait for the network to be idle
-        page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
-        # Scroll the page
-        page.evaluate(
-            """
+    # Wait for the network to be idle
+    await try_await_or_none(
+        page.wait_for_load_state,
+        "domcontentloaded",
+        timeout=timeout_ms,
+        _error_message="Error simulating human behavior: {error}",
+    )
+
+    # Scroll the page
+    await try_await_or_none(
+        page.evaluate,
+        """
             window.scrollTo(0, 200);
-            """
-        )
-        # Wait a bit more for any scrolling-triggered content
-        page.wait_for_timeout(3000)
-    except Exception as e:
-        console.print(f"Error simulating human behavior: {e}")
+            """,
+        _error_message="Error simulating human behavior: {error}",
+    )
+
+    # Wait a bit more for any scrolling-triggered content
+    await try_await_or_none(
+        page.wait_for_timeout,
+        3000,
+        _error_message="Error simulating human behavior: {error}",
+    )
 
 
-def simulate_captcha(page: "Page"):
-    """Check for CAPTCHA presence and prompt user action if detected.
-
-    Parameters
-    ----------
-    page : Page
-        The Playwright Page object representing the webpage.
-
-    Raises
-    ------
-    Exception
-        If an error occurs while checking for CAPTCHA.
-    """
-
-    try:
-        content = page.content()
-        # Check for CAPTCHA
-        if re.search(r"verifying you are human", content, re.IGNORECASE) or re.search(
-            r"check you are human", content, re.IGNORECASE
-        ):
-            console.print("CAPTCHA detected. Please solve it manually.")
-            page.pause()
-            # Optionally, wait for user input before continuing
-            input("Press Enter after you've completed the verification...")
-    except Exception as e:
-        console.print(f"Error simulating captcha: {e}")
-
-
-def is_captcha(page: "Page") -> bool:
+async def is_captcha(page: "Page") -> bool:
     """Determine if the current page is a CAPTCHA.
 
     Parameters
@@ -144,7 +124,7 @@ def is_captcha(page: "Page") -> bool:
 
     from bs4 import BeautifulSoup
 
-    content = page.content()
+    content = await page.content()
     soup = BeautifulSoup(content, "html.parser")
     current_url = page.url
 
@@ -156,7 +136,7 @@ def is_captcha(page: "Page") -> bool:
         "div.g-recaptcha",
         "input[name='captcha']",
     ):
-        if page.query_selector(selector):
+        if await page.query_selector(selector):
             console.print(f"Captcha element found: {selector}")
             return True
 

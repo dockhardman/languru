@@ -2,7 +2,16 @@ from typing import Text
 
 
 def escape_query(query: Text) -> Text:
-    return query.replace("《", " ").replace("》", " ").strip()
+    q = (
+        query.replace('"', "")
+        .replace("'", "")
+        .replace("《", " ")
+        .replace("》", " ")
+        .strip()
+    )
+    if not q:
+        raise ValueError("Query is empty")
+    return q
 
 
 def filter_out_extensions(

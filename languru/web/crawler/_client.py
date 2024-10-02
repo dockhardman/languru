@@ -1,27 +1,25 @@
+import asyncio
 import json
 import random
 import time
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Callable, List, Optional, Text, Union, cast
+from typing import Callable, List, Optional, Text, Union
 
 from diskcache import Cache
-from playwright.sync_api import BrowserContext
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-from playwright.sync_api import sync_playwright
-from playwright.sync_api._generated import Playwright
-from playwright_stealth import stealth_sync
+from playwright.async_api import BrowserContext, Page
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import async_playwright
 from yarl import URL
 
 from languru.config import console
 from languru.types.web.documents import HtmlDocument
 from languru.utils._playwright import (
-    get_page,
     handle_captcha_page,
     simulate_human_behavior,
     try_close_page,
 )
-from languru.utils.common import debug_print_banner
+from languru.utils.common import debug_print_banner, try_await_or_none
 from languru.utils.crawler import escape_query, filter_out_extensions
 from languru.utils.html_parser import (
     as_markdown,
@@ -36,61 +34,72 @@ from languru.web.remote.yahoo_search import search_with_page as yahoo_search_wit
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
 
-@contextmanager
-def browser_context():
-    with sync_playwright() as p:
-        p = cast(Playwright, p)
-        with p.chromium.launch(
+@asynccontextmanager
+async def browser_context():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
             headless=False,
             args=[
                 "--start-maximized",
                 "--disable-features=DownloadBubble",
                 "--mute-audio",
             ],
-        ) as browser:
-            context = browser.new_context(
-                viewport={"width": 1280, "height": 800},
-                java_script_enabled=True,
-                timezone_id="America/New_York",
-                geolocation={"latitude": 40.7128, "longitude": -74.0060},
-                permissions=["geolocation"],
-                color_scheme="no-preference",
-                accept_downloads=False,
-            )
-            yield context
+        )
+        context = await browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            java_script_enabled=True,
+            timezone_id="America/New_York",
+            geolocation={"latitude": 40.7128, "longitude": -74.0060},
+            permissions=["geolocation"],
+            color_scheme="no-preference",
+            accept_downloads=False,
+        )
+        yield context
+        await try_await_or_none(context.close)
+        await try_await_or_none(browser.close)
 
 
-def request_with_page(
+async def open_page(
+    context: "BrowserContext",
     url: Union[URL, Text],
-    browser_context: "BrowserContext",
-    *,
     timeout_ms: int = 30000,
-    is_stealth: bool = False,
+    global_wait_seconds: float = 2.0,
+) -> Optional["Page"]:
+    try:
+        page = await context.new_page()
+        await page.goto(str(url), wait_until="domcontentloaded", timeout=timeout_ms)
+        await simulate_human_behavior(page, timeout_ms=timeout_ms)
+        await asyncio.sleep(global_wait_seconds)
+        return page
+    except PlaywrightTimeoutError:
+        console.print_exception()
+        return None
+    except Exception:
+        console.print_exception()
+        return None
+
+
+async def parsing_page(
+    url: Union[URL, Text],
+    page: Optional["Page"],
+    *,
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
     close_page: bool = True,
     debug: bool = False,
-    page_index: Optional[int] = None,
     raise_captcha: bool = False,
     skip_captcha: bool = False,
     manual_solve_captcha: bool = False,  # Default behavior.
 ) -> Optional[Text]:
 
+    if page is None:
+        return None
+
     content: Optional[Text] = None
 
-    # Get the page
-    page = get_page(browser_context, page_index)
-
-    # Stealth mode
-    if is_stealth:
-        stealth_sync(page)
-
     try:
-        page.goto(str(url), timeout=timeout_ms, wait_until="domcontentloaded")
-        simulate_human_behavior(page, timeout_ms=timeout_ms)
-
         # Check for CAPTCHA
-        if not handle_captcha_page(
+        if not await handle_captcha_page(
             page,
             raise_captcha=raise_captcha,
             skip_captcha=skip_captcha,
@@ -98,13 +107,13 @@ def request_with_page(
         ):
             return None
 
-        content = page.content()
+        content = await page.content()
         content = drop_no_used_attrs(drop_all_comments(drop_all_tags(content)))
         if debug:
             debug_print_banner(content, title=f"Content of '{url}'")
 
         if screenshot_filepath:
-            page.screenshot(
+            await page.screenshot(
                 type="jpeg",
                 path=screenshot_filepath,
             )
@@ -113,10 +122,10 @@ def request_with_page(
     except PlaywrightTimeoutError:
         console.print_exception()
         if screenshot_filepath:
-            page.screenshot(type="jpeg", path=screenshot_filepath)
+            await page.screenshot(type="jpeg", path=screenshot_filepath)
 
     if close_page:
-        try_close_page(page)
+        await try_close_page(page)
     return content
 
 
@@ -135,14 +144,13 @@ class CrawlerClient:
 
         self.web_cache = Cache(self.get_web_cache_dirpath(cache_dirpath))
 
-    def search_with_context(
+    async def search_with_context(
         self,
         query: Text,
         context: "BrowserContext",
         *args,
         num_results: int = 10,
         timeout_ms: int = 30000,
-        is_stealth: bool = False,
         filter_out_urls: Callable[[Text], bool] = lambda x: False,
         sleep_interval: int = 0,
         raise_search_captcha: bool = False,
@@ -150,16 +158,17 @@ class CrawlerClient:
         manual_solve_search_captcha: bool = False,
         skip_url_captcha: bool = True,
         save_failed_url_filepath: Optional[Text] = None,
+        concurrent_pages_num: int = 1,
+        filter_empty_content: bool = True,
         **kwargs,
     ) -> List["HtmlDocument"]:
-        out: List["HtmlDocument"] = []
-        query = query.replace('"', "").replace("'", "").strip()
-        if not query:
-            raise ValueError("Query is empty")
+        """"""
+
         query = escape_query(query)
+        out: List["HtmlDocument"] = []
 
         # Search google home page with browser
-        search_results = random.choice(
+        search_results = await random.choice(
             [google_search_with_page, bing_search_with_page, yahoo_search_with_page]
         )(
             query,
@@ -173,43 +182,63 @@ class CrawlerClient:
             close_page=False,
             page_index=0,
         )
-        for _res in search_results[:num_results]:
-            if filter_out_urls(_res.url):
-                continue
-            # Filter pdf, docx, etc.
-            if filter_out_extensions(_res.url):
-                continue
 
-            html_doc = HtmlDocument.from_search_result(_res)
+        # Filter out URLs
+        search_results = [
+            _res for _res in search_results if not filter_out_urls(_res.url)
+        ]
 
-            # Request url content with browser
-            html_doc.html_content = request_with_page(
-                html_doc.url,
-                browser_context=context,
-                timeout_ms=timeout_ms,
-                is_stealth=is_stealth,
+        # Filter pdf, docx, etc.
+        search_results = [
+            _res for _res in search_results if not filter_out_extensions(_res.url)
+        ]
+
+        # Create HtmlDocument items
+        html_docs: List["HtmlDocument"] = [
+            HtmlDocument.from_search_result(_res)
+            for _res in search_results[:num_results]
+        ]
+        if not html_docs:
+            console.print("No results found.")
+            return []
+
+        # Request HTML content with multiple pages
+        pages = await asyncio.gather(
+            *[open_page(context, _html_doc.url) for _html_doc in html_docs]
+        )
+
+        for _html_doc, _page in zip(html_docs, pages):
+            _html_doc.html_content = await parsing_page(
+                _html_doc.url,
+                _page,
                 screenshot_filepath=None,
+                close_page=True,
+                skip_captcha=skip_url_captcha,
                 cache_result=self.web_cache,
                 debug=self.debug,
-                skip_captcha=skip_url_captcha,
             )
-            if html_doc.html_content:
-                html_doc.markdown_content = as_markdown(
-                    html_doc.html_content, url=html_doc.url, debug=self.debug
+
+        # Convert to markdown
+        for _html_doc in html_docs:
+            if _html_doc.html_content:
+                _html_doc.markdown_content = as_markdown(
+                    _html_doc.html_content, url=_html_doc.url, debug=self.debug
                 )
             else:
-                console.print(f"Failed to get content from {html_doc.url}")
+                console.print(f"Failed to get content from {_html_doc.url}")
                 if save_failed_url_filepath:
                     _failed_url_filepath = Path(save_failed_url_filepath)
                     _failed_url_filepath.touch(exist_ok=True)
                     with open(_failed_url_filepath, "a") as f:
-                        f.write(json.dumps({"url": html_doc.url}) + "\n")
+                        f.write(json.dumps({"url": _html_doc.url}) + "\n")
 
-            out.append(html_doc)
+            out.append(_html_doc)
 
             if sleep_interval > 0:
                 time.sleep(sleep_interval)
 
+        if filter_empty_content:
+            out = [_html_doc for _html_doc in out if _html_doc.markdown_content]
         return out
 
     def get_web_cache_dirpath(self, dirpath: Optional[Text] = None) -> Path:
