@@ -1,3 +1,4 @@
+import json
 import random
 import time
 from contextlib import contextmanager
@@ -22,7 +23,12 @@ from languru.utils._playwright import (
 )
 from languru.utils.common import debug_print_banner
 from languru.utils.crawler import escape_query, filter_out_extensions
-from languru.utils.html_parser import as_markdown, drop_no_used_attrs
+from languru.utils.html_parser import (
+    as_markdown,
+    drop_all_comments,
+    drop_all_tags,
+    drop_no_used_attrs,
+)
 from languru.web.remote.bing import search_with_page as bing_search_with_page
 from languru.web.remote.google_search import search_with_page as google_search_with_page
 from languru.web.remote.yahoo_search import search_with_page as yahoo_search_with_page
@@ -93,7 +99,7 @@ def request_with_page(
             return None
 
         content = page.content()
-        content = drop_no_used_attrs(content)
+        content = drop_no_used_attrs(drop_all_comments(drop_all_tags(content)))
         if debug:
             debug_print_banner(content, title=f"Content of '{url}'")
 
@@ -143,6 +149,7 @@ class CrawlerClient:
         skip_search_captcha: bool = False,
         manual_solve_search_captcha: bool = False,
         skip_url_captcha: bool = True,
+        save_failed_url_filepath: Optional[Text] = None,
         **kwargs,
     ) -> List["HtmlDocument"]:
         out: List["HtmlDocument"] = []
@@ -192,6 +199,11 @@ class CrawlerClient:
                 )
             else:
                 console.print(f"Failed to get content from {html_doc.url}")
+                if save_failed_url_filepath:
+                    _failed_url_filepath = Path(save_failed_url_filepath)
+                    _failed_url_filepath.touch(exist_ok=True)
+                    with open(_failed_url_filepath, "a") as f:
+                        f.write(json.dumps({"url": html_doc.url}) + "\n")
 
             out.append(html_doc)
 
