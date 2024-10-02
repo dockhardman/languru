@@ -1,4 +1,6 @@
-from typing import Text
+from typing import Dict, Text
+
+from yarl import URL
 
 
 def escape_query(query: Text) -> Text:
@@ -76,3 +78,12 @@ def filter_out_urls(url: Text) -> bool:
         or "rss.lizhi.fm" in url
         or "/rss/" in url
     )
+
+
+def add_extra_params_to_url(url: Text) -> Text:
+    if "youtube.com" in url:
+        _url = URL(url)
+        _query: Dict = dict(_url.query)
+        _query.update({"autoplay": 0, "rel": 0})
+        url = str(_url.with_query(_query))
+    return url

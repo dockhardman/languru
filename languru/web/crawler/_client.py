@@ -21,7 +21,11 @@ from languru.utils._playwright import (
     try_close_page,
 )
 from languru.utils.common import debug_print_banner, try_await_or_none
-from languru.utils.crawler import escape_query, filter_out_extensions
+from languru.utils.crawler import (
+    add_extra_params_to_url,
+    escape_query,
+    filter_out_extensions,
+)
 from languru.utils.html_parser import (
     as_markdown,
     drop_all_comments,
@@ -202,6 +206,10 @@ class CrawlerClient:
         if not html_docs:
             console.print("No results found.")
             return []
+
+        # Append extra parameters to urls
+        for _html_doc in html_docs:
+            _html_doc.url = add_extra_params_to_url(_html_doc.url)
 
         # Request HTML content with multiple pages
         pages = await asyncio.gather(
