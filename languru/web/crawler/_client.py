@@ -235,8 +235,11 @@ class CrawlerClient:
 
             out.append(_html_doc)
 
-            if sleep_interval > 0:
-                time.sleep(sleep_interval)
+        # Close pages[1:]
+        await asyncio.gather(*[try_close_page(_page) for _page in context.pages[1:]])
+
+        if sleep_interval > 0:
+            time.sleep(sleep_interval)
 
         if filter_empty_content:
             out = [_html_doc for _html_doc in out if _html_doc.markdown_content]
