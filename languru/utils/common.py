@@ -305,3 +305,14 @@ async def try_await_or_none(
         if _error_message:
             console.print(_error_message.format(error=e))
         return None
+
+
+def choice_first(items: T | Sequence[T]) -> T | None:
+    if isinstance(items, Text):
+        return items  # type: ignore
+    elif isinstance(items, Sequence):
+        if len(items) == 0:
+            return None
+        return items[0]
+    else:
+        return items

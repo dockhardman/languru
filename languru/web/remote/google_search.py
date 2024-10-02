@@ -9,7 +9,6 @@ from bs4 import BeautifulSoup
 from diskcache import Cache
 from playwright.async_api import Page
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
-from playwright_stealth import stealth_async
 from yarl import URL
 
 from languru.config import console
@@ -30,7 +29,6 @@ async def search_with_page(
     page: "Page",
     *,
     num_results: int = 10,
-    is_stealth: bool = False,
     timeout_ms: int = 60000,
     google_home_url: Text | URL = URL("https://www.google.com").with_query(
         {"hl": "en", "sa": "X"}
@@ -50,10 +48,6 @@ async def search_with_page(
     query = escape_query(query)
 
     search_results: List["SearchResult"] = []
-
-    # Stealth mode
-    if is_stealth:
-        await stealth_async(page)
 
     try:
         await page.goto(
