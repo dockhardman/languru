@@ -47,14 +47,18 @@ def handle_captcha_page(
 ) -> bool:  # Return True if captcha is solved, False if captcha is skipped.
     if is_captcha(page):
         if raise_captcha:
+            console.print("Captcha detected")
             raise CaptchaDetected("Captcha detected")
         elif skip_captcha:
+            console.print("Captcha detected, skipping...")
             try_close_page(page)
             return False
         elif captcha_manual_solve:
+            console.print("Captcha detected, solving...")
             page.bring_to_front()
             page.pause()
         else:
+            console.print("Captcha detected, solving...")
             page.bring_to_front()
             page.pause()
     return True
@@ -153,30 +157,35 @@ def is_captcha(page: "Page") -> bool:
         "input[name='captcha']",
     ):
         if page.query_selector(selector):
+            console.print(f"Captcha element found: {selector}")
             return True
 
     # Check for CAPTCHA
     if re.search(r"verifying you are human", content, re.IGNORECASE) or re.search(
         r"check you are human", content, re.IGNORECASE
     ):
-        console.print("The page is a captcha.")
+        console.print("The page is verifying you are human.")
         return True
 
     # Check google recaptcha
     captcha_element = soup.find("input", {"name": "g-recaptcha-response"})
     if captcha_element:
+        console.print(f"Captcha element found: {captcha_element}")
         return True
 
     # Check for captcha in content
-    if "captcha" in content.lower() or "unusual traffic" in content.lower():
+    if "unusual traffic" in content.lower():
+        console.print("The page is a captcha.")
         return True
 
     # Check for captcha in title
     if soup.title and "captcha" in soup.title.text.lower():
+        console.print(f"Captcha in title: {soup.title.text}")
         return True
 
     # Check for captcha in url
     if "captcha" in current_url or "challenge" in current_url:
+        console.print(f"Captcha in url: {current_url}")
         return True
 
     return False
