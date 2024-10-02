@@ -38,11 +38,11 @@ def search_with_page(
     home_url: Text | URL = URL(HOME_URL),
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
-    close_page: Optional[bool] = None,
+    close_page: bool = True,
     page_index: Optional[int] = None,
     raise_captcha: bool = False,
     skip_captcha: bool = False,
-    captcha_manual_solve: bool = False,  # Default behavior.
+    manual_solve_captcha: bool = False,  # Default behavior.
     debug: bool = False,
 ) -> List["SearchResult"]:
     """
@@ -86,7 +86,7 @@ def search_with_page(
             page,
             raise_captcha=raise_captcha,
             skip_captcha=skip_captcha,
-            captcha_manual_solve=captcha_manual_solve,
+            captcha_manual_solve=manual_solve_captcha,
         ):
             return []
 

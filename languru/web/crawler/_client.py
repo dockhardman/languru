@@ -1,3 +1,4 @@
+import random
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -22,7 +23,9 @@ from languru.utils._playwright import (
 from languru.utils.common import debug_print_banner
 from languru.utils.crawler import escape_query, filter_out_extensions
 from languru.utils.html_parser import as_markdown, drop_no_used_attrs
-from languru.web.remote.google_search import google_search_with_page
+from languru.web.remote.bing import search_with_page as bing_search_with_page
+from languru.web.remote.google_search import search_with_page as google_search_with_page
+from languru.web.remote.yahoo_search import search_with_page as yahoo_search_with_page
 
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
@@ -59,12 +62,12 @@ def request_with_page(
     is_stealth: bool = False,
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
-    close_page: Optional[bool] = None,
+    close_page: bool = True,
     debug: bool = False,
     page_index: Optional[int] = None,
     raise_captcha: bool = False,
     skip_captcha: bool = False,
-    captcha_manual_solve: bool = False,  # Default behavior.
+    manual_solve_captcha: bool = False,  # Default behavior.
 ) -> Optional[Text]:
 
     content: Optional[Text] = None
@@ -85,7 +88,7 @@ def request_with_page(
             page,
             raise_captcha=raise_captcha,
             skip_captcha=skip_captcha,
-            captcha_manual_solve=captcha_manual_solve,
+            captcha_manual_solve=manual_solve_captcha,
         ):
             return None
 
@@ -136,7 +139,10 @@ class CrawlerClient:
         is_stealth: bool = False,
         filter_out_urls: Callable[[Text], bool] = lambda x: False,
         sleep_interval: int = 0,
-        skip_captcha: bool = True,
+        raise_search_captcha: bool = False,
+        skip_search_captcha: bool = False,
+        manual_solve_search_captcha: bool = False,
+        skip_url_captcha: bool = True,
         **kwargs,
     ) -> List["HtmlDocument"]:
         out: List["HtmlDocument"] = []
@@ -146,21 +152,28 @@ class CrawlerClient:
         query = escape_query(query)
 
         # Search google home page with browser
-        google_search_results = google_search_with_page(
+        search_results = random.choice(
+            [google_search_with_page, bing_search_with_page, yahoo_search_with_page]
+        )(
             query,
             browser_context=context,
             num_results=num_results,
             screenshot_filepath=None,
             cache_result=self.web_cache,
+            raise_captcha=raise_search_captcha,
+            skip_captcha=skip_search_captcha,
+            manual_solve_captcha=manual_solve_search_captcha,
+            close_page=False,
+            page_index=0,
         )
-        for _gg_res in google_search_results[:num_results]:
-            if filter_out_urls(_gg_res.url):
+        for _res in search_results[:num_results]:
+            if filter_out_urls(_res.url):
                 continue
             # Filter pdf, docx, etc.
-            if filter_out_extensions(_gg_res.url):
+            if filter_out_extensions(_res.url):
                 continue
 
-            html_doc = HtmlDocument.from_search_result(_gg_res)
+            html_doc = HtmlDocument.from_search_result(_res)
 
             # Request url content with browser
             html_doc.html_content = request_with_page(
@@ -171,7 +184,7 @@ class CrawlerClient:
                 screenshot_filepath=None,
                 cache_result=self.web_cache,
                 debug=self.debug,
-                skip_captcha=skip_captcha,
+                skip_captcha=skip_url_captcha,
             )
             if html_doc.html_content:
                 html_doc.markdown_content = as_markdown(

@@ -29,7 +29,7 @@ from languru.utils.crawler import escape_query
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
 
-def google_search_with_page(
+def search_with_page(
     query: Text,
     browser_context: "BrowserContext",
     *,
@@ -41,11 +41,11 @@ def google_search_with_page(
     ),
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
-    close_page: Optional[bool] = None,
+    close_page: bool = True,
     page_index: Optional[int] = None,
     raise_captcha: bool = False,
     skip_captcha: bool = False,
-    captcha_manual_solve: bool = False,  # Default behavior.
+    manual_solve_captcha: bool = False,  # Default behavior.
     debug: bool = False,
 ) -> List["SearchResult"]:
     """
@@ -89,7 +89,7 @@ def google_search_with_page(
             page,
             raise_captcha=raise_captcha,
             skip_captcha=skip_captcha,
-            captcha_manual_solve=captcha_manual_solve,
+            captcha_manual_solve=manual_solve_captcha,
         ):
             return []
 
@@ -252,7 +252,7 @@ class GoogleSearchRemote:
                     accept_downloads=False,
                 )
 
-                search_results = google_search_with_page(
+                search_results = search_with_page(
                     query,
                     browser_context=context,
                     num_results=num_results,
