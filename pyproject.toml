@@ -16,6 +16,7 @@ click = "^8"
 colorama = "<1,>=0.4.6"
 coloredlogs = "*"
 diskcache = "^5"
+duckdb = ">=1"
 email-validator = "^2"
 fastapi = { extras = ["all"], version = "<1,>=0.109.0" }
 google-cloud-aiplatform = "^1.38"
