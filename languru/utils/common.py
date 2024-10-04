@@ -4,12 +4,14 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Coroutine,
     Dict,
     Generator,
     Iterable,
     List,
     NamedTuple,
     Optional,
+    ParamSpec,
     Sequence,
     Text,
     Tuple,
@@ -34,6 +36,8 @@ if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
 
 T = TypeVar("T")
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def should_str_or_none(value: Text | Any) -> Optional[Text]:
@@ -267,3 +271,48 @@ def debug_print_banner(
             console.print(f"</{title}>\n", style=tag_style)
     except Exception:
         console.print_exception()
+
+
+def try_or_none(
+    func: Callable,
+    *args,
+    _print_error: bool = False,
+    _error_message: Optional[Text] = None,
+    **kwargs,
+):
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        if _print_error:
+            console.print_exception()
+        if _error_message:
+            console.print(_error_message.format(error=e))
+        return None
+
+
+async def try_await_or_none(
+    func: Callable[P, Coroutine[None, None, R]],
+    *args,
+    _print_error: bool = False,
+    _error_message: Optional[Text] = None,
+    **kwargs,
+):
+    try:
+        return await func(*args, **kwargs)
+    except Exception as e:
+        if _print_error:
+            console.print_exception()
+        if _error_message:
+            console.print(_error_message.format(error=e))
+        return None
+
+
+def choice_first(items: T | Sequence[T]) -> T | None:
+    if isinstance(items, Text):
+        return items  # type: ignore
+    elif isinstance(items, Sequence):
+        if len(items) == 0:
+            return None
+        return items[0]
+    else:
+        return items

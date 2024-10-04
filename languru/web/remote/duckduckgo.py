@@ -1,11 +1,12 @@
 """
-Google Search
+DuckDuckGo Search
 """
 
 from pathlib import Path
-from typing import List, Optional, Text, Union
+from typing import List, Optional, Text, Union, cast
 
 from bs4 import BeautifulSoup
+from bs4.element import NavigableString, ResultSet, Tag
 from diskcache import Cache
 from playwright.async_api import Page
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
@@ -18,8 +19,11 @@ from languru.utils._playwright import (
     simulate_human_behavior,
     try_close_page,
 )
-from languru.utils.bs import drop_no_used_attrs
+from languru.utils.bs import bs4_to_str, drop_no_used_attrs
+from languru.utils.common import choice_first
 from languru.utils.crawler import escape_query
+
+HOME_URL = "https://duckduckgo.com/"
 
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
@@ -30,9 +34,7 @@ async def search_with_page(
     *,
     num_results: int = 10,
     timeout_ms: int = 60000,
-    google_home_url: Text | URL = URL("https://www.google.com").with_query(
-        {"hl": "en", "sa": "X"}
-    ),
+    home_url: Text | URL = URL(HOME_URL),
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
     close_page: bool = True,
@@ -42,7 +44,7 @@ async def search_with_page(
     debug: bool = False,
 ) -> List["SearchResult"]:
     """
-    Search for a query on Google and return the search results.
+    Search for a query on Yahoo and return the search results.
     """
 
     query = escape_query(query)
@@ -51,14 +53,14 @@ async def search_with_page(
 
     try:
         await page.goto(
-            str(google_home_url),
+            str(home_url),
             timeout=timeout_ms,
             wait_until="domcontentloaded",
         )
         await simulate_human_behavior(page, timeout_ms=timeout_ms)
 
         # Input text into the search box
-        search_box = page.locator('textarea[name="q"]')
+        search_box = page.locator("#searchbox_input")
         await search_box.fill(query)
 
         # Press 'Enter' instead of clicking the search button
@@ -66,7 +68,6 @@ async def search_with_page(
 
         # Wait for the results page to load
         await page.wait_for_load_state("domcontentloaded")
-        # page.wait_for_selector("#search")
 
         # Check for CAPTCHA
         if not await handle_captcha_page(
@@ -79,7 +80,9 @@ async def search_with_page(
 
         # Wait for the search results to load
         try:
-            await page.wait_for_selector("div.g", state="visible", timeout=10000)
+            await page.wait_for_selector(
+                ".react-results--main", state="visible", timeout=10000
+            )
         except PlaywrightTimeoutError:
             console.print("Could not find search results, skip it.")
             return []
@@ -117,38 +120,36 @@ def parse_search_results(
     search_results = []
 
     # Find all search result divs
-    result_divs = soup.find_all("div", class_="g")
+    results_tag = soup.find("ol", class_="react-results--main")  # Updated selector
+    if not results_tag:
+        return []
+    li_elements: ResultSet = results_tag.find_all("li")  # type: ignore
 
-    for div in result_divs:
-        # Extract URL
-        a_tag = div.find("a")
-        if not a_tag or "href" not in a_tag.attrs:  # No URL found
+    for li in li_elements:
+        li = cast(Tag | NavigableString, li)
+        if isinstance(li, NavigableString):
             continue
-        url: Optional[Text] = a_tag["href"]
-        # Extract title
-        title_tag = soup.find("h3")
-        title: Optional[Text] = title_tag.get_text() if title_tag else None
+        article_tag = li.find("article")
+        if not article_tag or isinstance(article_tag, NavigableString):
+            continue
 
-        # More reliable way to extract Description
-        # Strategy: find the closest following sibling or div/span
-        # after the title that contains text
+        # Extract URL
+        title: Optional[Text] = None
+        title_tag = article_tag.find("h2")
+        title = bs4_to_str(title_tag) if title_tag else None
+
+        url: Optional[Text] = None
+        if title_tag:
+            a_tag = title_tag.find("a") if isinstance(title_tag, Tag) else None
+            url = choice_first(a_tag.get("href")) if isinstance(a_tag, Tag) else None
+
         description: Optional[Text] = None
-        # Step 1: Find all span tags
-        span_tags = div.find_all("span")
-        matching_spans = [
-            span.text.strip().strip(" .\n").strip()
-            for span in span_tags
-            if span.text.strip().endswith("...")
-        ]
-        if matching_spans:
-            description = "\n".join(matching_spans)
-        # Step 2: Look for the first sibling with text
-        if not description and title_tag:
-            # Look for the first sibling with text
-            for sibling in title_tag.find_next_siblings():
-                if sibling and sibling.get_text(strip=True):
-                    description = sibling.get_text(strip=True)
-                    break
+        description_tag = (
+            article_tag.find("div", attrs={"data-result": "snippet"})
+            if isinstance(article_tag, Tag)
+            else None
+        )
+        description = bs4_to_str(description_tag) if description_tag else None
 
         if url and title and description:
             result = SearchResult.model_validate(
@@ -158,7 +159,7 @@ def parse_search_results(
         else:
             if debug:
                 console.print("")
-                console.print(f"Could not parse search result:\n{div=}")
+                console.print(f"Could not parse search result:\n{li=}")
                 console.print("")
 
     return search_results

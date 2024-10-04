@@ -1,12 +1,11 @@
 import re
-from typing import TYPE_CHECKING, Optional, Text
+from typing import Optional, Text
 from urllib.parse import unquote
+
+from bs4 import BeautifulSoup, Comment
 
 from languru.config import console
 from languru.utils.common import debug_print_banner
-
-if TYPE_CHECKING:
-    from bs4 import BeautifulSoup
 
 
 def html_to_markdown(html: Text) -> Text:
@@ -234,6 +233,40 @@ def drop_all_styles(html_content: "Text | BeautifulSoup") -> Text:
         if "style" in tag.attrs:
             # Remove the 'style' attribute
             del tag["style"]
+    return str(soup)
+
+
+def drop_all_tags(html_content: "Text | BeautifulSoup") -> Text:
+    from bs4 import BeautifulSoup
+
+    soup = (
+        BeautifulSoup(html_content, "html.parser")
+        if isinstance(html_content, Text)
+        else html_content
+    )
+    # Drop <script> and other tags
+    for tag in soup.find_all(["script", "style", "link", "meta", "svg", "path"]):
+        tag.decompose()  # Remove the tag from the soup
+
+    # Find all tags that contain 'css' in their name or attributes
+    css_tags = soup.find_all(lambda tag: "css" in tag.name.lower())
+    for tag in css_tags:
+        tag.decompose()
+
+    return str(soup)
+
+
+def drop_all_comments(html_content: "Text | BeautifulSoup") -> Text:
+    from bs4 import BeautifulSoup
+
+    soup = (
+        BeautifulSoup(html_content, "html.parser")
+        if isinstance(html_content, Text)
+        else html_content
+    )
+    for tag in soup.find_all(text=lambda text: isinstance(text, Comment)):
+        tag.extract()
+
     return str(soup)
 
 

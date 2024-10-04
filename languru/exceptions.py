@@ -12,3 +12,7 @@ class OrganizationNotFound(NotFound):
 
 class CredentialsNotProvided(Exception):
     pass
+
+
+class CaptchaDetected(Exception):
+    pass

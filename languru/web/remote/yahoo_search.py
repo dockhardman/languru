@@ -1,5 +1,5 @@
 """
-Google Search
+Yahoo Search
 """
 
 from pathlib import Path
@@ -21,6 +21,8 @@ from languru.utils._playwright import (
 from languru.utils.bs import drop_no_used_attrs
 from languru.utils.crawler import escape_query
 
+HOME_URL = "https://search.yahoo.com/?guccounter=1"
+
 cache = Cache(Path.home().joinpath(".languru/data/cache/web_cache"))
 
 
@@ -30,9 +32,7 @@ async def search_with_page(
     *,
     num_results: int = 10,
     timeout_ms: int = 60000,
-    google_home_url: Text | URL = URL("https://www.google.com").with_query(
-        {"hl": "en", "sa": "X"}
-    ),
+    home_url: Text | URL = URL(HOME_URL),
     screenshot_filepath: Optional[Union[Path, Text]] = None,
     cache_result: Cache = cache,
     close_page: bool = True,
@@ -42,7 +42,7 @@ async def search_with_page(
     debug: bool = False,
 ) -> List["SearchResult"]:
     """
-    Search for a query on Google and return the search results.
+    Search for a query on Yahoo and return the search results.
     """
 
     query = escape_query(query)
@@ -51,14 +51,14 @@ async def search_with_page(
 
     try:
         await page.goto(
-            str(google_home_url),
+            str(home_url),
             timeout=timeout_ms,
             wait_until="domcontentloaded",
         )
         await simulate_human_behavior(page, timeout_ms=timeout_ms)
 
         # Input text into the search box
-        search_box = page.locator('textarea[name="q"]')
+        search_box = page.locator("#yschsp")
         await search_box.fill(query)
 
         # Press 'Enter' instead of clicking the search button
@@ -66,7 +66,6 @@ async def search_with_page(
 
         # Wait for the results page to load
         await page.wait_for_load_state("domcontentloaded")
-        # page.wait_for_selector("#search")
 
         # Check for CAPTCHA
         if not await handle_captcha_page(
@@ -79,7 +78,7 @@ async def search_with_page(
 
         # Wait for the search results to load
         try:
-            await page.wait_for_selector("div.g", state="visible", timeout=10000)
+            await page.wait_for_selector("div#web", state="visible", timeout=10000)
         except PlaywrightTimeoutError:
             console.print("Could not find search results, skip it.")
             return []
@@ -117,38 +116,41 @@ def parse_search_results(
     search_results = []
 
     # Find all search result divs
-    result_divs = soup.find_all("div", class_="g")
+    result_div = soup.find("div", id="web")  # Updated selector
+    if not result_div:
+        return []
+    li_elements = result_div.find_all("li")  # type: ignore
 
-    for div in result_divs:
-        # Extract URL
-        a_tag = div.find("a")
-        if not a_tag or "href" not in a_tag.attrs:  # No URL found
+    for li in li_elements:
+        if li.has_attr("style"):
             continue
-        url: Optional[Text] = a_tag["href"]
-        # Extract title
-        title_tag = soup.find("h3")
-        title: Optional[Text] = title_tag.get_text() if title_tag else None
+        if li.has_attr("role"):
+            continue
+        if li.has_attr("aria-label"):
+            continue
+        if li.has_attr("class"):
+            if "dd" in li["class"]:
+                continue
 
-        # More reliable way to extract Description
-        # Strategy: find the closest following sibling or div/span
-        # after the title that contains text
-        description: Optional[Text] = None
-        # Step 1: Find all span tags
-        span_tags = div.find_all("span")
-        matching_spans = [
-            span.text.strip().strip(" .\n").strip()
-            for span in span_tags
-            if span.text.strip().endswith("...")
-        ]
-        if matching_spans:
-            description = "\n".join(matching_spans)
-        # Step 2: Look for the first sibling with text
-        if not description and title_tag:
-            # Look for the first sibling with text
-            for sibling in title_tag.find_next_siblings():
-                if sibling and sibling.get_text(strip=True):
-                    description = sibling.get_text(strip=True)
-                    break
+        title_tag = li.find("div", class_="compTitle")
+
+        # Extract URL
+        a_tag = title_tag.find("a") if title_tag else None
+        url: Optional[Text] = a_tag["href"] if a_tag and "href" in a_tag.attrs else None
+
+        # Find the div with class "compTitle"
+        title: Optional[Text] = (
+            "".join(
+                child for child in a_tag.children if isinstance(child, Text)
+            ).strip()
+            if a_tag
+            else None
+        )
+        # Find the content with class "compText"
+        description_tag = li.find("div", class_="compText")
+        description: Optional[Text] = (
+            description_tag.get_text() if description_tag else None
+        )
 
         if url and title and description:
             result = SearchResult.model_validate(
@@ -158,7 +160,7 @@ def parse_search_results(
         else:
             if debug:
                 console.print("")
-                console.print(f"Could not parse search result:\n{div=}")
+                console.print(f"Could not parse search result:\n{li=}")
                 console.print("")
 
     return search_results

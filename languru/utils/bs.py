@@ -1,6 +1,16 @@
 from typing import Text
 
 from bs4 import BeautifulSoup
+from bs4.element import NavigableString, Tag
+
+
+def bs4_to_str(element: Tag | NavigableString | None) -> Text:
+    if isinstance(element, NavigableString):
+        return str(element).strip()
+    elif isinstance(element, Tag):
+        return element.get_text(strip=True)
+    else:
+        return ""
 
 
 def drop_no_used_attrs(html_content: Text | BeautifulSoup) -> Text:
