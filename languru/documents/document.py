@@ -49,10 +49,12 @@ class Point(BaseModel):
     )
 
     @classmethod
-    def objects(cls) -> "PointQuerySet":
+    def query_set(cls) -> "PointQuerySet":
         from languru.documents._client import PointQuerySet
 
         return PointQuerySet(cls)
+
+    objects: "PointQuerySet" = property(query_set)  # type: ignore
 
     def is_embedded(self) -> bool:
         return bool(np.all(np.array(self.embedding) == 0.0))
@@ -61,6 +63,7 @@ class Point(BaseModel):
 class Document(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     TABLE_NAME: ClassVar[Text] = "documents"
+    POINT_TYPE: ClassVar[Type[Point]] = Point
 
     document_id: Text = Field(
         default_factory=lambda: f"doc_{str(ksuid())}",
@@ -81,15 +84,13 @@ class Document(BaseModel):
         description="The timestamp of when the document was last updated.",
     )
 
-    @property
-    def point_type(self) -> Type[Point]:
-        return Point
-
     @classmethod
-    def objects(cls) -> "DocumentQuerySet":
+    def query_set(cls) -> "DocumentQuerySet":
         from languru.documents._client import DocumentQuerySet
 
         return DocumentQuerySet(cls)
+
+    objects: "DocumentQuerySet" = property(query_set)  # type: ignore
 
     @classmethod
     def from_content(cls, name: Text, content: Text) -> "Document":
@@ -123,12 +124,12 @@ class Document(BaseModel):
         elif openai_client is not None:
             _emb_res = openai_client.embeddings.create(
                 input=self.to_embedded_content(),
-                model=self.point_type.EMBEDDING_MODEL,
-                dimensions=self.point_type.EMBEDDING_DIMENSIONS,
+                model=self.POINT_TYPE.EMBEDDING_MODEL,
+                dimensions=self.POINT_TYPE.EMBEDDING_DIMENSIONS,
             )
             embedding = _emb_res.data[0].embedding
 
-        point_out = self.point_type.model_validate(params)
+        point_out = self.POINT_TYPE.model_validate(params)
 
         return [point_out]
 
