@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Text
+from typing import Dict, Optional, Sequence, Text
 
 COLUMN_DECLARATION_LINE = "{field_name} {sql_type} {not_null} {unique}"
 DECLARATION_INDENT = "    "
@@ -20,21 +20,40 @@ json_to_sql_type_map = {
 # Function to generate SQL CREATE TABLE statement with JSON support
 def openapi_to_create_table_sql(
     schema: Dict,
+    *,
     table_name: Text,
     primary_key: Optional[Text] = None,
-    unique_fields: Optional[List[Text]] = None,
+    unique_fields: Optional[Sequence[Text]] = None,
+    indexes: Optional[Sequence[Text]] = None,
 ) -> Text:
     unique_fields = unique_fields or []
+    indexes = indexes or []
+
     columns = []
+    index_statements = []
+
     for field_name, field_info in schema["properties"].items():
         field_type = field_info.get("type")
 
-        # Special handling for VARCHAR if maxLength is specified
-        max_length = field_info.get("maxLength")
-        if max_length and field_type == "string":
-            sql_type = f"VARCHAR({max_length})"
-        elif field_type == "object":  # Handle JSON fields
-            sql_type = "JSON"
+        # Handle array types
+        if field_type == "array":
+            # Detect the type of the array items (e.g., FLOAT[384])
+            items_type = field_info["items"]["type"]
+            array_size = field_info.get(
+                "maxItems", 1
+            )  # Default to size 1 if not provided
+
+            # Mapping for the items type (e.g., "number" to "FLOAT")
+            if items_type == "number":
+                sql_type = f"FLOAT[{array_size}]"
+            else:
+                sql_type = f"TEXT[{array_size}]"  # Default to TEXT for other types
+
+        # Handle VARCHAR for string types with maxLength
+        elif "maxLength" in field_info and field_type == "string":
+            sql_type = f"VARCHAR({field_info['maxLength']})"
+
+        # Handle regular types (including JSON)
         else:
             sql_type = json_to_sql_type_map.get(field_type, "TEXT")
 
@@ -49,6 +68,14 @@ def openapi_to_create_table_sql(
             ).strip()
         )
 
+        # Add indexes
+        if field_name in indexes:
+            index_statements.append(
+                CREATE_INDEX_LINE.format(
+                    table_name=table_name, column_name=field_name
+                ).strip()
+            )
+
     # Add primary key
     if primary_key:
         columns.append(f"PRIMARY KEY ({primary_key})")
@@ -57,4 +84,7 @@ def openapi_to_create_table_sql(
     create_table_sql = (
         f"CREATE TABLE {table_name} (\n{DECLARATION_INDENT}{columns_sql}\n);"
     )
-    return create_table_sql
+
+    # Combine CREATE TABLE and CREATE INDEX statements
+    full_sql = create_table_sql + "\n" + ";\n".join(index_statements)
+    return full_sql
