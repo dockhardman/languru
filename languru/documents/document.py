@@ -12,19 +12,25 @@ from typing import (
     TypeVar,
 )
 
+import numpy as np
 from cyksuid.v2 import ksuid
 from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from openai import OpenAI
 
-    from languru.documents._client import DocumentClient
+    from languru.documents._client import DocumentQuerySet, PointQuerySet
 
 
 PointType = TypeVar("PointType", bound="Point")
 
 
 class Point(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    TABLE_NAME: ClassVar[Text] = "points"
+    EMBEDDING_MODEL: ClassVar[Text] = "text-embedding-3-small"
+    EMBEDDING_DIMENSIONS: ClassVar[int] = 512
+
     point_id: Text = Field(
         default_factory=lambda: f"pt_{str(ksuid())}",
         description="The unique and primary ID of the point.",
@@ -35,16 +41,27 @@ class Point(BaseModel):
     document_md5: Text = Field(
         description="The MD5 hash of the document that the point belongs to."
     )
-    embedding: Optional[List[float]] = Field(
-        default=None,
+    embedding: List[float] = Field(
+        max_length=512,
+        min_length=512,
         description="The embedding of the point.",
+        default_factory=lambda: [0.0] * 512,
     )
 
-    EMBEDDING_MODEL: ClassVar[Text] = "text-embedding-3-small"
-    EMBEDDING_DIMENSIONS: ClassVar[int] = 512
+    @classmethod
+    def objects(cls) -> "PointQuerySet":
+        from languru.documents._client import PointQuerySet
+
+        return PointQuerySet(cls)
+
+    def is_embedded(self) -> bool:
+        return bool(np.all(np.array(self.embedding) == 0.0))
 
 
 class Document(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    TABLE_NAME: ClassVar[Text] = "documents"
+
     document_id: Text = Field(
         default_factory=lambda: f"doc_{str(ksuid())}",
         description="The unique and primary ID of the document.",
@@ -64,8 +81,15 @@ class Document(BaseModel):
         description="The timestamp of when the document was last updated.",
     )
 
-    model_config = ConfigDict(str_strip_whitespace=True)
-    point_type: ClassVar[Type[Point]] = Point
+    @property
+    def point_type(self) -> Type[Point]:
+        return Point
+
+    @classmethod
+    def objects(cls) -> "DocumentQuerySet":
+        from languru.documents._client import DocumentQuerySet
+
+        return DocumentQuerySet(cls)
 
     @classmethod
     def from_content(cls, name: Text, content: Text) -> "Document":
@@ -82,9 +106,21 @@ class Document(BaseModel):
         return hashlib.md5(content.strip().encode("utf-8")).hexdigest()
 
     def to_points(
-        self, *, openai_client: "OpenAI", embedding: Optional[List[float]] = None
+        self,
+        *,
+        openai_client: Optional["OpenAI"] = None,
+        embedding: Optional[List[float]] = None,
     ) -> List["Point"]:
-        if embedding is None:
+        self.refresh_md5()
+
+        params: Dict = {
+            "document_id": self.document_id,
+            "document_md5": self.content_md5,
+        }
+
+        if embedding is not None:
+            params["embedding"] = embedding
+        elif openai_client is not None:
             _emb_res = openai_client.embeddings.create(
                 input=self.to_embedded_content(),
                 model=self.point_type.EMBEDDING_MODEL,
@@ -92,15 +128,9 @@ class Document(BaseModel):
             )
             embedding = _emb_res.data[0].embedding
 
-        return [
-            self.point_type.model_validate(
-                {
-                    "document_id": self.document_id,
-                    "document_md5": self.content_md5,
-                    "embedding": embedding,
-                }
-            )
-        ]
+        point_out = self.point_type.model_validate(params)
+
+        return [point_out]
 
     def to_embedded_content(self, *args, **kwargs) -> Text:
         return self.content.strip()
