@@ -1,28 +1,18 @@
 import hashlib
 import time
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Dict,
-    List,
-    Optional,
-    Text,
-    Type,
-    TypeVar,
-)
+from typing import Any, ClassVar, Dict, List, Optional, Text, Type
 
 import numpy as np
 from cyksuid.v2 import ksuid
+from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
 
-if TYPE_CHECKING:
-    from openai import OpenAI
-
-    from languru.documents._client import DocumentQuerySet, PointQuerySet
-
-
-PointType = TypeVar("PointType", bound="Point")
+from languru.documents._client import (
+    DocumentQuerySet,
+    DocumentQuerySetDescriptor,
+    PointQuerySet,
+    PointQuerySetDescriptor,
+)
 
 
 class Point(BaseModel):
@@ -30,7 +20,7 @@ class Point(BaseModel):
     TABLE_NAME: ClassVar[Text] = "points"
     EMBEDDING_MODEL: ClassVar[Text] = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS: ClassVar[int] = 512
-
+    objects: ClassVar["PointQuerySetDescriptor"] = PointQuerySetDescriptor()
     point_id: Text = Field(
         default_factory=lambda: f"pt_{str(ksuid())}",
         description="The unique and primary ID of the point.",
@@ -54,8 +44,6 @@ class Point(BaseModel):
 
         return PointQuerySet(cls)
 
-    objects: "PointQuerySet" = property(query_set)  # type: ignore
-
     def is_embedded(self) -> bool:
         return bool(np.all(np.array(self.embedding) == 0.0))
 
@@ -64,6 +52,7 @@ class Document(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     TABLE_NAME: ClassVar[Text] = "documents"
     POINT_TYPE: ClassVar[Type[Point]] = Point
+    objects: ClassVar["DocumentQuerySetDescriptor"] = DocumentQuerySetDescriptor()
 
     document_id: Text = Field(
         default_factory=lambda: f"doc_{str(ksuid())}",
@@ -89,8 +78,6 @@ class Document(BaseModel):
         from languru.documents._client import DocumentQuerySet
 
         return DocumentQuerySet(cls)
-
-    objects: "DocumentQuerySet" = property(query_set)  # type: ignore
 
     @classmethod
     def from_content(cls, name: Text, content: Text) -> "Document":

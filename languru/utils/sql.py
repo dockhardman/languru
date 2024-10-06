@@ -5,6 +5,11 @@ DECLARATION_INDENT = "    "
 CREATE_INDEX_LINE = (
     "CREATE INDEX idx_{table_name}_{column_name} ON {table_name} ({column_name});"
 )
+CREATE_EMBEDDING_INDEX_LINE = (
+    "CREATE INDEX idx_{table_name}_{column_name} ON {table_name} "
+    + "USING HNSW({column_name}) "
+    + "WITH (metric = 'cosine');"  # You can choose 'l2sq' or 'ip' instead of 'cosine' if needed  # noqa: E501
+)
 
 # Mapping for types, adding JSON type
 json_to_sql_type_map = {
