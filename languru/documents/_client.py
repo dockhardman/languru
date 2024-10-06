@@ -16,6 +16,8 @@ class PointQuerySet:
         self.__kwargs = kwargs
 
     def touch(self, *, conn: "duckdb.DuckDBPyConnection", debug: bool = False) -> bool:
+        conn.sql("INSTALL vss;")
+        conn.sql("LOAD vss;")
         create_table_sql = openapi_to_create_table_sql(
             self.model.model_json_schema(),
             table_name=self.model.TABLE_NAME,
@@ -26,7 +28,9 @@ class PointQuerySet:
             create_table_sql
             + "\n"
             + CREATE_EMBEDDING_INDEX_LINE.format(
-                table_name=self.model.TABLE_NAME, column_name="embedding"
+                table_name=self.model.TABLE_NAME,
+                column_name="embedding",
+                metric="cosine",
             )
         ).strip()
 
@@ -36,6 +40,14 @@ class PointQuerySet:
                 + f"{create_table_sql}\n"
                 + "=== End of SQL ===\n"
             )
+            # CREATE TABLE points (
+            #     point_id TEXT,
+            #     document_id TEXT NOT NULL,
+            #     document_md5 TEXT NOT NULL,
+            #     embedding FLOAT[512],
+            #     PRIMARY KEY (point_id)
+            # );
+            # CREATE INDEX idx_points_embedding ON points USING HNSW(embedding) WITH (metric = 'cosine');  # noqa: E501
         conn.sql(create_table_sql)
         return True
 
@@ -60,6 +72,17 @@ class DocumentQuerySet:
                 + f"{create_table_sql}\n"
                 + "=== End of SQL ===\n"
             )
+            # CREATE TABLE documents (
+            #     document_id TEXT,
+            #     name VARCHAR(255) NOT NULL UNIQUE,
+            #     content VARCHAR(5000) NOT NULL,
+            #     content_md5 TEXT NOT NULL,
+            #     metadata JSON,
+            #     created_at INT,
+            #     updated_at INT,
+            #     PRIMARY KEY (document_id)
+            # );
+            # CREATE INDEX idx_documents_content_md5 ON documents (content_md5);
         conn.sql(create_table_sql)
 
         self.model.POINT_TYPE.objects.touch(conn=conn, debug=debug)
