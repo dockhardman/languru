@@ -2,7 +2,6 @@ import hashlib
 import time
 from typing import Any, ClassVar, Dict, List, Optional, Text, Type
 
-import numpy as np
 from cyksuid.v2 import ksuid
 from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,6 +20,7 @@ class Point(BaseModel):
     EMBEDDING_MODEL: ClassVar[Text] = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS: ClassVar[int] = 512
     objects: ClassVar["PointQuerySetDescriptor"] = PointQuerySetDescriptor()
+
     point_id: Text = Field(
         default_factory=lambda: f"pt_{str(ksuid())}",
         description="The unique and primary ID of the point.",
@@ -33,9 +33,8 @@ class Point(BaseModel):
     )
     embedding: List[float] = Field(
         max_length=512,
-        min_length=512,
         description="The embedding of the point.",
-        default_factory=lambda: [0.0] * 512,
+        default_factory=list,
     )
 
     @classmethod
@@ -45,7 +44,7 @@ class Point(BaseModel):
         return PointQuerySet(cls)
 
     def is_embedded(self) -> bool:
-        return bool(np.all(np.array(self.embedding) == 0.0))
+        return False if len(self.embedding) == 0 else True
 
 
 class Document(BaseModel):
