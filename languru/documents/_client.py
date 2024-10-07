@@ -1,7 +1,10 @@
-from typing import TYPE_CHECKING, Optional, Text, Type
+import copy
+import time
+from typing import TYPE_CHECKING, Dict, List, Optional, Text, Type, Union
 
 import duckdb
 
+import languru.exceptions
 from languru.config import console
 from languru.utils.sql import CREATE_EMBEDDING_INDEX_LINE, openapi_to_create_table_sql
 
@@ -134,6 +137,86 @@ class DocumentQuerySet:
             return None
         data = dict(zip([c[0] for c in columns], result))
         return self.model.model_validate(data)
+
+    def create(
+        self,
+        document: Union["Document", Dict],
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> "Document":
+        document = (
+            self.model.model_validate(document)
+            if isinstance(document, dict)
+            else document
+        )
+        document.strip()
+
+        columns = list(document.model_json_schema()["properties"].keys())
+        columns_expr = ", ".join(columns)
+        placeholders = ", ".join(["?" for _ in columns])
+        parameters = [getattr(document, c) for c in columns]
+
+        query = (
+            f"INSERT INTO {self.model.TABLE_NAME} ({columns_expr}) "
+            + f"VALUES ({placeholders})"
+        )
+        if debug:
+            console.print(f"Query: {query}")
+        conn.execute(
+            query,
+            parameters,
+        )
+        return document
+
+    def update(
+        self,
+        document_id: Text,
+        *,
+        name: Optional[Text] = None,
+        content: Optional[Text] = None,
+        metadata: Optional[Dict] = None,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> "Document":
+        if not any([name, content, metadata]):
+            raise ValueError("At least one of the parameters must be provided.")
+
+        document = self.retrieve(document_id, conn=conn)
+        if document is None:
+            raise languru.exceptions.NotFound(
+                f"Document with ID '{document_id}' not found."
+            )
+
+        set_query: List[Text] = []
+        parameters = []
+        if name is not None:
+            document.name = name
+            set_query.append("name = ?")
+            parameters.append(document.name)
+        if content is not None:
+            document.content = content
+            document.strip()
+            set_query.append("content = ?")
+            parameters.append(document.content)
+        if metadata is not None:
+            document.metadata.update(metadata)
+            set_query.append("metadata = json_replace(metadata, ?)")
+            parameters.append(copy.deepcopy(document.metadata))
+        document.updated_at = int(time.time())
+        set_query.append("updated_at = ?")
+        parameters.append(document.updated_at)
+
+        set_query_expr = ",\n    ".join(set_query)
+        parameters.append(document_id)
+        query = f"UPDATE {self.model.TABLE_NAME}\n"
+        query += f"SET {set_query_expr}\n"
+        query += "WHERE document_id = ?"
+        if debug:
+            console.print(f"Query: {query}")
+
+        conn.execute(query, parameters)
+        return document
 
 
 class PointQuerySetDescriptor:

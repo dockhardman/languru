@@ -98,7 +98,7 @@ class Document(BaseModel):
         openai_client: Optional["OpenAI"] = None,
         embedding: Optional[List[float]] = None,
     ) -> List["Point"]:
-        self.refresh_md5()
+        self.strip()
 
         params: Dict = {
             "document_id": self.document_id,
@@ -122,10 +122,11 @@ class Document(BaseModel):
     def to_embeddings_create_input(self, *args, **kwargs) -> Text:
         return self.content.strip()
 
-    def refresh_md5(self) -> "Document":
-        self.content = self.content.strip()
-        new_md5 = self.hash_content(self.content)
-        if self.content_md5 != new_md5:
-            self.content_md5 = new_md5
-            self.updated_at = int(time.time())
-        return self
+    def strip(self, *, copy: bool = False) -> "Document":
+        _doc = self.model_copy(deep=True) if copy else self
+        _doc.content = _doc.content.strip()
+        new_md5 = self.hash_content(_doc.content)
+        if _doc.content_md5 != new_md5:
+            _doc.content_md5 = new_md5
+            _doc.updated_at = int(time.time())
+        return _doc
