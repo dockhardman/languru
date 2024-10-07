@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING, Optional, Text, Type
 
 import duckdb
 
@@ -51,6 +51,30 @@ class PointQuerySet:
         conn.sql(create_table_sql)
         return True
 
+    def retrieve(
+        self,
+        point_id: Text,
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+        with_embedding: bool = False,
+    ) -> Optional["Point"]:
+        columns = list(self.model.model_json_schema()["properties"].keys())
+        if not with_embedding:
+            columns = [c for c in columns if c != "embedding"]
+        columns_expr = ",".join(columns)
+
+        query = f"SELECT {columns_expr} FROM {self.model.TABLE_NAME} WHERE point_id = ?"
+        if debug:
+            console.print(f"Query: {query}")
+
+        result = conn.execute(query, [point_id]).fetchone()
+
+        if result is None:
+            return None
+        data = dict(zip([c[0] for c in columns], result))
+        return self.model.model_validate(data)
+
 
 class DocumentQuerySet:
     def __init__(self, model: Type["Document"], *args, **kwargs):
@@ -87,6 +111,29 @@ class DocumentQuerySet:
 
         self.model.POINT_TYPE.objects.touch(conn=conn, debug=debug)
         return True
+
+    def retrieve(
+        self,
+        document_id: Text,
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> Optional["Document"]:
+        columns = list(self.model.model_json_schema()["properties"].keys())
+        columns_expr = ",".join(columns)
+
+        query = (
+            f"SELECT {columns_expr} FROM {self.model.TABLE_NAME} WHERE document_id = ?"
+        )
+        if debug:
+            console.print(f"Query: {query}")
+
+        result = conn.execute(query, [document_id]).fetchone()
+
+        if result is None:
+            return None
+        data = dict(zip([c[0] for c in columns], result))
+        return self.model.model_validate(data)
 
 
 class PointQuerySetDescriptor:

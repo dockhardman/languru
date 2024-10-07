@@ -109,7 +109,7 @@ class Document(BaseModel):
             params["embedding"] = embedding
         elif openai_client is not None:
             _emb_res = openai_client.embeddings.create(
-                input=self.to_embedded_content(),
+                input=self.to_embeddings_create_input(),
                 model=self.POINT_TYPE.EMBEDDING_MODEL,
                 dimensions=self.POINT_TYPE.EMBEDDING_DIMENSIONS,
             )
@@ -119,7 +119,7 @@ class Document(BaseModel):
 
         return [point_out]
 
-    def to_embedded_content(self, *args, **kwargs) -> Text:
+    def to_embeddings_create_input(self, *args, **kwargs) -> Text:
         return self.content.strip()
 
     def refresh_md5(self) -> "Document":
