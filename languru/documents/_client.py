@@ -1,11 +1,12 @@
 import copy
 import time
-from typing import TYPE_CHECKING, Dict, List, Optional, Text, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Text, Type, Union
 
 import duckdb
 
 import languru.exceptions
 from languru.config import console
+from languru.types.openai_page import OpenaiPage
 from languru.utils.sql import CREATE_EMBEDDING_INDEX_LINE, openapi_to_create_table_sql
 
 if TYPE_CHECKING:
@@ -25,7 +26,7 @@ class PointQuerySet:
             self.model.model_json_schema(),
             table_name=self.model.TABLE_NAME,
             primary_key="point_id",
-            indexes=["content_md5"],
+            indexes=["document_id", "content_md5"],
         ).strip()
         create_table_sql = (
             create_table_sql
@@ -217,6 +218,71 @@ class DocumentQuerySet:
 
         conn.execute(query, parameters)
         return document
+
+    def remove(
+        self,
+        document_id: Text,
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> None:
+        query = f"DELETE FROM {self.model.TABLE_NAME} WHERE document_id = ?"
+        if debug:
+            console.print(f"Query: {query}")
+
+        conn.execute(query, [document_id])
+        return None
+
+    def list(
+        self,
+        *,
+        after: Optional[Text] = None,
+        before: Optional[Text] = None,
+        limit: int = 20,
+        order: Literal["asc", "desc"] = "asc",
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> OpenaiPage["Document"]:
+        columns = list(self.model.model_json_schema()["properties"].keys())
+        columns_expr = ",".join(columns)
+
+        query = f"SELECT {columns_expr} FROM {self.model.TABLE_NAME}\n"
+        where_clauses: List[Text] = []
+        parameters: List[Text] = []
+
+        if after is not None and order == "asc":
+            where_clauses.append("document_id > ?")
+            parameters.append(after)
+        elif before is not None and order == "desc":
+            where_clauses.append("document_id < ?")
+            parameters.append(before)
+
+        if where_clauses:
+            query += "WHERE " + " AND ".join(where_clauses) + "\n"
+
+        query += f"ORDER BY document_id {order.upper()}\n"
+
+        # Fetch one more than the limit to determine if there are more results
+        fetch_limit = limit + 1
+        query += f"LIMIT {fetch_limit}"
+
+        if debug:
+            console.print(f"Query: {query}")
+
+        results = conn.execute(query, parameters).fetchall()
+
+        documents = [
+            self.model.model_validate(dict(zip(columns, row)))
+            for row in results[:limit]
+        ]
+
+        return OpenaiPage(
+            data=documents,
+            object="list",
+            first_id=documents[0].document_id if documents else None,
+            last_id=documents[-1].document_id if documents else None,
+            has_more=len(results) > limit,
+        )
 
 
 class PointQuerySetDescriptor:

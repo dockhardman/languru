@@ -28,7 +28,7 @@ class Point(BaseModel):
     document_id: Text = Field(
         description="The ID of the document that the point belongs to."
     )
-    document_md5: Text = Field(
+    content_md5: Text = Field(
         description="The MD5 hash of the document that the point belongs to."
     )
     embedding: List[float] = Field(
