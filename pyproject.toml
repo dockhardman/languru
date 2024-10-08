@@ -29,6 +29,7 @@ packaging = ">=23"
 pillow = "^10.0.0"
 playwright = { version = "*", optional = true }
 playwright-stealth = { version = "*", optional = true }
+pyarrow = "*"
 pyassorted = "<1,>=0.10.0"
 pydantic = "^2"
 pydantic-settings = "^2"
