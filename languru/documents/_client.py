@@ -11,6 +11,8 @@ from languru.types.openai_page import OpenaiPage
 from languru.utils.sql import CREATE_EMBEDDING_INDEX_LINE, openapi_to_create_table_sql
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from languru.documents.document import Document, Point
 
 
@@ -271,12 +273,13 @@ class DocumentQuerySet:
         if debug:
             console.print(f"Query: {query}")
 
-        results = conn.execute(query, parameters).fetchall()
+        results_df: "pd.DataFrame" = (
+            conn.execute(query, parameters).fetch_arrow_table().to_pandas()
+        )
+        results_df["metadata"] = results_df["metadata"].apply(json.loads)
+        results: List[Dict] = results_df.to_dict(orient="records")
 
-        documents = [
-            self.model.model_validate(dict(zip(columns, row)))
-            for row in results[:limit]
-        ]
+        documents = [self.model.model_validate(row) for row in results[:limit]]
 
         return OpenaiPage(
             data=documents,
