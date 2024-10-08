@@ -1,5 +1,6 @@
 import json
 import string
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -15,6 +16,7 @@ from typing import (
     Sequence,
     Text,
     Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -371,3 +373,23 @@ def is_validate_filename(value: Text) -> bool:
         )
 
     return True
+
+
+def read_jsonl(path: Text, cast: Type[T]) -> List[T]:
+    _path = Path(path)
+    _path.touch(exist_ok=True)
+
+    records = []
+    with open(_path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                records.append(cast(**json.loads(line)))
+    return records
+
+
+def append_jsonl(data: Dict, *, path: Text):
+    _path = Path(path)
+    _path.touch(exist_ok=True)
+    with open(_path, "a") as f:
+        f.write(json.dumps(data) + "\n")
