@@ -1,4 +1,5 @@
 import copy
+import json
 import time
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Text, Type, Union
 
@@ -136,7 +137,8 @@ class DocumentQuerySet:
 
         if result is None:
             return None
-        data = dict(zip([c[0] for c in columns], result))
+        data = dict(zip(columns, result))
+        data["metadata"] = json.loads(data["metadata"])
         return self.model.model_validate(data)
 
     def create(
