@@ -47,7 +47,7 @@ class PointQuerySet:
             # CREATE TABLE points (
             #     point_id TEXT,
             #     document_id TEXT NOT NULL,
-            #     document_md5 TEXT NOT NULL,
+            #     content_md5 TEXT NOT NULL,
             #     embedding FLOAT[512],
             #     PRIMARY KEY (point_id)
             # );
