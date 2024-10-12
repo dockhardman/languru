@@ -89,7 +89,13 @@ class DocumentQuerySet:
         self.__args = args
         self.__kwargs = kwargs
 
-    def touch(self, *, conn: "duckdb.DuckDBPyConnection", debug: bool = False) -> bool:
+    def touch(
+        self,
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        touch_point: bool = True,
+        debug: bool = False,
+    ) -> bool:
         create_table_sql = openapi_to_create_table_sql(
             self.model.model_json_schema(),
             table_name=self.model.TABLE_NAME,
@@ -116,7 +122,8 @@ class DocumentQuerySet:
             # CREATE INDEX idx_documents_content_md5 ON documents (content_md5);
         conn.sql(create_table_sql)
 
-        self.model.POINT_TYPE.objects.touch(conn=conn, debug=debug)
+        if touch_point:
+            self.model.POINT_TYPE.objects.touch(conn=conn, debug=debug)
         return True
 
     def retrieve(
@@ -132,10 +139,11 @@ class DocumentQuerySet:
         query = (
             f"SELECT {columns_expr} FROM {self.model.TABLE_NAME} WHERE document_id = ?"
         )
+        parameters = [document_id]
         if debug:
-            console.print(f"Query: {query}")
+            console.print(f"Query: {query}, parameters: {parameters}")
 
-        result = conn.execute(query, [document_id]).fetchone()
+        result = conn.execute(query, parameters).fetchone()
 
         if result is None:
             return None
@@ -167,7 +175,7 @@ class DocumentQuerySet:
             + f"VALUES ({placeholders})"
         )
         if debug:
-            console.print(f"Query: {query}")
+            console.print(f"Query: {query}, parameters: {parameters}")
         conn.execute(
             query,
             parameters,
@@ -218,7 +226,7 @@ class DocumentQuerySet:
         query += f"SET {set_query_expr}\n"
         query += "WHERE document_id = ?"
         if debug:
-            console.print(f"Query: {query}")
+            console.print(f"Query: {query}, parameters: {parameters}")
 
         conn.execute(query, parameters)
         return document
@@ -231,10 +239,11 @@ class DocumentQuerySet:
         debug: bool = False,
     ) -> None:
         query = f"DELETE FROM {self.model.TABLE_NAME} WHERE document_id = ?"
+        parameters = [document_id]
         if debug:
-            console.print(f"Query: {query}")
+            console.print(f"Query: {query}, parameters: {parameters}")
 
-        conn.execute(query, [document_id])
+        conn.execute(query, parameters)
         return None
 
     def list(
@@ -271,7 +280,7 @@ class DocumentQuerySet:
         query += f"LIMIT {fetch_limit}"
 
         if debug:
-            console.print(f"Query: {query}")
+            console.print(f"Query: {query}, parameters: {parameters}")
 
         results_df: "pd.DataFrame" = (
             conn.execute(query, parameters).fetch_arrow_table().to_pandas()
