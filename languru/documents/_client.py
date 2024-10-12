@@ -8,7 +8,12 @@ import duckdb
 import languru.exceptions
 from languru.config import console
 from languru.types.openai_page import OpenaiPage
-from languru.utils.sql import CREATE_EMBEDDING_INDEX_LINE, openapi_to_create_table_sql
+from languru.utils.sql import (
+    CREATE_EMBEDDING_INDEX_LINE,
+    DISPLAY_SQL_PARAMS,
+    DISPLAY_SQL_QUERY,
+    openapi_to_create_table_sql,
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -44,8 +49,7 @@ class PointQuerySet:
         if debug:
             console.print(
                 f"Creating table: '{self.model.TABLE_NAME}' with SQL:\n"
-                + f"{create_table_sql}\n"
-                + "=== End of SQL ===\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=create_table_sql)}\n"
             )
             # CREATE TABLE points (
             #     point_id TEXT,
@@ -72,10 +76,15 @@ class PointQuerySet:
         columns_expr = ",".join(columns)
 
         query = f"SELECT {columns_expr} FROM {self.model.TABLE_NAME} WHERE point_id = ?"
+        parameters = [point_id]
         if debug:
-            console.print(f"Query: {query}")
+            console.print(
+                f"Retrieving point: '{point_id}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
 
-        result = conn.execute(query, [point_id]).fetchone()
+        result = conn.execute(query, parameters).fetchone()
 
         if result is None:
             return None
@@ -106,8 +115,7 @@ class DocumentQuerySet:
         if debug:
             console.print(
                 f"Creating table: '{self.model.TABLE_NAME}' with SQL:\n"
-                + f"{create_table_sql}\n"
-                + "=== End of SQL ===\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=create_table_sql)}\n"
             )
             # CREATE TABLE documents (
             #     document_id TEXT,
@@ -141,7 +149,11 @@ class DocumentQuerySet:
         )
         parameters = [document_id]
         if debug:
-            console.print(f"Query: {query}, parameters: {parameters}")
+            console.print(
+                f"Retrieving document: '{document_id}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
 
         result = conn.execute(query, parameters).fetchone()
 
@@ -175,7 +187,11 @@ class DocumentQuerySet:
             + f"VALUES ({placeholders})"
         )
         if debug:
-            console.print(f"Query: {query}, parameters: {parameters}")
+            console.print(
+                f"Creating document: '{document.document_id}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
         conn.execute(
             query,
             parameters,
@@ -226,7 +242,11 @@ class DocumentQuerySet:
         query += f"SET {set_query_expr}\n"
         query += "WHERE document_id = ?"
         if debug:
-            console.print(f"Query: {query}, parameters: {parameters}")
+            console.print(
+                f"Updating document: '{document_id}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
 
         conn.execute(query, parameters)
         return document
@@ -241,7 +261,11 @@ class DocumentQuerySet:
         query = f"DELETE FROM {self.model.TABLE_NAME} WHERE document_id = ?"
         parameters = [document_id]
         if debug:
-            console.print(f"Query: {query}, parameters: {parameters}")
+            console.print(
+                f"Deleting document: '{document_id}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
 
         conn.execute(query, parameters)
         return None
@@ -280,7 +304,11 @@ class DocumentQuerySet:
         query += f"LIMIT {fetch_limit}"
 
         if debug:
-            console.print(f"Query: {query}, parameters: {parameters}")
+            console.print(
+                "Listing documents with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
 
         results_df: "pd.DataFrame" = (
             conn.execute(query, parameters).fetch_arrow_table().to_pandas()

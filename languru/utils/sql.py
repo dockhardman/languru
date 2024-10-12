@@ -11,6 +11,10 @@ CREATE_EMBEDDING_INDEX_LINE = (
     + "WITH (metric = '{metric}');"  # You can choose 'l2sq' or 'ip' instead of 'cosine' if needed  # noqa: E501
 )
 
+DISPLAY_SQL_QUERY = "=== Start of SQL ===\n{sql}\n=== End of SQL ==="
+DISPLAY_SQL_PARAMS = "=== Start of SQL Params ===\n{params}\n=== End of SQL Params ==="
+
+
 # Mapping for types, adding JSON type
 json_to_sql_type_map = {
     "string": "TEXT",  # Default fallback for strings without max_length
