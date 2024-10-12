@@ -26,6 +26,7 @@ googlesearch-python = { version = "*", optional = true }
 groq = "<1,>=0.4.2"
 openai = "^1.10.0"
 packaging = ">=23"
+pandas = ">2"
 pillow = "^10.0.0"
 playwright = { version = "*", optional = true }
 playwright-stealth = { version = "*", optional = true }
