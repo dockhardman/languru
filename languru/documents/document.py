@@ -79,12 +79,15 @@ class Document(BaseModel):
         return DocumentQuerySet(cls)
 
     @classmethod
-    def from_content(cls, name: Text, content: Text) -> "Document":
+    def from_content(
+        cls, name: Text, content: Text, *, metadata: Optional[Dict[Text, Any]] = None
+    ) -> "Document":
         return cls.model_validate(
             {
                 "content": content,
                 "content_md5": cls.hash_content(content),
                 "name": name,
+                "metadata": metadata or {},
             }
         )
 

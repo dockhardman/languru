@@ -1,4 +1,3 @@
-import copy
 import json
 import time
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Text, Type, Union
@@ -105,11 +104,14 @@ class DocumentQuerySet:
         touch_point: bool = True,
         debug: bool = False,
     ) -> bool:
+        conn.execute("INSTALL json;")
+        conn.execute("LOAD json;")
         create_table_sql = openapi_to_create_table_sql(
             self.model.model_json_schema(),
             table_name=self.model.TABLE_NAME,
             primary_key="document_id",
-            unique_fields=["name"],
+            unique_fields=[],
+            # unique_fields=["name"],  # Index limitations (https://duckdb.org/docs/sql/indexes)  # noqa: E501
             indexes=["content_md5"],
         )
         if debug:
@@ -211,6 +213,17 @@ class DocumentQuerySet:
         if not any([name, content, metadata]):
             raise ValueError("At least one of the parameters must be provided.")
 
+        # Check if the new name already exists
+        if name is not None:
+            existing_doc = conn.execute(
+                "SELECT document_id FROM documents WHERE name = ? AND document_id != ?",
+                [name, document_id],
+            ).fetchone()
+            if existing_doc:
+                raise ValueError(
+                    f"The name '{name}' is already used by another document."
+                )
+
         document = self.retrieve(document_id, conn=conn)
         if document is None:
             raise languru.exceptions.NotFound(
@@ -230,8 +243,8 @@ class DocumentQuerySet:
             parameters.append(document.content)
         if metadata is not None:
             document.metadata.update(metadata)
-            set_query.append("metadata = json_replace(metadata, ?)")
-            parameters.append(copy.deepcopy(document.metadata))
+            set_query.append("metadata = json_merge_patch(metadata, ?::JSON)")
+            parameters.append(json.dumps(metadata))
         document.updated_at = int(time.time())
         set_query.append("updated_at = ?")
         parameters.append(document.updated_at)
