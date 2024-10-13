@@ -1,7 +1,7 @@
 import hashlib
 import os
 import time
-from typing import Any, ClassVar, Dict, List, Optional, Text, Type
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Text, Type
 
 from cyksuid.v2 import ksuid
 from diskcache import Cache
@@ -16,6 +16,9 @@ from languru.documents._client import (
     PointQuerySetDescriptor,
 )
 from languru.utils.openai_utils import embeddings_create_with_cache
+
+if TYPE_CHECKING:
+    import duckdb
 
 
 class Point(BaseModel):
@@ -136,6 +139,44 @@ class Document(BaseModel):
         point_out = self.POINT_TYPE.model_validate(params)
 
         return [point_out]
+
+    def has_points(self, conn: "duckdb.DuckDBPyConnection") -> bool:
+        return (
+            len(
+                self.POINT_TYPE.objects.list(
+                    document_id=self.document_id, conn=conn, limit=1
+                ).data
+            )
+            > 0
+        )
+
+    def are_points_current(
+        self, conn: "duckdb.DuckDBPyConnection", *, debug: bool = False
+    ) -> bool:
+        after = None
+        has_more = True
+        while has_more:
+            page_points = Point.objects.list(
+                document_id=self.document_id, after=after, conn=conn, debug=debug
+            )
+
+            # Return False if no points are found
+            if len(page_points.data) == 0 and after is None:
+                return False
+
+            # Return False if any point is out of date
+            for pt in page_points.data:
+                if pt.content_md5 != self.content_md5:
+                    return False
+
+            # Update pagination state
+            after = page_points.last_id
+            has_more = page_points.has_more
+
+        return True
+
+    def refresh_points(self, conn: "duckdb.DuckDBPyConnection") -> None:
+        pass
 
     def to_embedding_contents(self, *args, **kwargs) -> List[Text]:
         return [self.content.strip()]
