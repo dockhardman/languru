@@ -4,9 +4,10 @@ from typing import List
 
 import duckdb
 import pytest
+from openai import OpenAI
 
-from languru.documents.document import Document
-from languru.exceptions import NotFound
+from languru.documents.document import Document, Point
+from languru.exceptions import NotFound, NotSupported
 
 raw_docs = [
     {
@@ -24,20 +25,13 @@ raw_docs = [
     },
 ]
 
+openai_client = OpenAI()
+
 
 def test_document_operations():
     conn: "duckdb.DuckDBPyConnection" = duckdb.connect(":memory:")
 
-    # Touch table
-    Document.objects.touch(conn=conn, debug=True)
-
-    # Create documents
-    docs: List["Document"] = []
-    for _raw_doc in raw_docs:
-        doc = Document.objects.create(
-            Document.from_content(**_raw_doc), conn=conn, debug=True
-        )
-        docs.append(doc)
+    docs = _create_docs(conn)
 
     # Get documents
     retrieved_docs = Document.objects.retrieve(
@@ -78,3 +72,72 @@ def test_document_operations():
     docs[0] = Document.objects.create(
         Document.from_content(**raw_docs[0]), conn=conn, debug=True
     )
+
+
+def test_point_operations():
+    conn: "duckdb.DuckDBPyConnection" = duckdb.connect(":memory:")
+
+    docs = _create_docs(conn)
+    points = _create_points(docs, conn)
+
+    # Get points
+    retrieved_points = Point.objects.retrieve(points[0].point_id, conn=conn, debug=True)
+    assert retrieved_points is not None
+    assert retrieved_points.point_id == points[0].point_id
+    assert retrieved_points.is_embedded() is False
+    assert (
+        Point.objects.retrieve(
+            points[0].point_id, conn=conn, debug=True, with_embedding=True
+        ).is_embedded()
+        is True
+    )
+
+    # List points
+    after = None
+    has_more = True
+    points_ids_set = set()
+    while has_more:
+        page_points = Point.objects.list(after=after, conn=conn, debug=True, limit=1)
+        after = page_points.last_id
+        has_more = len(page_points.data) > 0
+        points_ids_set.update(pt.point_id for pt in page_points.data)
+    assert points_ids_set == set(pt.point_id for pt in points)
+    page_points = Point.objects.list(
+        content_md5=points[0].content_md5, conn=conn, debug=True
+    )
+    assert len(page_points.data) == 1
+    assert page_points.data[0].point_id == points[0].point_id
+
+    # Update points is not supported
+    with pytest.raises(NotSupported):
+        Point.objects.update(points[0].point_id, conn=conn, debug=True)
+
+    # Remove points
+    Point.objects.remove(points[0].point_id, conn=conn, debug=True)
+    with pytest.raises(NotFound):
+        Point.objects.retrieve(points[0].point_id, conn=conn, debug=True)
+
+
+def _create_docs(conn: "duckdb.DuckDBPyConnection") -> List["Document"]:
+    # Touch table
+    Document.objects.touch(conn=conn, debug=True)
+
+    # Create documents
+    docs: List["Document"] = []
+    for _raw_doc in raw_docs:
+        doc = Document.objects.create(
+            Document.from_content(**_raw_doc), conn=conn, debug=True
+        )
+        docs.append(doc)
+    return docs
+
+
+def _create_points(
+    docs: List["Document"], conn: "duckdb.DuckDBPyConnection"
+) -> List["Point"]:
+    # Create points
+    points: List["Point"] = []
+    for _pt in docs[1].to_points(openai_client=openai_client):
+        points.append(_pt)
+        Point.objects.create(_pt, conn=conn, debug=True)
+    return points
