@@ -6,7 +6,7 @@ import duckdb
 
 import languru.exceptions
 from languru.config import console
-from languru.exceptions import NotFound
+from languru.exceptions import NotFound, NotSupported
 from languru.types.openai_page import OpenaiPage
 from languru.utils.sql import (
     CREATE_EMBEDDING_INDEX_LINE,
@@ -53,7 +53,7 @@ class PointQuerySet:
 
         if debug:
             console.print(
-                f"Creating table: '{self.model.TABLE_NAME}' with SQL:\n"
+                f"\nCreating table: '{self.model.TABLE_NAME}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=create_table_sql)}\n"
             )
             # CREATE TABLE points (
@@ -69,9 +69,9 @@ class PointQuerySet:
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
+            time_elapsed = (time_end - time_start) * 1000
             console.print(
-                f"Created table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f}s"
+                f"Created table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f} ms"
             )
         return True
 
@@ -95,7 +95,7 @@ class PointQuerySet:
         parameters = [point_id]
         if debug:
             console.print(
-                f"Retrieving point: '{point_id}' with SQL:\n"
+                f"\nRetrieving point: '{point_id}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
                 + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
             )
@@ -105,13 +105,13 @@ class PointQuerySet:
         if result is None:
             raise NotFound(f"Point with ID '{point_id}' not found.")
 
-        data = dict(zip([c[0] for c in columns], result))
+        data = dict(zip([c for c in columns], result))
         out = self.model.model_validate(data)
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
-            console.print(f"Retrieved point: '{point_id}' in {time_elapsed:.6f}s")
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Retrieved point: '{point_id}' in {time_elapsed:.6f} ms")
         return out
 
     def create(
@@ -139,7 +139,7 @@ class PointQuerySet:
         )
         if debug:
             console.print(
-                f"Creating point: '{point.point_id}' with SQL:\n"
+                f"\nCreating point: '{point.point_id}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
                 + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
             )
@@ -148,9 +148,109 @@ class PointQuerySet:
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
-            console.print(f"Created point: '{point.point_id}' in {time_elapsed:.6f}s")
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Created point: '{point.point_id}' in {time_elapsed:.6f} ms")
         return point
+
+    def update(self, *args, **kwargs):
+        raise NotSupported("Updating points is not supported.")
+
+    def remove(
+        self,
+        point_id: Text,
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> None:
+        time_start = time.perf_counter() if debug else None
+
+        query = f"DELETE FROM {self.model.TABLE_NAME} WHERE point_id = ?"
+        parameters = [point_id]
+        if debug:
+            console.print(
+                f"\nDeleting point: '{point_id}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
+
+        conn.execute(query, parameters)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Deleted point: '{point_id}' in {time_elapsed:.6f} ms")
+        return None
+
+    def list(
+        self,
+        *,
+        document_id: Optional[Text] = None,
+        content_md5: Optional[Text] = None,
+        after: Optional[Text] = None,
+        before: Optional[Text] = None,
+        limit: int = 20,
+        order: Literal["asc", "desc"] = "asc",
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> OpenaiPage["Point"]:
+        time_start = time.perf_counter() if debug else None
+
+        columns = list(self.model.model_json_schema()["properties"].keys())
+        columns_expr = ",".join(columns)
+
+        query = f"SELECT {columns_expr} FROM {self.model.TABLE_NAME}\n"
+        where_clauses: List[Text] = []
+        parameters: List[Text] = []
+
+        if document_id is not None:
+            where_clauses.append("document_id = ?")
+            parameters.append(document_id)
+        if content_md5 is not None:
+            where_clauses.append("content_md5 = ?")
+            parameters.append(content_md5)
+
+        if after is not None and order == "asc":
+            where_clauses.append("point_id > ?")
+            parameters.append(after)
+        elif before is not None and order == "desc":
+            where_clauses.append("point_id < ?")
+            parameters.append(before)
+
+        if where_clauses:
+            query += "WHERE " + " AND ".join(where_clauses) + "\n"
+
+        query += f"ORDER BY point_id {order.upper()}\n"
+
+        fetch_limit = limit + 1
+        query += f"LIMIT {fetch_limit}"
+
+        if debug:
+            console.print(
+                "\nListing points with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
+
+        results_df: "pd.DataFrame" = (
+            conn.execute(query, parameters).fetch_arrow_table().to_pandas()
+        )
+        results: List[Dict] = results_df.to_dict(orient="records")
+
+        points = [self.model.model_validate(row) for row in results[:limit]]
+
+        out = OpenaiPage(
+            data=points,
+            object="list",
+            first_id=points[0].point_id if points else None,
+            last_id=points[-1].point_id if points else None,
+            has_more=len(results) > limit,
+        )
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Listed points in {time_elapsed:.6f} ms")
+        return out
 
 
 class DocumentQuerySet:
@@ -183,7 +283,7 @@ class DocumentQuerySet:
         )
         if debug:
             console.print(
-                f"Creating table: '{self.model.TABLE_NAME}' with SQL:\n"
+                f"\nCreating table: '{self.model.TABLE_NAME}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=create_table_sql)}\n"
             )
             # CREATE TABLE documents (
@@ -205,9 +305,9 @@ class DocumentQuerySet:
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
+            time_elapsed = (time_end - time_start) * 1000
             console.print(
-                f"Created table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f}s"
+                f"Created table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f} ms"
             )
         return True
 
@@ -229,7 +329,7 @@ class DocumentQuerySet:
         parameters = [document_id]
         if debug:
             console.print(
-                f"Retrieving document: '{document_id}' with SQL:\n"
+                f"\nRetrieving document: '{document_id}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
                 + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
             )
@@ -245,8 +345,10 @@ class DocumentQuerySet:
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
-            console.print(f"Retrieved document: '{document_id}' in {time_elapsed:.6f}s")
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(
+                f"Retrieved document: '{document_id}' in {time_elapsed:.6f} ms"
+            )
         return out
 
     def create(
@@ -276,7 +378,7 @@ class DocumentQuerySet:
         )
         if debug:
             console.print(
-                f"Creating document: '{document.document_id}' with SQL:\n"
+                f"\nCreating document: '{document.document_id}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
                 + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
             )
@@ -287,9 +389,9 @@ class DocumentQuerySet:
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
+            time_elapsed = (time_end - time_start) * 1000
             console.print(
-                f"Created document: '{document.document_id}' in {time_elapsed:.6f}s"
+                f"Created document: '{document.document_id}' in {time_elapsed:.6f} ms"
             )
         return document
 
@@ -351,7 +453,7 @@ class DocumentQuerySet:
         query += "WHERE document_id = ?"
         if debug:
             console.print(
-                f"Updating document: '{document_id}' with SQL:\n"
+                f"\nUpdating document: '{document_id}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
                 + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
             )
@@ -360,8 +462,8 @@ class DocumentQuerySet:
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
-            console.print(f"Updated document: '{document_id}' in {time_elapsed:.6f}s")
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Updated document: '{document_id}' in {time_elapsed:.6f} ms")
         return document
 
     def remove(
@@ -377,7 +479,7 @@ class DocumentQuerySet:
         parameters = [document_id]
         if debug:
             console.print(
-                f"Deleting document: '{document_id}' with SQL:\n"
+                f"\nDeleting document: '{document_id}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
                 + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
             )
@@ -386,8 +488,8 @@ class DocumentQuerySet:
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
-            console.print(f"Deleted document: '{document_id}' in {time_elapsed:.6f}s")
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Deleted document: '{document_id}' in {time_elapsed:.6f} ms")
         return None
 
     def list(
@@ -427,7 +529,7 @@ class DocumentQuerySet:
 
         if debug:
             console.print(
-                "Listing documents with SQL:\n"
+                "\nListing documents with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
                 + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
             )
@@ -450,8 +552,8 @@ class DocumentQuerySet:
 
         if time_start is not None:
             time_end = time.perf_counter()
-            time_elapsed = time_end - time_start
-            console.print(f"Listed documents in {time_elapsed:.6f}s")
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Listed documents in {time_elapsed:.6f} ms")
         return out
 
 
