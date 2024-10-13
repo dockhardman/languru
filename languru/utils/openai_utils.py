@@ -1,13 +1,30 @@
+import base64
 import hashlib
 import json
-from typing import Any, Dict, List, Literal, Sequence, Text, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Text,
+    Union,
+)
 from xml.sax.saxutils import escape as xml_escape
 
+import numpy as np
+from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat.chat_completion import ChatCompletion
 from pyassorted.string.rand import rand_str
 
+from languru.config import logger
 from languru.types.chat.completions import Message
+
+if TYPE_CHECKING:
+    from diskcache import Cache
 
 
 def rand_openai_id(
@@ -169,3 +186,58 @@ def messages_to_xml(
             child.text = f"\n{xml_escape(str(_content)).strip()}\n"
 
     return pretty_xml(root, indent=indent)
+
+
+def embeddings_create_with_cache(
+    *,
+    input: Text | Sequence[Text],
+    model: Text,
+    dimensions: int,
+    openai_client: "OpenAI",
+    cache: Optional["Cache"],
+) -> List[List[float]]:
+    if not input:
+        return []
+
+    _input = [input] if isinstance(input, Text) else list(input)
+    _output: List[Optional[List[float]]] = [None] * len(_input)
+
+    # Check cache existence
+    _cached_idx: List[int] = []
+    _uncached_idx: List[int] = []
+    if cache is not None:
+        for i, _inp in enumerate(_input):
+            _cached_emb_base64: Optional[Text] = cache.get(_inp)  # type: ignore
+            if _cached_emb_base64 is not None:
+                logger.debug(f"Embedding cache hit for '{_inp[:24]}...'")
+                _output[i] = np.frombuffer(  # type: ignore[no-untyped-call]
+                    base64.b64decode(_cached_emb_base64), dtype=np.float32
+                ).tolist()
+                _cached_idx.append(i)
+            else:
+                _uncached_idx.append(i)
+    else:
+        _uncached_idx = list(range(len(_input)))
+
+    # Get embeddings from OpenAI
+    if _uncached_idx:
+        _emb_res = openai_client.embeddings.create(
+            input=[_input[i] for i in _uncached_idx],
+            model=model,
+            dimensions=dimensions,
+        )
+        for i, emb in zip(_uncached_idx, _emb_res.data):
+            if cache is not None:
+                logger.debug(f"Caching embedding for '{_input[i][:24]}...'")
+                cache.set(
+                    _input[i],
+                    base64.b64encode(
+                        np.array(emb.embedding, dtype=np.float32).tobytes()
+                    ).decode("utf-8"),
+                )
+            _output[i] = emb.embedding
+
+    # Check if any embeddings failed to be retrieved
+    if any(e is None for e in _output):
+        raise ValueError("Failed to get embeddings from the OpenAI API.")
+    return _output  # type: ignore

@@ -1,9 +1,12 @@
 import hashlib
+import os
 import time
 from typing import Any, ClassVar, Dict, List, Optional, Text, Type
 
 from cyksuid.v2 import ksuid
+from diskcache import Cache
 from openai import OpenAI
+from pathvalidate import sanitize_filepath
 from pydantic import BaseModel, ConfigDict, Field
 
 from languru.documents._client import (
@@ -12,6 +15,7 @@ from languru.documents._client import (
     PointQuerySet,
     PointQuerySetDescriptor,
 )
+from languru.utils.openai_utils import embeddings_create_with_cache
 
 
 class Point(BaseModel):
@@ -19,6 +23,10 @@ class Point(BaseModel):
     TABLE_NAME: ClassVar[Text] = "points"
     EMBEDDING_MODEL: ClassVar[Text] = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS: ClassVar[int] = 512
+    EMBEDDING_CACHE_PATH: ClassVar[Text] = os.path.join(
+        os.path.expanduser("~"), ".languru"
+    )
+    EMBEDDING_CACHE_LIMIT: ClassVar[int] = 2**30  # 1GB
     objects: ClassVar["PointQuerySetDescriptor"] = PointQuerySetDescriptor()
 
     point_id: Text = Field(
@@ -42,6 +50,11 @@ class Point(BaseModel):
         from languru.documents._client import PointQuerySet
 
         return PointQuerySet(cls)
+
+    @classmethod
+    def embedding_cache(cls, model: Text) -> Cache:
+        cache_path = sanitize_filepath(os.path.join(cls.EMBEDDING_CACHE_PATH, model))
+        return Cache(directory=cache_path, size_limit=cls.EMBEDDING_CACHE_LIMIT)
 
     def is_embedded(self) -> bool:
         return False if len(self.embedding) == 0 else True
@@ -105,25 +118,27 @@ class Document(BaseModel):
 
         params: Dict = {
             "document_id": self.document_id,
-            "document_md5": self.content_md5,
+            "content_md5": self.content_md5,
         }
 
         if embedding is not None:
             params["embedding"] = embedding
         elif openai_client is not None:
-            _emb_res = openai_client.embeddings.create(
-                input=self.to_embeddings_create_input(),
+            embeddings = embeddings_create_with_cache(
+                input=self.to_embedding_contents(),
                 model=self.POINT_TYPE.EMBEDDING_MODEL,
                 dimensions=self.POINT_TYPE.EMBEDDING_DIMENSIONS,
+                openai_client=openai_client,
+                cache=self.POINT_TYPE.embedding_cache(self.POINT_TYPE.EMBEDDING_MODEL),
             )
-            embedding = _emb_res.data[0].embedding
+            params["embedding"] = embeddings[0]
 
         point_out = self.POINT_TYPE.model_validate(params)
 
         return [point_out]
 
-    def to_embeddings_create_input(self, *args, **kwargs) -> Text:
-        return self.content.strip()
+    def to_embedding_contents(self, *args, **kwargs) -> List[Text]:
+        return [self.content.strip()]
 
     def strip(self, *, copy: bool = False) -> "Document":
         _doc = self.model_copy(deep=True) if copy else self
