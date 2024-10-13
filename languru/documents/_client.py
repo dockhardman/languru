@@ -255,6 +255,46 @@ class PointQuerySet:
             console.print(f"Listed points in {time_elapsed:.6f} ms")
         return out
 
+    def count(
+        self,
+        *,
+        document_id: Optional[Text] = None,
+        content_md5: Optional[Text] = None,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> int:
+        time_start = time.perf_counter() if debug else None
+
+        query = f"SELECT COUNT(*) FROM {self.model.TABLE_NAME}\n"
+        where_clauses: List[Text] = []
+        parameters: List[Text] = []
+
+        if document_id is not None:
+            where_clauses.append("document_id = ?")
+            parameters.append(document_id)
+        if content_md5 is not None:
+            where_clauses.append("content_md5 = ?")
+            parameters.append(content_md5)
+
+        if where_clauses:
+            query += "WHERE " + " AND ".join(where_clauses) + "\n"
+
+        if debug:
+            console.print(
+                "\nCounting points with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
+
+        result = conn.execute(query, parameters).fetchone()
+        count = result[0] if result else 0
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Counted points in {time_elapsed:.6f} ms")
+        return count
+
 
 class DocumentQuerySet:
     def __init__(self, model: Type["Document"], *args, **kwargs):
@@ -561,6 +601,46 @@ class DocumentQuerySet:
             time_elapsed = (time_end - time_start) * 1000
             console.print(f"Listed documents in {time_elapsed:.6f} ms")
         return out
+
+    def count(
+        self,
+        *,
+        document_id: Optional[Text] = None,
+        content_md5: Optional[Text] = None,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> int:
+        time_start = time.perf_counter() if debug else None
+
+        query = f"SELECT COUNT(*) FROM {self.model.TABLE_NAME}\n"
+        where_clauses: List[Text] = []
+        parameters: List[Text] = []
+
+        if document_id is not None:
+            where_clauses.append("document_id = ?")
+            parameters.append(document_id)
+        if content_md5 is not None:
+            where_clauses.append("content_md5 = ?")
+            parameters.append(content_md5)
+
+        if where_clauses:
+            query += "WHERE " + " AND ".join(where_clauses) + "\n"
+
+        if debug:
+            console.print(
+                "\nCounting documents with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
+
+        result = conn.execute(query, parameters).fetchone()
+        count = result[0] if result else 0
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Counted documents in {time_elapsed:.6f} ms")
+        return count
 
 
 class PointQuerySetDescriptor:

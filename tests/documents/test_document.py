@@ -49,6 +49,9 @@ def test_document_operations():
         docs_ids_set.update(doc.document_id for doc in page_docs.data)
     assert docs_ids_set == set(doc.document_id for doc in docs)
 
+    # Count documents
+    assert Document.objects.count(conn=conn, debug=True) == len(docs)
+
     # Update document
     new_doc_name = "[Updated] " + docs[0].name
     updated_doc = Document.objects.update(
@@ -108,6 +111,11 @@ def test_point_operations():
     assert len(page_points.data) == 1
     assert page_points.data[0].point_id == points[0].point_id
 
+    # Count points
+    assert (
+        Point.objects.count(document_id=docs[0].document_id, conn=conn, debug=True) == 1
+    )
+
     # Update points is not supported
     with pytest.raises(NotSupported):
         Point.objects.update(points[0].point_id, conn=conn, debug=True)
@@ -137,7 +145,8 @@ def _create_points(
 ) -> List["Point"]:
     # Create points
     points: List["Point"] = []
-    for _pt in docs[1].to_points(openai_client=openai_client):
-        points.append(_pt)
-        Point.objects.create(_pt, conn=conn, debug=True)
+    for _doc in docs:
+        for _pt in _doc.to_points(openai_client=openai_client):
+            points.append(_pt)
+            Point.objects.create(_pt, conn=conn, debug=True)
     return points
