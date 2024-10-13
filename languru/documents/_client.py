@@ -28,8 +28,13 @@ class PointQuerySet:
         self.__kwargs = kwargs
 
     def touch(self, *, conn: "duckdb.DuckDBPyConnection", debug: bool = False) -> bool:
+        time_start = time.perf_counter() if debug else None
+
+        # Install VSS extension
         conn.sql("INSTALL vss;")
         conn.sql("LOAD vss;")
+
+        # Create table
         create_table_sql = openapi_to_create_table_sql(
             self.model.model_json_schema(),
             table_name=self.model.TABLE_NAME,
@@ -59,7 +64,15 @@ class PointQuerySet:
             #     PRIMARY KEY (point_id)
             # );
             # CREATE INDEX idx_points_embedding ON points USING HNSW(embedding) WITH (metric = 'cosine');  # noqa: E501
+
         conn.sql(create_table_sql)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(
+                f"Created table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f}s"
+            )
         return True
 
     def retrieve(
@@ -70,6 +83,9 @@ class PointQuerySet:
         debug: bool = False,
         with_embedding: bool = False,
     ) -> "Point":
+        time_start = time.perf_counter() if debug else None
+
+        # Get columns
         columns = list(self.model.model_json_schema()["properties"].keys())
         if not with_embedding:
             columns = [c for c in columns if c != "embedding"]
@@ -90,7 +106,51 @@ class PointQuerySet:
             raise NotFound(f"Point with ID '{point_id}' not found.")
 
         data = dict(zip([c[0] for c in columns], result))
-        return self.model.model_validate(data)
+        out = self.model.model_validate(data)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(f"Retrieved point: '{point_id}' in {time_elapsed:.6f}s")
+        return out
+
+    def create(
+        self,
+        point: Union["Point", Dict],
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> "Point":
+        point = self.model.model_validate(point) if isinstance(point, dict) else point
+        if point.is_embedded is False:
+            raise ValueError("Point is not embedded, please embed it first.")
+
+        time_start = time.perf_counter() if debug else None
+
+        # Get columns
+        columns = list(point.model_json_schema()["properties"].keys())
+        columns_expr = ", ".join(columns)
+        placeholders = ", ".join(["?" for _ in columns])
+        parameters = [getattr(point, c) for c in columns]
+
+        query = (
+            f"INSERT INTO {self.model.TABLE_NAME} ({columns_expr}) "
+            + f"VALUES ({placeholders})"
+        )
+        if debug:
+            console.print(
+                f"Creating point: '{point.point_id}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
+
+        conn.execute(query, parameters)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(f"Created point: '{point.point_id}' in {time_elapsed:.6f}s")
+        return point
 
 
 class DocumentQuerySet:
@@ -106,8 +166,13 @@ class DocumentQuerySet:
         touch_point: bool = True,
         debug: bool = False,
     ) -> bool:
+        time_start = time.perf_counter() if debug else None
+
+        # Install JSON extension
         conn.execute("INSTALL json;")
         conn.execute("LOAD json;")
+
+        # Create table
         create_table_sql = openapi_to_create_table_sql(
             self.model.model_json_schema(),
             table_name=self.model.TABLE_NAME,
@@ -132,10 +197,18 @@ class DocumentQuerySet:
             #     PRIMARY KEY (document_id)
             # );
             # CREATE INDEX idx_documents_content_md5 ON documents (content_md5);
+
         conn.sql(create_table_sql)
 
         if touch_point:
             self.model.POINT_TYPE.objects.touch(conn=conn, debug=debug)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(
+                f"Created table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f}s"
+            )
         return True
 
     def retrieve(
@@ -145,6 +218,8 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> Optional["Document"]:
+        time_start = time.perf_counter() if debug else None
+
         columns = list(self.model.model_json_schema()["properties"].keys())
         columns_expr = ",".join(columns)
 
@@ -166,7 +241,13 @@ class DocumentQuerySet:
 
         data = dict(zip(columns, result))
         data["metadata"] = json.loads(data["metadata"])
-        return self.model.model_validate(data)
+        out = self.model.model_validate(data)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(f"Retrieved document: '{document_id}' in {time_elapsed:.6f}s")
+        return out
 
     def create(
         self,
@@ -175,6 +256,8 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> "Document":
+        time_start = time.perf_counter() if debug else None
+
         document = (
             self.model.model_validate(document)
             if isinstance(document, dict)
@@ -201,6 +284,13 @@ class DocumentQuerySet:
             query,
             parameters,
         )
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(
+                f"Created document: '{document.document_id}' in {time_elapsed:.6f}s"
+            )
         return document
 
     def update(
@@ -215,6 +305,8 @@ class DocumentQuerySet:
     ) -> "Document":
         if not any([name, content, metadata]):
             raise ValueError("At least one of the parameters must be provided.")
+
+        time_start = time.perf_counter() if debug else None
 
         # Check if the new name already exists
         if name is not None:
@@ -265,6 +357,11 @@ class DocumentQuerySet:
             )
 
         conn.execute(query, parameters)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(f"Updated document: '{document_id}' in {time_elapsed:.6f}s")
         return document
 
     def remove(
@@ -274,6 +371,8 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> None:
+        time_start = time.perf_counter() if debug else None
+
         query = f"DELETE FROM {self.model.TABLE_NAME} WHERE document_id = ?"
         parameters = [document_id]
         if debug:
@@ -284,6 +383,11 @@ class DocumentQuerySet:
             )
 
         conn.execute(query, parameters)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(f"Deleted document: '{document_id}' in {time_elapsed:.6f}s")
         return None
 
     def list(
@@ -296,6 +400,8 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> OpenaiPage["Document"]:
+        time_start = time.perf_counter() if debug else None
+
         columns = list(self.model.model_json_schema()["properties"].keys())
         columns_expr = ",".join(columns)
 
@@ -334,13 +440,19 @@ class DocumentQuerySet:
 
         documents = [self.model.model_validate(row) for row in results[:limit]]
 
-        return OpenaiPage(
+        out = OpenaiPage(
             data=documents,
             object="list",
             first_id=documents[0].document_id if documents else None,
             last_id=documents[-1].document_id if documents else None,
             has_more=len(results) > limit,
         )
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = time_end - time_start
+            console.print(f"Listed documents in {time_elapsed:.6f}s")
+        return out
 
 
 class PointQuerySetDescriptor:
