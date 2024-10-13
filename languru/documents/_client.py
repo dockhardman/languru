@@ -191,11 +191,14 @@ class PointQuerySet:
         limit: int = 20,
         order: Literal["asc", "desc"] = "asc",
         conn: "duckdb.DuckDBPyConnection",
+        with_embedding: bool = False,
         debug: bool = False,
     ) -> OpenaiPage["Point"]:
         time_start = time.perf_counter() if debug else None
 
         columns = list(self.model.model_json_schema()["properties"].keys())
+        if not with_embedding:
+            columns = [c for c in columns if c != "embedding"]
         columns_expr = ",".join(columns)
 
         query = f"SELECT {columns_expr} FROM {self.model.TABLE_NAME}\n"
