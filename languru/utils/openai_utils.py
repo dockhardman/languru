@@ -15,6 +15,7 @@ from typing import (
 from xml.sax.saxutils import escape as xml_escape
 
 import numpy as np
+from numpy.typing import DTypeLike
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat.chat_completion import ChatCompletion
@@ -188,6 +189,16 @@ def messages_to_xml(
     return pretty_xml(root, indent=indent)
 
 
+def emb_to_base64(emb: List[float], dtype: DTypeLike = np.float32) -> Text:
+    return base64.b64encode(np.array(emb, dtype=dtype).tobytes()).decode("utf-8")
+
+
+def emb_from_base64(base64_str: Text, dtype: DTypeLike = np.float32) -> List[float]:
+    return np.frombuffer(  # type: ignore[no-untyped-call]
+        base64.b64decode(base64_str), dtype=dtype
+    ).tolist()
+
+
 def embeddings_create_with_cache(
     *,
     input: Text | Sequence[Text],
@@ -210,9 +221,7 @@ def embeddings_create_with_cache(
             _cached_emb_base64: Optional[Text] = cache.get(_inp)  # type: ignore
             if _cached_emb_base64 is not None:
                 logger.debug(f"Embedding cache hit for '{_inp[:24]}...'")
-                _output[i] = np.frombuffer(  # type: ignore[no-untyped-call]
-                    base64.b64decode(_cached_emb_base64), dtype=np.float32
-                ).tolist()
+                _output[i] = emb_from_base64(_cached_emb_base64)
                 _cached_idx.append(i)
             else:
                 _uncached_idx.append(i)
@@ -229,12 +238,7 @@ def embeddings_create_with_cache(
         for i, emb in zip(_uncached_idx, _emb_res.data):
             if cache is not None:
                 logger.debug(f"Caching embedding for '{_input[i][:24]}...'")
-                cache.set(
-                    _input[i],
-                    base64.b64encode(
-                        np.array(emb.embedding, dtype=np.float32).tobytes()
-                    ).decode("utf-8"),
-                )
+                cache.set(_input[i], emb_to_base64(emb.embedding))
             _output[i] = emb.embedding
 
     # Check if any embeddings failed to be retrieved
