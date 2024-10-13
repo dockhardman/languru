@@ -52,7 +52,7 @@ class Point(BaseModel):
     def query_set(cls) -> "PointQuerySet":
         from languru.documents._client import PointQuerySet
 
-        return PointQuerySet(cls)
+        return PointQuerySet(cls, model_with_score=PointWithScore)
 
     @classmethod
     def embedding_cache(cls, model: Text) -> Cache:
@@ -61,6 +61,10 @@ class Point(BaseModel):
 
     def is_embedded(self) -> bool:
         return False if len(self.embedding) == 0 else True
+
+
+class PointWithScore(Point):
+    relevance_score: float = Field(description="The score of the point.")
 
 
 class Document(BaseModel):
@@ -189,3 +193,36 @@ class Document(BaseModel):
             _doc.content_md5 = new_md5
             _doc.updated_at = int(time.time())
         return _doc
+
+
+class SearchResult(BaseModel):
+    query: Optional[Text] = Field(
+        default=None, description="The query that was used for searching."
+    )
+    points: List[PointWithScore] = Field(
+        default_factory=list, description="The points that match the search query."
+    )
+    documents: List[Document] = Field(
+        default_factory=list, description="The documents that match the search query."
+    )
+    total_results: int = Field(
+        default=0, description="The total number of results found."
+    )
+    execution_time: float = Field(
+        default=0.0,
+        description="The time taken to execute the search query in seconds.",
+    )
+    relevance_score: Optional[float] = Field(
+        default=None, description="An overall relevance score for the search result."
+    )
+    highlight: Optional[Dict[Text, List[Text]]] = Field(
+        default=None,
+        description="Highlighted snippets of text that match the search query.",
+    )
+    facets: Optional[Dict[Text, Dict[Text, int]]] = Field(
+        default=None,
+        description="Faceted search results for categorization.",
+    )
+    suggestions: Optional[List[Text]] = Field(
+        default=None, description="Suggested search terms related to the query."
+    )

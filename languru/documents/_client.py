@@ -3,6 +3,7 @@ import time
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Text, Type, Union
 
 import duckdb
+from pydantic import BaseModel
 
 import languru.exceptions
 from languru.config import console
@@ -18,11 +19,16 @@ from languru.utils.sql import (
 if TYPE_CHECKING:
     import pandas as pd
 
-    from languru.documents.document import Document, Point
+    from languru.documents.document import Document, Point, PointWithScore, SearchResult
 
 
 class PointQuerySet:
-    def __init__(self, model: Type["Point"], *args, **kwargs):
+    def __init__(
+        self,
+        model: Type["Point"],
+        *args,
+        **kwargs,
+    ):
         self.model = model
         self.__args = args
         self.__kwargs = kwargs
@@ -641,6 +647,11 @@ class DocumentQuerySet:
             time_elapsed = (time_end - time_start) * 1000
             console.print(f"Counted documents in {time_elapsed:.6f} ms")
         return count
+
+    def search(
+        self, query: Text, *, conn: "duckdb.DuckDBPyConnection"
+    ) -> "SearchResult":
+        pass
 
 
 class PointQuerySetDescriptor:
