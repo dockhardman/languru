@@ -316,11 +316,14 @@ class DocumentQuerySet:
         document_id: Text,
         *,
         conn: "duckdb.DuckDBPyConnection",
+        with_embedding: bool = False,
         debug: bool = False,
     ) -> Optional["Document"]:
         time_start = time.perf_counter() if debug else None
 
         columns = list(self.model.model_json_schema()["properties"].keys())
+        if not with_embedding:
+            columns = [c for c in columns if c != "embedding"]
         columns_expr = ",".join(columns)
 
         query = (
