@@ -6,6 +6,7 @@ import duckdb
 
 import languru.exceptions
 from languru.config import console
+from languru.exceptions import NotFound
 from languru.types.openai_page import OpenaiPage
 from languru.utils.sql import (
     CREATE_EMBEDDING_INDEX_LINE,
@@ -68,7 +69,7 @@ class PointQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
         with_embedding: bool = False,
-    ) -> Optional["Point"]:
+    ) -> "Point":
         columns = list(self.model.model_json_schema()["properties"].keys())
         if not with_embedding:
             columns = [c for c in columns if c != "embedding"]
@@ -86,7 +87,8 @@ class PointQuerySet:
         result = conn.execute(query, parameters).fetchone()
 
         if result is None:
-            return None
+            raise NotFound(f"Point with ID '{point_id}' not found.")
+
         data = dict(zip([c[0] for c in columns], result))
         return self.model.model_validate(data)
 
@@ -160,7 +162,8 @@ class DocumentQuerySet:
         result = conn.execute(query, parameters).fetchone()
 
         if result is None:
-            return None
+            raise NotFound(f"Document with ID '{document_id}' not found.")
+
         data = dict(zip(columns, result))
         data["metadata"] = json.loads(data["metadata"])
         return self.model.model_validate(data)
