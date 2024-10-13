@@ -126,6 +126,18 @@ def test_point_operations():
         Point.objects.retrieve(points[0].point_id, conn=conn, debug=True)
 
 
+def test_document_search():
+    conn: "duckdb.DuckDBPyConnection" = duckdb.connect(":memory:")
+
+    docs = _create_docs(conn)
+    _create_points(docs, conn)
+
+    # Check if documents have points and points are current
+    for _doc in docs:
+        assert _doc.has_points(conn=conn, debug=True) is True
+        assert _doc.are_points_current(conn=conn, debug=True) is True
+
+
 def _create_docs(conn: "duckdb.DuckDBPyConnection") -> List["Document"]:
     # Touch table
     Document.objects.touch(conn=conn, debug=True)

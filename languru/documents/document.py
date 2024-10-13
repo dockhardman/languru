@@ -140,12 +140,12 @@ class Document(BaseModel):
 
         return [point_out]
 
-    def has_points(self, conn: "duckdb.DuckDBPyConnection") -> bool:
+    def has_points(
+        self, *, conn: "duckdb.DuckDBPyConnection", debug: bool = False
+    ) -> bool:
         return (
-            len(
-                self.POINT_TYPE.objects.list(
-                    document_id=self.document_id, conn=conn, limit=1
-                ).data
+            self.POINT_TYPE.objects.count(
+                document_id=self.document_id, conn=conn, debug=debug
             )
             > 0
         )
