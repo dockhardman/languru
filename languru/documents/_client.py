@@ -90,7 +90,7 @@ class PointQuerySet:
         ).strip()
         create_table_sql = (
             create_table_sql
-            + "\n"
+            + "\nSET hnsw_enable_experimental_persistence = true;\n"  # Required for HNSW index  # noqa: E501
             + CREATE_EMBEDDING_INDEX_LINE.format(
                 table_name=self.model.TABLE_NAME,
                 column_name="embedding",
@@ -756,6 +756,7 @@ class DocumentQuerySet:
         results_df: "pd.DataFrame" = (
             conn.execute(query, parameters).fetch_arrow_table().to_pandas()
         )
+        results_df = results_df.loc[:, ~results_df.columns.duplicated()]
 
         # Parse results
         points_with_score = []
