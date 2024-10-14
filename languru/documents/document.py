@@ -156,7 +156,7 @@ class Document(BaseModel):
         point_columns += [
             "array_cosine_similarity("
             + f"embedding, ?::FLOAT[{cls.POINT_TYPE.EMBEDDING_DIMENSIONS}]"
-            + ") AS similarity"
+            + ") AS relevance_score"
         ]
         point_columns_expr = ", ".join(point_columns)
 
@@ -166,7 +166,7 @@ class Document(BaseModel):
 
         query = f"SELECT {point_columns_expr}\n"
         query += f"FROM {cls.POINT_TYPE.TABLE_NAME}\n"
-        query += "ORDER BY similarity DESC\n"
+        query += "ORDER BY relevance_score DESC\n"
         query += f"LIMIT {top_k}\n"
         parameters = [vector]
 
@@ -182,13 +182,14 @@ class Document(BaseModel):
             conn.execute(query, parameters).fetch_arrow_table().to_pandas()
         )
         results: List[Dict] = results_df.to_dict(orient="records")
-
-        console.print(results)
+        points_with_score = [PointWithScore.model_validate(res) for res in results]
 
         if time_start is not None:
             time_end = time.perf_counter()
             time_elapsed = (time_end - time_start) * 1000
             console.print(f"Vector search execution time: {time_elapsed:.2f} ms")
+
+        return (points_with_score, [])
 
     def to_points(
         self,
