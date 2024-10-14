@@ -74,7 +74,7 @@ class Point(BaseModel):
 
 
 class PointWithScore(Point):
-    model_config = ConfigDict(str_strip_whitespace=True, extra="allow")
+    # model_config = ConfigDict(str_strip_whitespace=True, extra="allow")
 
     relevance_score: float = Field(description="The score of the point.")
 
@@ -164,34 +164,15 @@ class Document(BaseModel):
         point_columns_expr = ", ".join(point_columns)
 
         if with_documents:
-            query_template = jinja2.Template(
-                dedent(
-                    """
-                    WITH vector_search AS (
-                        SELECT {{ columns_expr }}
-                        FROM {{ table_name }}
-                        ORDER BY relevance_score DESC
-                        LIMIT {{ top_k }}
-                    )
-                    SELECT p, d
-                    FROM vector_search p
-                    JOIN {{ document_table_name }} d ON p.document_id = d.document_id
-                    """
-                ).strip()
-            )
-            query = query_template.render(
-                table_name=cls.POINT_TYPE.TABLE_NAME,
-                document_table_name=cls.TABLE_NAME,
-                columns_expr=point_columns_expr,
-                top_k=top_k,
-            )
+            query_template = jinja2.Template(sql_stmt_vector_search_with_documents)
         else:
             query_template = jinja2.Template(sql_stmt_vector_search)
-            query = query_template.render(
-                table_name=cls.POINT_TYPE.TABLE_NAME,
-                columns_expr=point_columns_expr,
-                top_k=top_k,
-            )
+        query = query_template.render(
+            table_name=cls.POINT_TYPE.TABLE_NAME,
+            document_table_name=cls.TABLE_NAME,
+            columns_expr=point_columns_expr,
+            top_k=top_k,
+        )
         parameters = [vector]
 
         if debug:
@@ -210,24 +191,15 @@ class Document(BaseModel):
         # Parse results
         points_with_score = []
         documents = []
+        walked_docs = set()
         if with_documents:
-            walked_docs = set()
-            rows: List[Dict] = results_df.to_dict(orient="records")
-            for row in rows:
-                _point_data = row["p"]
-                points_with_score.append(PointWithScore.model_validate(_point_data))
-                if "d" in row:
-                    _doc_data = row["d"]
-                    if _doc_data["document_id"] not in walked_docs:
-                        if isinstance(_doc_data.get("metadata"), Text):
-                            _doc_data["metadata"] = json.loads(_doc_data["metadata"])
-                        documents.append(cls.model_validate(_doc_data))
-                        walked_docs.add(_doc_data["document_id"])
-        else:
-            points_with_score = [
-                PointWithScore.model_validate(row)
-                for row in results_df.to_dict(orient="records")
-            ]
+            results_df["metadata"] = results_df["metadata"].apply(json.loads)
+        rows: List[Dict] = results_df.to_dict(orient="records")
+        for row in rows:
+            points_with_score.append(PointWithScore.model_validate(row))
+            if with_documents and row["document_id"] not in walked_docs:
+                documents.append(cls.model_validate(row))
+                walked_docs.add(row["document_id"])
 
         # Log execution time
         if time_start is not None:
@@ -356,21 +328,25 @@ class SearchResult(BaseModel):
 
 sql_stmt_vector_search = dedent(
     """
-    SELECT {{ columns_expr }}
-    FROM {{ table_name }}
-    ORDER BY relevance_score DESC
-    LIMIT {{ top_k }}
+    WITH vector_search AS (
+        SELECT {{ columns_expr }}
+        FROM {{ table_name }}
+        ORDER BY relevance_score DESC
+        LIMIT {{ top_k }}
+    )
+    SELECT p.*
+    FROM vector_search p
     """
 ).strip()
 sql_stmt_vector_search_with_documents = dedent(
     """
     WITH vector_search AS (
-    SELECT {{ columns_expr }}
-    FROM {{ table_name }}
-    ORDER BY relevance_score DESC
-    LIMIT {{ top_k }}
+        SELECT {{ columns_expr }}
+        FROM {{ table_name }}
+        ORDER BY relevance_score DESC
+        LIMIT {{ top_k }}
     )
-    SELECT p, d
+    SELECT p.*, d.*
     FROM vector_search p
     JOIN {{ document_table_name }} d ON p.document_id = d.document_id
     """
