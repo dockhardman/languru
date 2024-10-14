@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import time
 from textwrap import dedent
@@ -162,25 +163,35 @@ class Document(BaseModel):
         ]
         point_columns_expr = ", ".join(point_columns)
 
-        # Get document columns
-        document_columns = list(cls.model_json_schema()["properties"].keys())
-        document_columns_expr = ",".join(document_columns)
-
-        query_template = jinja2.Template(
-            dedent(
-                """
-                SELECT {{ columns_expr }}
-                FROM {{ table_name }}
-                ORDER BY relevance_score DESC
-                LIMIT {{ top_k }}
-                """
-            ).strip()
-        )
-        query = query_template.render(
-            table_name=cls.POINT_TYPE.TABLE_NAME,
-            columns_expr=point_columns_expr,
-            top_k=top_k,
-        )
+        if with_documents:
+            query_template = jinja2.Template(
+                dedent(
+                    """
+                    WITH vector_search AS (
+                        SELECT {{ columns_expr }}
+                        FROM {{ table_name }}
+                        ORDER BY relevance_score DESC
+                        LIMIT {{ top_k }}
+                    )
+                    SELECT p, d
+                    FROM vector_search p
+                    JOIN {{ document_table_name }} d ON p.document_id = d.document_id
+                    """
+                ).strip()
+            )
+            query = query_template.render(
+                table_name=cls.POINT_TYPE.TABLE_NAME,
+                document_table_name=cls.TABLE_NAME,
+                columns_expr=point_columns_expr,
+                top_k=top_k,
+            )
+        else:
+            query_template = jinja2.Template(sql_stmt_vector_search)
+            query = query_template.render(
+                table_name=cls.POINT_TYPE.TABLE_NAME,
+                columns_expr=point_columns_expr,
+                top_k=top_k,
+            )
         parameters = [vector]
 
         if debug:
@@ -191,18 +202,40 @@ class Document(BaseModel):
                 + f"{DISPLAY_SQL_PARAMS.format(params=_display_params)}\n"
             )
 
+        # Execute query
         results_df: "pd.DataFrame" = (
             conn.execute(query, parameters).fetch_arrow_table().to_pandas()
         )
-        results: List[Dict] = results_df.to_dict(orient="records")
-        points_with_score = [PointWithScore.model_validate(res) for res in results]
 
+        # Parse results
+        points_with_score = []
+        documents = []
+        if with_documents:
+            walked_docs = set()
+            rows: List[Dict] = results_df.to_dict(orient="records")
+            for row in rows:
+                _point_data = row["p"]
+                points_with_score.append(PointWithScore.model_validate(_point_data))
+                if "d" in row:
+                    _doc_data = row["d"]
+                    if _doc_data["document_id"] not in walked_docs:
+                        if isinstance(_doc_data.get("metadata"), Text):
+                            _doc_data["metadata"] = json.loads(_doc_data["metadata"])
+                        documents.append(cls.model_validate(_doc_data))
+                        walked_docs.add(_doc_data["document_id"])
+        else:
+            points_with_score = [
+                PointWithScore.model_validate(row)
+                for row in results_df.to_dict(orient="records")
+            ]
+
+        # Log execution time
         if time_start is not None:
             time_end = time.perf_counter()
             time_elapsed = (time_end - time_start) * 1000
             console.print(f"Vector search execution time: {time_elapsed:.2f} ms")
 
-        return (points_with_score, [])
+        return (points_with_score, documents)
 
     def to_points(
         self,
@@ -319,3 +352,26 @@ class SearchResult(BaseModel):
     suggestions: Optional[List[Text]] = Field(
         default=None, description="Suggested search terms related to the query."
     )
+
+
+sql_stmt_vector_search = dedent(
+    """
+    SELECT {{ columns_expr }}
+    FROM {{ table_name }}
+    ORDER BY relevance_score DESC
+    LIMIT {{ top_k }}
+    """
+).strip()
+sql_stmt_vector_search_with_documents = dedent(
+    """
+    WITH vector_search AS (
+    SELECT {{ columns_expr }}
+    FROM {{ table_name }}
+    ORDER BY relevance_score DESC
+    LIMIT {{ top_k }}
+    )
+    SELECT p, d
+    FROM vector_search p
+    JOIN {{ document_table_name }} d ON p.document_id = d.document_id
+    """
+).strip()
