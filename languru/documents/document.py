@@ -1,18 +1,14 @@
 import hashlib
-import json
 import os
 import time
-from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Text, Tuple, Type
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Text, Type
 
-import jinja2
 from cyksuid.v2 import ksuid
 from diskcache import Cache
 from openai import OpenAI
 from pathvalidate import sanitize_filepath
 from pydantic import BaseModel, ConfigDict, Field
 
-from languru.config import console
 from languru.documents._client import (
     DocumentQuerySet,
     DocumentQuerySetDescriptor,
@@ -20,15 +16,9 @@ from languru.documents._client import (
     PointQuerySetDescriptor,
 )
 from languru.utils.openai_utils import embeddings_create_with_cache
-from languru.utils.sql import (
-    DISPLAY_SQL_PARAMS,
-    DISPLAY_SQL_QUERY,
-    display_sql_parameters,
-)
 
 if TYPE_CHECKING:
     import duckdb
-    import pandas as pd
 
 
 class Point(BaseModel):
@@ -126,88 +116,6 @@ class Document(BaseModel):
     @classmethod
     def hash_content(cls, content: Text) -> Text:
         return hashlib.md5(content.strip().encode("utf-8")).hexdigest()
-
-    @classmethod
-    def search(
-        cls, query: Text, *, conn: "duckdb.DuckDBPyConnection", openai_client: "OpenAI"
-    ) -> "SearchResult":
-        vectors = embeddings_create_with_cache(
-            input=cls.to_query_cards(query),
-            model=cls.POINT_TYPE.EMBEDDING_MODEL,
-            dimensions=cls.POINT_TYPE.EMBEDDING_DIMENSIONS,
-            openai_client=openai_client,
-            cache=cls.POINT_TYPE.embedding_cache(cls.POINT_TYPE.EMBEDDING_MODEL),
-        )
-
-    @classmethod
-    def search_single_vector(
-        cls,
-        vector: List[float],
-        *,
-        conn: "duckdb.DuckDBPyConnection",
-        top_k: int = 100,
-        with_embedding: bool = False,
-        with_documents: bool = False,
-        debug: bool = False,
-    ) -> Tuple[List[PointWithScore], Optional[List["Document"]]]:
-        time_start = time.perf_counter() if debug else None
-
-        # Get point columns
-        point_columns = list(cls.POINT_TYPE.model_json_schema()["properties"].keys())
-        if not with_embedding:
-            point_columns = [c for c in point_columns if c != "embedding"]
-        point_columns += [
-            "array_cosine_similarity("
-            + f"embedding, ?::FLOAT[{cls.POINT_TYPE.EMBEDDING_DIMENSIONS}]"
-            + ") AS relevance_score"
-        ]
-        point_columns_expr = ", ".join(point_columns)
-
-        if with_documents:
-            query_template = jinja2.Template(sql_stmt_vector_search_with_documents)
-        else:
-            query_template = jinja2.Template(sql_stmt_vector_search)
-        query = query_template.render(
-            table_name=cls.POINT_TYPE.TABLE_NAME,
-            document_table_name=cls.TABLE_NAME,
-            columns_expr=point_columns_expr,
-            top_k=top_k,
-        )
-        parameters = [vector]
-
-        if debug:
-            _display_params = display_sql_parameters(parameters)
-            console.print(
-                "\nVector search with SQL:\n"
-                + f"{DISPLAY_SQL_QUERY.format(sql=query.strip())}\n"
-                + f"{DISPLAY_SQL_PARAMS.format(params=_display_params)}\n"
-            )
-
-        # Execute query
-        results_df: "pd.DataFrame" = (
-            conn.execute(query, parameters).fetch_arrow_table().to_pandas()
-        )
-
-        # Parse results
-        points_with_score = []
-        documents = []
-        walked_docs = set()
-        if with_documents:
-            results_df["metadata"] = results_df["metadata"].apply(json.loads)
-        rows: List[Dict] = results_df.to_dict(orient="records")
-        for row in rows:
-            points_with_score.append(PointWithScore.model_validate(row))
-            if with_documents and row["document_id"] not in walked_docs:
-                documents.append(cls.model_validate(row))
-                walked_docs.add(row["document_id"])
-
-        # Log execution time
-        if time_start is not None:
-            time_end = time.perf_counter()
-            time_elapsed = (time_end - time_start) * 1000
-            console.print(f"Vector search execution time: {time_elapsed:.2f} ms")
-
-        return (points_with_score, documents)
 
     def to_points(
         self,
@@ -324,30 +232,3 @@ class SearchResult(BaseModel):
     suggestions: Optional[List[Text]] = Field(
         default=None, description="Suggested search terms related to the query."
     )
-
-
-sql_stmt_vector_search = dedent(
-    """
-    WITH vector_search AS (
-        SELECT {{ columns_expr }}
-        FROM {{ table_name }}
-        ORDER BY relevance_score DESC
-        LIMIT {{ top_k }}
-    )
-    SELECT p.*
-    FROM vector_search p
-    """
-).strip()
-sql_stmt_vector_search_with_documents = dedent(
-    """
-    WITH vector_search AS (
-        SELECT {{ columns_expr }}
-        FROM {{ table_name }}
-        ORDER BY relevance_score DESC
-        LIMIT {{ top_k }}
-    )
-    SELECT p.*, d.*
-    FROM vector_search p
-    JOIN {{ document_table_name }} d ON p.document_id = d.document_id
-    """
-).strip()

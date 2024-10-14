@@ -1,13 +1,26 @@
 import json
 import time
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Text, Type, Union
+from textwrap import dedent
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Text,
+    Tuple,
+    Type,
+    Union,
+)
 
 import duckdb
+import jinja2
 
 import languru.exceptions
 from languru.config import console
 from languru.exceptions import NotFound, NotSupported
 from languru.types.openai_page import OpenaiPage
+from languru.utils.openai_utils import embeddings_create_with_cache
 from languru.utils.sql import (
     CREATE_EMBEDDING_INDEX_LINE,
     DISPLAY_SQL_PARAMS,
@@ -18,8 +31,36 @@ from languru.utils.sql import (
 
 if TYPE_CHECKING:
     import pandas as pd
+    from openai import OpenAI
 
-    from languru.documents.document import Document, Point
+    from languru.documents.document import Document, Point, PointWithScore, SearchResult
+
+
+sql_stmt_vector_search = dedent(
+    """
+    WITH vector_search AS (
+        SELECT {{ columns_expr }}
+        FROM {{ table_name }}
+        ORDER BY relevance_score DESC
+        LIMIT {{ top_k }}
+    )
+    SELECT p.*
+    FROM vector_search p
+    """
+).strip()
+sql_stmt_vector_search_with_documents = dedent(
+    """
+    WITH vector_search AS (
+        SELECT {{ columns_expr }}
+        FROM {{ table_name }}
+        ORDER BY relevance_score DESC
+        LIMIT {{ top_k }}
+    )
+    SELECT p.*, d.*
+    FROM vector_search p
+    JOIN {{ document_table_name }} d ON p.document_id = d.document_id
+    """
+).strip()
 
 
 class PointQuerySet:
@@ -648,6 +689,94 @@ class DocumentQuerySet:
             time_elapsed = (time_end - time_start) * 1000
             console.print(f"Counted documents in {time_elapsed:.6f} ms")
         return count
+
+    def search(
+        self, query: Text, *, conn: "duckdb.DuckDBPyConnection", openai_client: "OpenAI"
+    ) -> "SearchResult":
+        from languru.documents.document import SearchResult
+
+        vectors = embeddings_create_with_cache(
+            input=self.model.to_query_cards(query),
+            model=self.model.POINT_TYPE.EMBEDDING_MODEL,
+            dimensions=self.model.POINT_TYPE.EMBEDDING_DIMENSIONS,
+            openai_client=openai_client,
+            cache=self.model.POINT_TYPE.embedding_cache(
+                self.model.POINT_TYPE.EMBEDDING_MODEL
+            ),
+        )
+
+    def search_vector(
+        self,
+        vector: List[float],
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        top_k: int = 100,
+        with_embedding: bool = False,
+        with_documents: bool = False,
+        debug: bool = False,
+    ) -> Tuple[List["PointWithScore"], Optional[List["Document"]]]:
+        from languru.documents.document import PointWithScore
+
+        time_start = time.perf_counter() if debug else None
+
+        # Get point columns
+        point_columns = list(
+            self.model.POINT_TYPE.model_json_schema()["properties"].keys()
+        )
+        if not with_embedding:
+            point_columns = [c for c in point_columns if c != "embedding"]
+        point_columns += [
+            "array_cosine_similarity("
+            + f"embedding, ?::FLOAT[{self.model.POINT_TYPE.EMBEDDING_DIMENSIONS}]"
+            + ") AS relevance_score"
+        ]
+
+        query_template = (
+            jinja2.Template(sql_stmt_vector_search_with_documents)
+            if with_documents
+            else jinja2.Template(sql_stmt_vector_search)
+        )
+        query = query_template.render(
+            table_name=self.model.POINT_TYPE.TABLE_NAME,
+            document_table_name=self.model.TABLE_NAME,
+            columns_expr=", ".join(point_columns),
+            top_k=top_k,
+        )
+        parameters = [vector]
+
+        if debug:
+            _display_params = display_sql_parameters(parameters)
+            console.print(
+                "\nVector search with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query.strip())}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=_display_params)}\n"
+            )
+
+        # Execute query
+        results_df: "pd.DataFrame" = (
+            conn.execute(query, parameters).fetch_arrow_table().to_pandas()
+        )
+
+        # Parse results
+        points_with_score = []
+        documents = []
+        walked_docs = set()
+        if with_documents:
+            results_df["metadata"] = results_df["metadata"].apply(json.loads)
+        rows: List[Dict] = results_df.to_dict(orient="records")
+        for row in rows:
+            points_with_score.append(PointWithScore.model_validate(row))
+            if with_documents and row["document_id"] not in walked_docs:
+                documents.append(self.model.model_validate(row))
+                walked_docs.add(row["document_id"])
+
+        # Log execution time
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Vector search execution time: {time_elapsed:.2f} ms")
+
+        return (points_with_score, documents)
 
 
 class PointQuerySetDescriptor:
