@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Sequence, Text
+from typing import Dict, List, Optional, Sequence, Text
 
 COLUMN_DECLARATION_LINE = "{field_name} {sql_type} {not_null} {unique}"
 DECLARATION_INDENT = "    "
@@ -97,3 +97,15 @@ def openapi_to_create_table_sql(
     # Combine CREATE TABLE and CREATE INDEX statements
     full_sql = create_table_sql + "\n" + ";\n".join(index_statements)
     return full_sql
+
+
+def display_sql_parameters(params: List) -> List:
+    out = []
+    for param in params:
+        param_str = str(param)
+        if len(param_str) > 128:
+            param_str = param_str[:125] + "..."
+            out.append(param_str)
+        else:
+            out.append(param)
+    return out

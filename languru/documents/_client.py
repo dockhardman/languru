@@ -12,6 +12,7 @@ from languru.utils.sql import (
     CREATE_EMBEDDING_INDEX_LINE,
     DISPLAY_SQL_PARAMS,
     DISPLAY_SQL_QUERY,
+    display_sql_parameters,
     openapi_to_create_table_sql,
 )
 
@@ -143,10 +144,11 @@ class PointQuerySet:
             + f"VALUES ({placeholders})"
         )
         if debug:
+            _display_params = display_sql_parameters(parameters)
             console.print(
                 f"\nCreating point: '{point.point_id}' with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
-                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=_display_params)}\n"
             )
 
         conn.execute(query, parameters)

@@ -1,7 +1,7 @@
 import hashlib
 import os
 import time
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Text, Type
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Text, Tuple, Type
 
 from cyksuid.v2 import ksuid
 from diskcache import Cache
@@ -9,6 +9,7 @@ from openai import OpenAI
 from pathvalidate import sanitize_filepath
 from pydantic import BaseModel, ConfigDict, Field
 
+from languru.config import console
 from languru.documents._client import (
     DocumentQuerySet,
     DocumentQuerySetDescriptor,
@@ -16,9 +17,15 @@ from languru.documents._client import (
     PointQuerySetDescriptor,
 )
 from languru.utils.openai_utils import embeddings_create_with_cache
+from languru.utils.sql import (
+    DISPLAY_SQL_PARAMS,
+    DISPLAY_SQL_QUERY,
+    display_sql_parameters,
+)
 
 if TYPE_CHECKING:
     import duckdb
+    import pandas as pd
 
 
 class Point(BaseModel):
@@ -117,17 +124,71 @@ class Document(BaseModel):
     def hash_content(cls, content: Text) -> Text:
         return hashlib.md5(content.strip().encode("utf-8")).hexdigest()
 
+    @classmethod
     def search(
-        self, query: Text, *, conn: "duckdb.DuckDBPyConnection", openai_client: "OpenAI"
+        cls, query: Text, *, conn: "duckdb.DuckDBPyConnection", openai_client: "OpenAI"
     ) -> "SearchResult":
         vectors = embeddings_create_with_cache(
-            input=self.to_query_cards(query),
-            model=self.POINT_TYPE.EMBEDDING_MODEL,
-            dimensions=self.POINT_TYPE.EMBEDDING_DIMENSIONS,
+            input=cls.to_query_cards(query),
+            model=cls.POINT_TYPE.EMBEDDING_MODEL,
+            dimensions=cls.POINT_TYPE.EMBEDDING_DIMENSIONS,
             openai_client=openai_client,
-            cache=self.POINT_TYPE.embedding_cache(self.POINT_TYPE.EMBEDDING_MODEL),
+            cache=cls.POINT_TYPE.embedding_cache(cls.POINT_TYPE.EMBEDDING_MODEL),
         )
-        pass
+
+    @classmethod
+    def search_single_vector(
+        cls,
+        vector: List[float],
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        top_k: int = 100,
+        with_embedding: bool = False,
+        with_documents: bool = False,
+        debug: bool = False,
+    ) -> Tuple[List[PointWithScore], Optional[List["Document"]]]:
+        time_start = time.perf_counter() if debug else None
+
+        # Get point columns
+        point_columns = list(cls.POINT_TYPE.model_json_schema()["properties"].keys())
+        if not with_embedding:
+            point_columns = [c for c in point_columns if c != "embedding"]
+        point_columns += [
+            "array_cosine_similarity("
+            + f"embedding, ?::FLOAT[{cls.POINT_TYPE.EMBEDDING_DIMENSIONS}]"
+            + ") AS similarity"
+        ]
+        point_columns_expr = ", ".join(point_columns)
+
+        # Get document columns
+        document_columns = list(cls.model_json_schema()["properties"].keys())
+        document_columns_expr = ",".join(document_columns)
+
+        query = f"SELECT {point_columns_expr}\n"
+        query += f"FROM {cls.POINT_TYPE.TABLE_NAME}\n"
+        query += "ORDER BY similarity DESC\n"
+        query += f"LIMIT {top_k}\n"
+        parameters = [vector]
+
+        if debug:
+            _display_params = display_sql_parameters(parameters)
+            console.print(
+                "\nVector search with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query.strip())}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=_display_params)}\n"
+            )
+
+        results_df: "pd.DataFrame" = (
+            conn.execute(query, parameters).fetch_arrow_table().to_pandas()
+        )
+        results: List[Dict] = results_df.to_dict(orient="records")
+
+        console.print(results)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Vector search execution time: {time_elapsed:.2f} ms")
 
     def to_points(
         self,
@@ -199,7 +260,8 @@ class Document(BaseModel):
     def to_document_cards(self, *args, **kwargs) -> List[Text]:
         return [self.content.strip()]
 
-    def to_query_cards(self, query: Text, *args, **kwargs) -> List[Text]:
+    @classmethod
+    def to_query_cards(cls, query: Text, *args, **kwargs) -> List[Text]:
         return [query.strip()]
 
     def strip(self, *, copy: bool = False) -> "Document":
