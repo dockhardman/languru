@@ -64,6 +64,8 @@ class Point(BaseModel):
 
 
 class PointWithScore(Point):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="allow")
+
     relevance_score: float = Field(description="The score of the point.")
 
 
@@ -115,6 +117,18 @@ class Document(BaseModel):
     def hash_content(cls, content: Text) -> Text:
         return hashlib.md5(content.strip().encode("utf-8")).hexdigest()
 
+    def search(
+        self, query: Text, *, conn: "duckdb.DuckDBPyConnection", openai_client: "OpenAI"
+    ) -> "SearchResult":
+        vectors = embeddings_create_with_cache(
+            input=self.to_query_cards(query),
+            model=self.POINT_TYPE.EMBEDDING_MODEL,
+            dimensions=self.POINT_TYPE.EMBEDDING_DIMENSIONS,
+            openai_client=openai_client,
+            cache=self.POINT_TYPE.embedding_cache(self.POINT_TYPE.EMBEDDING_MODEL),
+        )
+        pass
+
     def to_points(
         self,
         *,
@@ -132,7 +146,7 @@ class Document(BaseModel):
             params["embedding"] = embedding
         elif openai_client is not None:
             embeddings = embeddings_create_with_cache(
-                input=self.to_embedding_contents(),
+                input=self.to_document_cards(),
                 model=self.POINT_TYPE.EMBEDDING_MODEL,
                 dimensions=self.POINT_TYPE.EMBEDDING_DIMENSIONS,
                 openai_client=openai_client,
@@ -182,8 +196,11 @@ class Document(BaseModel):
     def refresh_points(self, conn: "duckdb.DuckDBPyConnection") -> None:
         pass
 
-    def to_embedding_contents(self, *args, **kwargs) -> List[Text]:
+    def to_document_cards(self, *args, **kwargs) -> List[Text]:
         return [self.content.strip()]
+
+    def to_query_cards(self, query: Text, *args, **kwargs) -> List[Text]:
+        return [query.strip()]
 
     def strip(self, *, copy: bool = False) -> "Document":
         _doc = self.model_copy(deep=True) if copy else self
@@ -199,7 +216,7 @@ class SearchResult(BaseModel):
     query: Optional[Text] = Field(
         default=None, description="The query that was used for searching."
     )
-    points: List[PointWithScore] = Field(
+    matches: List[PointWithScore] = Field(
         default_factory=list, description="The points that match the search query."
     )
     documents: List[Document] = Field(
