@@ -1,8 +1,10 @@
 import hashlib
 import os
 import time
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Text, Tuple, Type
 
+import jinja2
 from cyksuid.v2 import ksuid
 from diskcache import Cache
 from openai import OpenAI
@@ -164,10 +166,21 @@ class Document(BaseModel):
         document_columns = list(cls.model_json_schema()["properties"].keys())
         document_columns_expr = ",".join(document_columns)
 
-        query = f"SELECT {point_columns_expr}\n"
-        query += f"FROM {cls.POINT_TYPE.TABLE_NAME}\n"
-        query += "ORDER BY relevance_score DESC\n"
-        query += f"LIMIT {top_k}\n"
+        query_template = jinja2.Template(
+            dedent(
+                """
+                SELECT {{ columns_expr }}
+                FROM {{ table_name }}
+                ORDER BY relevance_score DESC
+                LIMIT {{ top_k }}
+                """
+            ).strip()
+        )
+        query = query_template.render(
+            table_name=cls.POINT_TYPE.TABLE_NAME,
+            columns_expr=point_columns_expr,
+            top_k=top_k,
+        )
         parameters = [vector]
 
         if debug:
