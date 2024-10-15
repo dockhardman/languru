@@ -834,6 +834,7 @@ class DocumentQuerySet:
         )
 
         # Run vector search
+        _search_time_start = time.perf_counter()
         points_with_score, documents = self.search_vector(
             vector,
             conn=conn,
@@ -850,6 +851,10 @@ class DocumentQuerySet:
                 "documents": documents,
                 "total_results": (
                     len(documents) if documents else len(points_with_score)
+                ),
+                "execution_time": (time.perf_counter() - _search_time_start),
+                "relevance_score": (
+                    points_with_score[0].relevance_score if points_with_score else 0.0
                 ),
             }
         )
