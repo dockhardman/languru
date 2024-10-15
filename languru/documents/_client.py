@@ -3,6 +3,7 @@ import time
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
+    Callable,
     Dict,
     List,
     Literal,
@@ -11,13 +12,15 @@ from typing import (
     Tuple,
     Type,
     Union,
+    cast,
 )
 
 import duckdb
 import jinja2
+from typing_extensions import Unpack
 
 import languru.exceptions
-from languru.config import console
+from languru.config import console, logger
 from languru.exceptions import NotFound, NotSupported
 from languru.types.openai_page import OpenaiPage
 from languru.utils.openai_utils import ensure_vector
@@ -34,6 +37,7 @@ if TYPE_CHECKING:
     from openai import OpenAI
 
     from languru.documents.document import Document, Point, PointWithScore, SearchResult
+    from languru.types.rerank import RerankingObject
 
 sql_stmt_show_tables = "SHOW TABLES"
 sql_stmt_drop_table = "DROP TABLE IF EXISTS {{ table_name }} CASCADE"
@@ -844,6 +848,40 @@ class DocumentQuerySet:
             debug=debug,
         )
 
+        # Rerank results
+        if rerank_client is not None:
+            rerank_func = getattr(rerank_client.embeddings, "rerank", None)
+            if rerank_func is None:
+                logger.warning(
+                    f"Rerank client {rerank_client} has no embeddings.rerank method."
+                )
+            elif isinstance(query, Text) is False:
+                logger.warning("Query must be a string to rerank.")
+            elif not documents:
+                logger.warning("Documents must be provided to rerank.")
+            else:
+                logger.debug(f"Reranking {len(documents)} results with query: {query}")
+                documents_map = {
+                    idx: doc.document_id for idx, doc in enumerate(documents)
+                }
+                rerank_obj: "RerankingObject" = rerank_func(
+                    query=query,  # type: ignore
+                    documents=[doc.content for doc in documents],
+                )
+                doc_id_scores: Dict[Text, float] = {
+                    documents_map[result.index]: result.relevance_score
+                    for result in rerank_obj.results
+                }
+                for point in points_with_score:
+                    point.relevance_score = doc_id_scores[point.document_id]
+                # Sort points_with_score by relevance_score in descending order
+                points_with_score.sort(key=lambda x: x.relevance_score, reverse=True)
+                # Sort documents by relevance_score in descending order
+                documents.sort(key=lambda x: doc_id_scores[x.document_id], reverse=True)
+                if debug:
+                    pass
+
+        # Wrap results
         out = SearchResult.model_validate(
             {
                 "query": query if isinstance(query, Text) else None,
