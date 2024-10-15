@@ -35,7 +35,8 @@ if TYPE_CHECKING:
 
     from languru.documents.document import Document, Point, PointWithScore, SearchResult
 
-
+sql_stmt_show_tables = "SHOW TABLES"
+sql_stmt_drop_table = "DROP TABLE IF EXISTS {{ table_name }} CASCADE"
 sql_stmt_vector_search = dedent(
     """
     WITH vector_search AS (
@@ -63,6 +64,26 @@ sql_stmt_vector_search_with_documents = dedent(
 ).strip()
 
 
+def show_tables(conn: "duckdb.DuckDBPyConnection") -> Tuple[Text, ...]:
+    res: List[Tuple[Text]] = conn.sql(sql_stmt_show_tables).fetchall()
+    return tuple(r[0] for r in res)
+
+
+def install_vss_extension(conn: "duckdb.DuckDBPyConnection") -> None:
+    conn.sql("INSTALL vss;")
+    conn.sql("LOAD vss;")
+
+
+def install_json_extension(conn: "duckdb.DuckDBPyConnection") -> None:
+    conn.sql("INSTALL json;")
+    conn.sql("LOAD json;")
+
+
+def install_all_extensions(conn: "duckdb.DuckDBPyConnection") -> None:
+    install_vss_extension(conn=conn)
+    install_json_extension(conn=conn)
+
+
 class PointQuerySet:
     def __init__(
         self,
@@ -74,12 +95,28 @@ class PointQuerySet:
         self.__args = args
         self.__kwargs = kwargs
 
-    def touch(self, *, conn: "duckdb.DuckDBPyConnection", debug: bool = False) -> bool:
+    def touch(
+        self,
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        drop: bool = False,
+        force: bool = False,
+        debug: bool = False,
+    ) -> bool:
         time_start = time.perf_counter() if debug else None
 
-        # Install VSS extension
-        conn.sql("INSTALL vss;")
-        conn.sql("LOAD vss;")
+        # Install JSON and VSS extensions
+        install_all_extensions(conn=conn)
+
+        # Check if table exists
+        is_table_exists = self.model.TABLE_NAME in show_tables(conn=conn)
+        if is_table_exists and not drop:
+            return True
+        elif is_table_exists and drop:
+            self.drop(conn=conn, force=force, debug=debug)
+
+        # Install JSON and VSS extensions
+        install_all_extensions(conn=conn)
 
         # Create table
         create_table_sql = openapi_to_create_table_sql(
@@ -343,6 +380,37 @@ class PointQuerySet:
             console.print(f"Counted points in {time_elapsed:.6f} ms")
         return count
 
+    def drop(
+        self,
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        force: bool = False,
+        debug: bool = False,
+    ) -> None:
+        if not force:
+            raise ValueError("Use force=True to drop table.")
+
+        time_start = time.perf_counter() if debug else None
+
+        query_template = jinja2.Template(sql_stmt_drop_table)
+        query = query_template.render(table_name=self.model.TABLE_NAME)
+        if debug:
+            console.print(
+                f"\nDropping table: '{self.model.TABLE_NAME}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+            )
+
+        # Drop table
+        conn.sql(query)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(
+                f"Dropped table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f} ms"
+            )
+        return None
+
 
 class DocumentQuerySet:
     def __init__(self, model: Type["Document"], *args, **kwargs):
@@ -355,13 +423,24 @@ class DocumentQuerySet:
         *,
         conn: "duckdb.DuckDBPyConnection",
         touch_point: bool = True,
+        drop: bool = False,
+        force: bool = False,
         debug: bool = False,
     ) -> bool:
         time_start = time.perf_counter() if debug else None
 
-        # Install JSON extension
-        conn.execute("INSTALL json;")
-        conn.execute("LOAD json;")
+        # Install JSON and VSS extensions
+        install_all_extensions(conn=conn)
+
+        # Check if table exists
+        is_table_exists = self.model.TABLE_NAME in show_tables(conn=conn)
+        if is_table_exists and drop:
+            self.drop(conn=conn, force=force, drop_points=True, debug=debug)
+        elif is_table_exists and not drop:
+            return True
+
+        # Install JSON and VSS extensions
+        install_all_extensions(conn=conn)
 
         # Create table
         create_table_sql = openapi_to_create_table_sql(
@@ -689,6 +768,42 @@ class DocumentQuerySet:
             time_elapsed = (time_end - time_start) * 1000
             console.print(f"Counted documents in {time_elapsed:.6f} ms")
         return count
+
+    def drop(
+        self,
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        force: bool = False,
+        drop_points: bool = True,
+        debug: bool = False,
+    ) -> None:
+        if not force:
+            raise ValueError("Use force=True to drop table.")
+
+        time_start = time.perf_counter() if debug else None
+
+        query_template = jinja2.Template(sql_stmt_drop_table)
+        query = query_template.render(table_name=self.model.TABLE_NAME)
+        if debug:
+            console.print(
+                f"\nDropping table: '{self.model.TABLE_NAME}' with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+            )
+
+        # Drop table
+        conn.sql(query)
+
+        # Drop points table
+        if drop_points:
+            self.model.POINT_TYPE.objects.drop(conn=conn, force=force, debug=debug)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(
+                f"Dropped table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f} ms"
+            )
+        return None
 
     def search(
         self,
