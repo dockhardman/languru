@@ -1,6 +1,15 @@
-from typing import List, Text
+from typing import List, Optional, Sequence, Text
 
 from pydantic import BaseModel
+from typing_extensions import Required, TypedDict
+
+
+class RerankParams(TypedDict, total=False):
+    query: Required[Text]
+    documents: Required[Sequence[Text]]
+    model: Optional[Text]
+    top_k: Optional[int]
+    truncation: bool
 
 
 class RerankingResult(BaseModel):

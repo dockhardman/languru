@@ -122,10 +122,12 @@ class VoyageEmbeddings(OpenAIResources.Embeddings):
         self,
         query: Text,
         documents: Sequence[Text],
-        model: Text,
+        model: Optional[Text] = None,
         top_k: Optional[int] = None,
         truncation: bool = True,
     ) -> "RerankingObject":
+        model = model or self._client.default_rerank_model
+
         rerank_res = self._client.voyageai_client.rerank(
             query=query,
             documents=list(documents),
@@ -160,3 +162,4 @@ class VoyageOpenAI(OpenAI):
         self.embeddings = VoyageEmbeddings(self)
 
         self.voyageai_client = voyageai.Client(api_key=api_key)
+        self.default_rerank_model = "rerank-2-lite"
