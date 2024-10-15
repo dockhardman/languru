@@ -3,7 +3,6 @@ import time
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
-    Callable,
     Dict,
     List,
     Literal,
@@ -12,12 +11,11 @@ from typing import (
     Tuple,
     Type,
     Union,
-    cast,
 )
 
 import duckdb
 import jinja2
-from typing_extensions import Unpack
+from rich.text import Text as RichText
 
 import languru.exceptions
 from languru.config import console, logger
@@ -861,6 +859,15 @@ class DocumentQuerySet:
                 logger.warning("Documents must be provided to rerank.")
             else:
                 logger.debug(f"Reranking {len(documents)} results with query: {query}")
+                doc_id_scores: Dict[Text, float] = {}
+                for pt in points_with_score:
+                    if pt.document_id not in doc_id_scores:
+                        doc_id_scores[pt.document_id] = pt.relevance_score
+                    else:
+                        doc_id_scores[pt.document_id] = max(
+                            doc_id_scores[pt.document_id], pt.relevance_score
+                        )
+
                 documents_map = {
                     idx: doc.document_id for idx, doc in enumerate(documents)
                 }
@@ -868,18 +875,45 @@ class DocumentQuerySet:
                     query=query,  # type: ignore
                     documents=[doc.content for doc in documents],
                 )
-                doc_id_scores: Dict[Text, float] = {
+                new_doc_id_scores: Dict[Text, float] = {
                     documents_map[result.index]: result.relevance_score
                     for result in rerank_obj.results
                 }
                 for point in points_with_score:
-                    point.relevance_score = doc_id_scores[point.document_id]
+                    point.relevance_score = new_doc_id_scores[point.document_id]
                 # Sort points_with_score by relevance_score in descending order
                 points_with_score.sort(key=lambda x: x.relevance_score, reverse=True)
                 # Sort documents by relevance_score in descending order
-                documents.sort(key=lambda x: doc_id_scores[x.document_id], reverse=True)
+                documents.sort(
+                    key=lambda x: new_doc_id_scores[x.document_id], reverse=True
+                )
                 if debug:
-                    pass
+                    console.print("\nRerank results:")
+                    console.print("=== Start of Rerank Results ===")
+                    for doc in documents:
+                        _content = RichText("[")
+                        _content += RichText(doc.document_id, style="bright_cyan")
+                        _content += RichText("]")
+                        _content += RichText("(")
+                        _content += RichText(
+                            (
+                                f"{doc.name[:29]}" + "..."
+                                if len(doc.name) > 32
+                                else f"{doc.name:<32}"
+                            ),
+                            style="bright_green",
+                        )
+                        _content += RichText("): ")
+                        _content += RichText(
+                            f"{doc_id_scores[doc.document_id]:.4f}", style="bright_blue"
+                        )
+                        _content += RichText(" --> ")
+                        _content += RichText(
+                            f"{new_doc_id_scores[doc.document_id]:.4f}",
+                            style="bright_magenta",
+                        )
+                        console.print(_content)
+                    console.print("==== End of Rerank Results ====\n")
 
         # Wrap results
         out = SearchResult.model_validate(
