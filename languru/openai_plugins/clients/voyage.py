@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Iterable, List, Literal, Optional, Text, Union, cast
+from typing import Iterable, List, Literal, Optional, Sequence, Text, Union, cast
 
 import httpx
 import openai
@@ -15,6 +15,7 @@ from openai.types.model import Model
 from languru.exceptions import CredentialsNotProvided
 from languru.openai_plugins.clients.utils import openai_init_parameter_keys
 from languru.types.models import MODELS_VOYAGE
+from languru.types.rerank import RerankingObject
 
 
 class VoyageModels(OpenAIResources.Models):
@@ -114,6 +115,28 @@ class VoyageEmbeddings(OpenAIResources.Embeddings):
                     "prompt_tokens": embed_res.total_tokens,
                     "total_tokens": embed_res.total_tokens,
                 },
+            }
+        )
+
+    def rerank(
+        self,
+        query: Text,
+        documents: Sequence[Text],
+        model: Text,
+        top_k: Optional[int] = None,
+        truncation: bool = True,
+    ) -> "RerankingObject":
+        rerank_res = self._client.voyageai_client.rerank(
+            query=query,
+            documents=list(documents),
+            model=model,
+            top_k=top_k,
+            truncation=truncation,
+        )
+        return RerankingObject.model_validate(
+            {
+                "results": [res._asdict() for res in rerank_res.results],
+                "total_tokens": rerank_res.total_tokens,
             }
         )
 
