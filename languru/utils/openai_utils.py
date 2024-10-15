@@ -4,6 +4,7 @@ import json
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     List,
     Literal,
@@ -245,3 +246,57 @@ def embeddings_create_with_cache(
     if any(e is None for e in _output):
         raise ValueError("Failed to get embeddings from the OpenAI API.")
     return _output  # type: ignore
+
+
+def ensure_vector(
+    query: Text | List[float],
+    *,
+    openai_client: Optional["OpenAI"] = None,
+    cache: Optional["Cache"],
+    input_func: Callable[[Text], List[Text]] = lambda x: [x.strip()],
+    embedding_model: Optional[Text] = None,
+    embedding_dimensions: Optional[int] = None,
+) -> List[float]:
+    if isinstance(query, Text):
+        query = query.strip()
+
+    if not query:
+        raise ValueError("Query cannot be empty.")
+
+    if isinstance(query, Text):
+        if not openai_client:
+            raise ValueError(
+                "Argument `openai_client` is required to create embeddings."
+            )
+        if not embedding_model:
+            raise ValueError(
+                "Argument `embedding_model` is required to create embeddings."
+            )
+        if not embedding_dimensions:
+            raise ValueError(
+                "Argument `embedding_dimensions` is required to create embeddings."
+            )
+        _inputs = input_func(query)
+        _vectors = embeddings_create_with_cache(
+            input=_inputs,
+            model=embedding_model,
+            dimensions=embedding_dimensions,
+            openai_client=openai_client,
+            cache=cache,
+        )
+        if len(_vectors) != len(_inputs):
+            raise ValueError(
+                f"Expected {len(_inputs)} vectors, but got {len(_vectors)} vectors."
+            )
+        _vector = _vectors[0]
+
+    else:
+        _vector = query
+
+    if embedding_dimensions is not None:
+        if len(_vector) != embedding_dimensions:
+            raise ValueError(
+                f"Expected vector of length {embedding_dimensions}, "
+                + f"but got {len(_vector)}."
+            )
+    return _vector
