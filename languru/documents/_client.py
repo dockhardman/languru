@@ -20,7 +20,7 @@ import languru.exceptions
 from languru.config import console
 from languru.exceptions import NotFound, NotSupported
 from languru.types.openai_page import OpenaiPage
-from languru.utils.openai_utils import embeddings_create_with_cache
+from languru.utils.openai_utils import ensure_vector
 from languru.utils.sql import (
     CREATE_EMBEDDING_INDEX_LINE,
     DISPLAY_SQL_PARAMS,
@@ -691,19 +691,59 @@ class DocumentQuerySet:
         return count
 
     def search(
-        self, query: Text, *, conn: "duckdb.DuckDBPyConnection", openai_client: "OpenAI"
+        self,
+        query: Text | List[float],
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        openai_client: Optional["OpenAI"] = None,
+        rerank_client: Optional["OpenAI"] = None,
+        top_k: int = 100,
+        with_embedding: bool = False,
+        with_documents: bool = False,
+        debug: bool = False,
     ) -> "SearchResult":
         from languru.documents.document import SearchResult
 
-        vectors = embeddings_create_with_cache(
-            input=self.model.to_query_cards(query),
-            model=self.model.POINT_TYPE.EMBEDDING_MODEL,
-            dimensions=self.model.POINT_TYPE.EMBEDDING_DIMENSIONS,
+        time_start = time.perf_counter() if debug else None
+
+        # Collect query vector
+        vector = ensure_vector(
+            query,
             openai_client=openai_client,
             cache=self.model.POINT_TYPE.embedding_cache(
                 self.model.POINT_TYPE.EMBEDDING_MODEL
             ),
+            input_func=self.model.to_query_cards,
+            embedding_model=self.model.POINT_TYPE.EMBEDDING_MODEL,
+            embedding_dimensions=self.model.POINT_TYPE.EMBEDDING_DIMENSIONS,
         )
+
+        # Run vector search
+        points_with_score, documents = self.search_vector(
+            vector,
+            conn=conn,
+            top_k=top_k,
+            with_embedding=with_embedding,
+            with_documents=with_documents,
+            debug=debug,
+        )
+
+        out = SearchResult.model_validate(
+            {
+                "query": query if isinstance(query, Text) else None,
+                "matches": points_with_score,
+                "documents": documents,
+                "total_results": (
+                    len(documents) if documents else len(points_with_score)
+                ),
+            }
+        )
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Search execution time: {time_elapsed:.2f} ms")
+        return out
 
     def search_vector(
         self,
