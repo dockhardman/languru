@@ -4,6 +4,7 @@ from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Dict,
+    Generator,
     List,
     Literal,
     Optional,
@@ -62,6 +63,11 @@ sql_stmt_vector_search_with_documents = dedent(
     SELECT p.*, d.*
     FROM vector_search p
     JOIN {{ document_table_name }} d ON p.document_id = d.document_id
+    """
+).strip()
+sql_stmt_remove_outdated_points = dedent(
+    """
+    DELETE FROM {{ table_name }} WHERE document_id = ? AND content_md5 != ?
     """
 ).strip()
 
@@ -342,6 +348,39 @@ class PointQuerySet:
             console.print(f"Listed points in {time_elapsed:.6f} ms")
         return out
 
+    def gen(
+        self,
+        *,
+        document_id: Optional[Text] = None,
+        content_md5: Optional[Text] = None,
+        after: Optional[Text] = None,
+        before: Optional[Text] = None,
+        limit: int = 20,
+        order: Literal["asc", "desc"] = "asc",
+        conn: "duckdb.DuckDBPyConnection",
+        with_embedding: bool = False,
+        debug: bool = False,
+    ) -> Generator["Point", None, None]:
+        has_more = True
+        after = None
+        while has_more:
+            points = self.list(
+                document_id=document_id,
+                content_md5=content_md5,
+                after=after,
+                before=before,
+                limit=limit,
+                order=order,
+                conn=conn,
+                with_embedding=with_embedding,
+                debug=debug,
+            )
+            has_more = points.has_more
+            after = points.last_id
+            for pt in points.data:
+                yield pt
+        return None
+
     def count(
         self,
         *,
@@ -410,6 +449,41 @@ class PointQuerySet:
             time_elapsed = (time_end - time_start) * 1000
             console.print(
                 f"Dropped table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f} ms"
+            )
+        return None
+
+    def remove_outdated(
+        self,
+        *,
+        document_id: Text,
+        content_md5: Text,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> None:
+        """Remove outdated points (not matching content_md5) for a document."""
+
+        time_start = time.perf_counter() if debug else None
+
+        query_template = jinja2.Template(sql_stmt_remove_outdated_points)
+        query = query_template.render(table_name=self.model.TABLE_NAME)
+        parameters = [document_id, content_md5]
+
+        if debug:
+            console.print(
+                "\nRemoving outdated points with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
+
+        # Remove outdated points
+        conn.execute(query, parameters)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(
+                f"Deleted outdated points of document: '{document_id}' in "
+                + f"{time_elapsed:.6f} ms"
             )
         return None
 

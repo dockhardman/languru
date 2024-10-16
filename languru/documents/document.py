@@ -181,8 +181,26 @@ class Document(BaseModel):
 
         return True
 
-    def refresh_points(self, conn: "duckdb.DuckDBPyConnection") -> None:
-        pass
+    def sync_points(
+        self,
+        conn: "duckdb.DuckDBPyConnection",
+        openai_client: "OpenAI",
+        force: bool = False,
+        debug: bool = False,
+    ) -> None:
+        self.strip()
+
+        self.POINT_TYPE.objects.remove_outdated(
+            document_id=self.document_id,
+            content_md5="SHOULD_NOT_MATCH" if force else self.content_md5,
+            conn=conn,
+            debug=debug,
+        )
+        if self.has_points(conn=conn, debug=debug) is False:
+            for pt in self.to_points(openai_client=openai_client):
+                self.POINT_TYPE.objects.create(pt, conn=conn, debug=debug)
+
+        return None
 
     def to_document_cards(self, *args, **kwargs) -> List[Text]:
         return [self.content.strip()]
