@@ -122,6 +122,7 @@ class Document(BaseModel):
         *,
         openai_client: Optional["OpenAI"] = None,
         embedding: Optional[List[float]] = None,
+        debug: bool = False,
     ) -> List["Point"]:
         self.strip()
 

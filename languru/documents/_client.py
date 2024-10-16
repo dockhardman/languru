@@ -3,11 +3,13 @@ import time
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
+    Any,
     Dict,
     Generator,
     List,
     Literal,
     Optional,
+    Sequence,
     Text,
     Tuple,
     Type,
@@ -213,17 +215,38 @@ class PointQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> "Point":
-        point = self.model.model_validate(point) if isinstance(point, dict) else point
-        if point.is_embedded is False:
-            raise ValueError("Point is not embedded, please embed it first.")
+        points = self.bulk_create(points=[point], conn=conn, debug=debug)
+        return points[0]
 
+    def bulk_create(
+        self,
+        points: Union[
+            Sequence["Point"], Sequence[Dict], Sequence[Union["Point", Dict]]
+        ],
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> List["Point"]:
         time_start = time.perf_counter() if debug else None
 
+        if not points:
+            return []
+        points = [
+            self.model.model_validate(p) if isinstance(p, Dict) else p for p in points
+        ]
+        for idx, pt in enumerate(points):
+            if pt.is_embedded() is False:
+                raise ValueError(
+                    f"Points[{idx}] is not embedded, please embed it first."
+                )
+
         # Get columns
-        columns = list(point.model_json_schema()["properties"].keys())
+        columns = list(points[0].model_json_schema()["properties"].keys())
         columns_expr = ", ".join(columns)
         placeholders = ", ".join(["?" for _ in columns])
-        parameters = [getattr(point, c) for c in columns]
+        parameters: List[Tuple[Any, ...]] = []
+        for pt in points:
+            parameters.append(tuple([getattr(pt, c) for c in columns]))
 
         query = (
             f"INSERT INTO {self.model.TABLE_NAME} ({columns_expr}) "
@@ -232,18 +255,19 @@ class PointQuerySet:
         if debug:
             _display_params = display_sql_parameters(parameters)
             console.print(
-                f"\nCreating point: '{point.point_id}' with SQL:\n"
+                "\nCreating points with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
                 + f"{DISPLAY_SQL_PARAMS.format(params=_display_params)}\n"
             )
 
-        conn.execute(query, parameters)
+        # Create points
+        conn.executemany(query, parameters)
 
         if time_start is not None:
             time_end = time.perf_counter()
             time_elapsed = (time_end - time_start) * 1000
-            console.print(f"Created point: '{point.point_id}' in {time_elapsed:.6f} ms")
-        return point
+            console.print(f"Created {len(points)} points in {time_elapsed:.6f} ms")
+        return points
 
     def update(self, *args, **kwargs):
         raise NotSupported("Updating points is not supported.")
@@ -607,42 +631,58 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> "Document":
+        docs = self.bulk_create([document], conn=conn, debug=debug)
+        return docs[0]
+
+    def bulk_create(
+        self,
+        documents: Union[
+            Sequence["Document"], Sequence[Dict], Sequence[Union["Document", Dict]]
+        ],
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> List["Document"]:
         time_start = time.perf_counter() if debug else None
 
-        document = (
-            self.model.model_validate(document)
-            if isinstance(document, dict)
-            else document
-        )
-        document.strip()
+        documents = [
+            (
+                self.model.model_validate(doc).strip()
+                if isinstance(doc, Dict)
+                else doc.strip()
+            )
+            for doc in documents
+        ]
 
-        columns = list(document.model_json_schema()["properties"].keys())
+        columns = list(documents[0].model_json_schema()["properties"].keys())
         columns_expr = ", ".join(columns)
         placeholders = ", ".join(["?" for _ in columns])
-        parameters = [getattr(document, c) for c in columns]
+        parameters: List[Tuple[Any, ...]] = [
+            tuple(getattr(doc, c) for c in columns) for doc in documents
+        ]
 
         query = (
             f"INSERT INTO {self.model.TABLE_NAME} ({columns_expr}) "
             + f"VALUES ({placeholders})"
         )
         if debug:
+            _display_params = display_sql_parameters(parameters)
             console.print(
-                f"\nCreating document: '{document.document_id}' with SQL:\n"
+                "\nCreating documents with SQL:\n"
                 + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
-                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=_display_params)}\n"
             )
-        conn.execute(
-            query,
-            parameters,
-        )
+
+        # Create documents
+        conn.executemany(query, parameters)
 
         if time_start is not None:
             time_end = time.perf_counter()
             time_elapsed = (time_end - time_start) * 1000
             console.print(
-                f"Created document: '{document.document_id}' in {time_elapsed:.6f} ms"
+                f"Created {len(documents)} documents in {time_elapsed:.6f} ms"
             )
-        return document
+        return documents
 
     def update(
         self,

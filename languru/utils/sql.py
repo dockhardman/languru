@@ -99,13 +99,17 @@ def openapi_to_create_table_sql(
     return full_sql
 
 
-def display_sql_parameters(params: List) -> List:
-    out = []
-    for param in params:
+def display_sql_parameters(
+    params: List, *, max_length: int = 128, max_lines: int = 10
+) -> List[Text]:
+    out: List[Text] = []
+    for param in params[:max_lines]:
         param_str = str(param)
-        if len(param_str) > 128:
-            param_str = param_str[:125] + "..."
+        if len(param_str) > max_length:
+            param_str = param_str[: max_length - 3] + "..."
             out.append(param_str)
         else:
             out.append(param)
+    if len(params) > max_lines:
+        out.append("...")
     return out
