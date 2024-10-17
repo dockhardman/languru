@@ -1,3 +1,4 @@
+import itertools
 import json
 import string
 from pathlib import Path
@@ -393,3 +394,15 @@ def append_jsonl(data: Dict, *, path: Text):
     _path.touch(exist_ok=True)
     with open(_path, "a") as f:
         f.write(json.dumps(data) + "\n")
+
+
+def chunks(
+    items: Iterable[T], batch_size: int = 500
+) -> Generator[Tuple[T, ...], None, None]:
+    """A helper function to break an iterable into chunks of size batch_size."""
+
+    it = iter(items)
+    chunk = tuple(itertools.islice(it, batch_size))
+    while chunk:
+        yield chunk
+        chunk = tuple(itertools.islice(it, batch_size))
