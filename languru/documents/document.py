@@ -1,7 +1,21 @@
 import hashlib
 import os
 import time
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Text, Type
+from types import MappingProxyType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Text,
+    Tuple,
+    Type,
+    Union,
+    overload,
+)
 
 from cyksuid.v2 import ksuid
 from diskcache import Cache
@@ -117,35 +131,71 @@ class Document(BaseModel):
     def hash_content(cls, content: Text) -> Text:
         return hashlib.md5(content.strip().encode("utf-8")).hexdigest()
 
+    @overload
     def to_points(
         self,
         *,
         openai_client: Optional["OpenAI"] = None,
-        embedding: Optional[List[float]] = None,
+        embeddings: Optional[List[List[float]]] = None,
+        with_document_card: Literal[False] = False,
         debug: bool = False,
-    ) -> List["Point"]:
+    ) -> List["Point"]: ...
+
+    @overload
+    def to_points(
+        self,
+        *,
+        openai_client: Optional["OpenAI"] = None,
+        embeddings: Optional[List[List[float]]] = None,
+        with_document_card: Literal[True] = True,
+        debug: bool = False,
+    ) -> List[Tuple["Point", Text]]: ...
+
+    def to_points(
+        self,
+        *,
+        openai_client: Optional["OpenAI"] = None,
+        embeddings: Optional[List[List[float]]] = None,
+        with_document_card: bool = False,
+        debug: bool = False,
+    ) -> Union[List["Point"], List[Tuple["Point", Text]]]:
         self.strip()
 
-        params: Dict = {
-            "document_id": self.document_id,
-            "content_md5": self.content_md5,
-        }
+        out = []
+        base_params = MappingProxyType(
+            {"document_id": self.document_id, "content_md5": self.content_md5}
+        )
 
-        if embedding is not None:
-            params["embedding"] = embedding
-        elif openai_client is not None:
+        doc_cards = self.to_document_cards()
+
+        # Create embeddings if not provided
+        if embeddings is None and openai_client is not None:
             embeddings = embeddings_create_with_cache(
-                input=self.to_document_cards(),
+                input=doc_cards,
                 model=self.POINT_TYPE.EMBEDDING_MODEL,
                 dimensions=self.POINT_TYPE.EMBEDDING_DIMENSIONS,
                 openai_client=openai_client,
                 cache=self.POINT_TYPE.embedding_cache(self.POINT_TYPE.EMBEDDING_MODEL),
             )
-            params["embedding"] = embeddings[0]
 
-        point_out = self.POINT_TYPE.model_validate(params)
+        # Validate embeddings
+        if embeddings is not None:
+            if len(embeddings) != len(doc_cards):
+                raise ValueError(
+                    "The number of provided embeddings must match "
+                    + "the number of document cards."
+                )
 
-        return [point_out]
+            # Create points
+            for embedding, doc_card in zip(embeddings, doc_cards):
+                pt_params: Dict = dict(base_params)
+                pt_params["embedding"] = embedding
+                if with_document_card:
+                    out.append((self.POINT_TYPE.model_validate(pt_params), doc_card))
+                else:
+                    out.append(self.POINT_TYPE.model_validate(pt_params))
+
+        return out
 
     def has_points(
         self, *, conn: "duckdb.DuckDBPyConnection", debug: bool = False
