@@ -20,6 +20,7 @@ diskcache = "^5"
 duckdb = ">=1"
 email-validator = "^2"
 fastapi = { extras = ["all"], version = "<1,>=0.109.0" }
+flashrank = { version = "^0", extras = ["listwise"], optional = true }
 google-cloud-aiplatform = "^1.38"
 google-generativeai = "<1,>=0.3.2,!=0.7.1"
 googlesearch-python = { version = "*", optional = true }
@@ -40,6 +41,7 @@ python = ">=3.10,<4.0"
 python-dotenv = "^1"
 pytz = ">=2024.1"
 rich = "^13"
+sentence-transformers = { version = "^3", optional = true }
 sentencepiece = { version = "<1,>=0.1.99" }
 sqlalchemy = "^2"
 tiktoken = { version = ">=0.3,<1" }
@@ -51,7 +53,16 @@ voyageai = "^0"
 languru = "languru.cli.main:languru_cli"
 
 [tool.poetry.extras]
-all = ["fastapi", "googlesearch-python", "playwright", "playwright-stealth", "sentencepiece", "tiktoken"]
+all = [
+  "fastapi",
+  "flashrank",
+  "googlesearch-python",
+  "playwright",
+  "playwright-stealth",
+  "sentence-transformers",
+  "sentencepiece",
+  "tiktoken",
+]
 clawler = ["googlesearch-python", "playwright"]
 server = ["fastapi"]
 
