@@ -24,7 +24,8 @@ import languru.exceptions
 from languru.config import console, logger
 from languru.exceptions import NotFound, NotSupported
 from languru.types.openai_page import OpenaiPage
-from languru.utils.openai_utils import ensure_vector
+from languru.utils.common import chunks
+from languru.utils.openai_utils import embeddings_create_with_cache, ensure_vector
 from languru.utils.sql import (
     CREATE_EMBEDDING_INDEX_LINE,
     DISPLAY_SQL_PARAMS,
@@ -920,6 +921,48 @@ class DocumentQuerySet:
                 f"Dropped table: '{self.model.TABLE_NAME}' in {time_elapsed:.6f} ms"
             )
         return None
+
+    def documents_to_points(
+        self,
+        documents: Sequence["Document"],
+        *,
+        openai_client: Optional["OpenAI"] = None,
+        batch_size: int = 500,
+        debug: bool = False,
+    ) -> List[Tuple["Point", ...]]:
+        """"""
+
+        output_doc_points: List[Tuple["Point", ...]] = []
+        points_with_doc_cards: List[Tuple["Point", Text]] = []
+
+        for _doc in documents:
+            _doc.strip()
+            _pts_with_doc_cards = _doc.to_points(debug=debug, with_document_card=True)
+            output_doc_points.append(tuple([_pt for _pt, _ in _pts_with_doc_cards]))
+            points_with_doc_cards.extend(_pts_with_doc_cards)
+
+        # Batch create embeddings for points
+        if openai_client is not None:
+            for batched_pts_with_doc_cards in chunks(points_with_doc_cards, batch_size):
+                embeddings = embeddings_create_with_cache(
+                    input=[doc_card for _, doc_card in batched_pts_with_doc_cards],
+                    model=self.model.POINT_TYPE.EMBEDDING_MODEL,
+                    dimensions=self.model.POINT_TYPE.EMBEDDING_DIMENSIONS,
+                    openai_client=openai_client,
+                    cache=self.model.POINT_TYPE.embedding_cache(
+                        self.model.POINT_TYPE.EMBEDDING_MODEL
+                    ),
+                )
+                if len(embeddings) != len(batched_pts_with_doc_cards):
+                    raise ValueError(
+                        "Number of embeddings does not match number of points."
+                    )
+                for pt_with_doc_card, embedding in zip(
+                    batched_pts_with_doc_cards, embeddings
+                ):
+                    pt_with_doc_card[0].embedding = embedding
+
+        return output_doc_points
 
     def search(
         self,

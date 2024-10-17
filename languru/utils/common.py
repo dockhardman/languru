@@ -397,7 +397,7 @@ def append_jsonl(data: Dict, *, path: Text):
 
 
 def chunks(
-    items: Iterable[T], batch_size: int = 500
+    items: Iterable[T], batch_size: int = 100
 ) -> Generator[Tuple[T, ...], None, None]:
     """A helper function to break an iterable into chunks of size batch_size."""
 
