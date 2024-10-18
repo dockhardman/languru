@@ -1099,6 +1099,7 @@ class DocumentQuerySet:
                 existing_outdated_points[_doc_idx].append(_pt)
             else:
                 up_to_date_doc_ids.add(_pt.document_id)
+                out[_doc_idx] = tuple([_pt])
 
         # Create missing points
         required_created_points_docs = [
@@ -1108,13 +1109,16 @@ class DocumentQuerySet:
             created_points = self.documents_to_points(
                 required_created_points_docs, openai_client=openai_client, debug=debug
             )
-            for _doc, _pts in zip(required_created_points_docs, created_points):
-                out[docs_ids_to_idx_map[_doc.document_id]] = tuple(_pts)
             self.model.POINT_TYPE.objects.bulk_create(
                 list(chain.from_iterable(created_points)),
                 conn=conn,
                 debug=debug,
             )
+            for _doc, _pts in zip(required_created_points_docs, created_points):
+                if with_embeddings is False:
+                    for _pt in _pts:
+                        _pt.embedding = []
+                out[docs_ids_to_idx_map[_doc.document_id]] = tuple(_pts)
 
         # Remove outdated points
         self.model.POINT_TYPE.objects.remove_many(

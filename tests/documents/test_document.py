@@ -1,4 +1,5 @@
 import copy
+from itertools import chain
 from pprint import pformat
 from typing import List
 
@@ -8,6 +9,7 @@ from openai import OpenAI
 
 from languru.documents.document import Document, Point
 from languru.exceptions import NotFound, NotSupported
+from languru.openai_plugins.clients.voyage import VoyageOpenAI
 
 raw_docs = [
     {
@@ -26,6 +28,7 @@ raw_docs = [
 ]
 
 openai_client = OpenAI()
+vo_client = VoyageOpenAI()
 
 
 def test_document_operations():
@@ -136,6 +139,98 @@ def test_document_search():
     for _doc in docs:
         assert _doc.has_points(conn=conn, debug=True) is True
         assert _doc.are_points_current(conn=conn, debug=True) is True
+
+    # Search
+    search_results = Document.objects.search(
+        "Jupiter's 190 Year Old Storm",
+        conn=conn,
+        openai_client=openai_client,
+        with_embedding=True,
+        with_documents=True,
+        top_k=1,
+        debug=True,
+    )
+    assert search_results.matches
+    assert search_results.documents
+    assert len(search_results.matches) == 1
+    assert search_results.matches[0].relevance_score > 0
+    assert len(search_results.matches[0].embedding) == Point.EMBEDDING_DIMENSIONS
+    assert len(search_results.documents) == 1
+    assert (
+        search_results.matches[0].document_id == search_results.documents[0].document_id
+    )
+    assert (
+        search_results.matches[0].content_md5 == search_results.documents[0].content_md5
+    )
+
+
+def test_documents_bulk_create():
+    conn: "duckdb.DuckDBPyConnection" = duckdb.connect(":memory:")
+    Document.objects.touch(conn=conn, debug=True)
+
+    docs = Document.objects.bulk_create(
+        [Document.from_content(**_raw_doc) for _raw_doc in raw_docs],
+        conn=conn,
+        debug=True,
+    )
+    docs_pts = Document.objects.documents_to_points(
+        docs, openai_client=openai_client, debug=True
+    )
+    _all_pts = list(chain(*docs_pts))
+    Point.objects.bulk_create(_all_pts, conn=conn, debug=True)
+
+    assert Point.objects.count(conn=conn, debug=True) == len(_all_pts)
+
+    # Search
+    search_results = Document.objects.search(
+        "Jupiter's 190 Year Old Storm",
+        conn=conn,
+        openai_client=openai_client,
+        with_documents=True,
+        debug=True,
+    )
+    assert search_results.matches
+    assert search_results.documents
+
+
+def test_documents_sync_points():
+    conn: "duckdb.DuckDBPyConnection" = duckdb.connect(":memory:")
+    Document.objects.touch(conn=conn, debug=True)
+
+    _batch_docs = Document.objects.bulk_create(
+        [Document.from_content(**_raw_doc) for _raw_doc in raw_docs],
+        conn=conn,
+        debug=True,
+    )
+    Document.objects.documents_sync_points(
+        _batch_docs,
+        conn=conn,
+        openai_client=openai_client,
+        debug=True,
+    )
+    Document.objects.documents_sync_points(
+        _batch_docs,
+        conn=conn,
+        openai_client=openai_client,
+        debug=True,
+    )
+    search_results = Document.objects.search(
+        "Jupiter's 190 Year Old Storm",
+        conn=conn,
+        openai_client=openai_client,
+        rerank_client=vo_client,
+        with_documents=True,
+        debug=True,
+    )
+    assert len(search_results.matches) == len(raw_docs)
+    assert len(search_results.documents) == len(raw_docs)
+    for _m, _d in zip(search_results.matches, search_results.documents):
+        assert _m.document_id == _d.document_id
+        assert _m.content_md5 == _d.content_md5
+    assert all(
+        pt_1.relevance_score >= pt_2.relevance_score
+        for pt_1, pt_2 in zip(search_results.matches, search_results.matches[1:])
+    )
 
 
 def _create_docs(conn: "duckdb.DuckDBPyConnection") -> List["Document"]:
