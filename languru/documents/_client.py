@@ -74,6 +74,11 @@ sql_stmt_remove_outdated_points = dedent(
     DELETE FROM {{ table_name }} WHERE document_id = ? AND content_md5 != ?
     """
 ).strip()
+sql_stmt_get_by_doc_ids = dedent(
+    """
+    SELECT {{ columns_expr }} FROM {{ table_name }} WHERE document_id IN (?)
+    """
+).strip()
 
 
 def show_tables(conn: "duckdb.DuckDBPyConnection") -> Tuple[Text, ...]:
@@ -964,6 +969,64 @@ class DocumentQuerySet:
                     pt_with_doc_card[0].embedding = embedding
 
         return output_doc_points
+
+    def documents_sync_points(
+        self,
+        documents: Sequence["Document"],
+        *,
+        conn: "duckdb.DuckDBPyConnection",
+        openai_client: "OpenAI",
+        with_embeddings: bool = False,
+        force: bool = False,
+        debug: bool = False,
+    ) -> List[Tuple["Point", ...]]:
+        """"""
+
+        docs_ids_map: Dict[Text, "Document"] = {}
+        existing_up_to_date_points: Dict[Text, List["Point"]] = {}
+        existing_outdated_points: Dict[Text, List["Point"]] = {}
+        for doc in documents:
+            docs_ids_map[doc.document_id] = doc
+            existing_up_to_date_points[doc.document_id] = []
+            existing_outdated_points[doc.document_id] = []
+
+        # Collect get point query
+        point_columns = list(
+            self.model.POINT_TYPE.model_json_schema()["properties"].keys()
+        )
+        if not with_embeddings:
+            point_columns = [c for c in point_columns if c != "embedding"]
+        point_columns_expr = ",".join(point_columns)
+        query_by_doc_ids_template = jinja2.Template(sql_stmt_get_by_doc_ids)
+        query_by_doc_ids = query_by_doc_ids_template.render(
+            table_name=self.model.POINT_TYPE.TABLE_NAME,
+            columns_expr=point_columns_expr,
+        )
+        params_by_doc_ids = [doc.document_id for doc in documents]
+        if debug:
+            _display_params = display_sql_parameters(params_by_doc_ids)
+            console.print(
+                "\nGetting points by document IDs with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query_by_doc_ids)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=_display_params)}\n"
+            )
+
+        # Get points
+        for item in (
+            conn.execute(query_by_doc_ids, params_by_doc_ids)
+            .fetch_arrow_table()
+            .to_pandas()
+            .to_dict(orient="records")
+        ):
+            _pt = self.model.POINT_TYPE.model_validate(item)
+            if force is True:
+                existing_outdated_points[_pt.document_id].append(_pt)
+            elif _pt.content_md5 != docs_ids_map[_pt.document_id].content_md5:
+                existing_outdated_points[_pt.document_id].append(_pt)
+            else:
+                existing_up_to_date_points[_pt.document_id].append(_pt)
+
+        # TODO:
 
     def search(
         self,

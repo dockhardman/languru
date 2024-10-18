@@ -238,6 +238,7 @@ class Document(BaseModel):
 
     def sync_points(
         self,
+        *,
         conn: "duckdb.DuckDBPyConnection",
         openai_client: "OpenAI",
         force: bool = False,
