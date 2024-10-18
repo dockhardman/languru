@@ -1,6 +1,7 @@
 import hashlib
 import os
 import time
+from itertools import zip_longest
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -186,14 +187,17 @@ class Document(BaseModel):
                     + "the number of document cards."
                 )
 
-            # Create points
-            for embedding, doc_card in zip(embeddings, doc_cards):
-                pt_params: Dict = dict(base_params)
+        # Create points
+        for embedding, doc_card in zip_longest(
+            embeddings or [], doc_cards, fillvalue=None
+        ):
+            pt_params: Dict = dict(base_params)
+            if embedding is not None:
                 pt_params["embedding"] = embedding
-                if with_document_card:
-                    out.append((self.POINT_TYPE.model_validate(pt_params), doc_card))
-                else:
-                    out.append(self.POINT_TYPE.model_validate(pt_params))
+            if with_document_card:
+                out.append((self.POINT_TYPE.model_validate(pt_params), doc_card))
+            else:
+                out.append(self.POINT_TYPE.model_validate(pt_params))
 
         return out
 
