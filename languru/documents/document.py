@@ -241,22 +241,22 @@ class Document(BaseModel):
         *,
         conn: "duckdb.DuckDBPyConnection",
         openai_client: "OpenAI",
+        with_embeddings: bool = False,
         force: bool = False,
         debug: bool = False,
-    ) -> None:
-        self.strip()
-
-        self.POINT_TYPE.objects.remove_outdated(
-            document_id=self.document_id,
-            content_md5="SHOULD_NOT_MATCH" if force else self.content_md5,
+    ) -> Tuple["Point", ...]:
+        docs_pts = self.__class__.objects.documents_sync_points(
+            [self],
             conn=conn,
+            openai_client=openai_client,
+            with_embeddings=with_embeddings,
+            force=force,
             debug=debug,
         )
-        if self.has_points(conn=conn, debug=debug) is False:
-            for pt in self.to_points(openai_client=openai_client):
-                self.POINT_TYPE.objects.create(pt, conn=conn, debug=debug)
+        if len(docs_pts) == 0:
+            raise ValueError("No points created")
 
-        return None
+        return docs_pts[0]
 
     def to_document_cards(self, *args, **kwargs) -> List[Text]:
         return [self.content.strip()]
