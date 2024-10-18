@@ -992,6 +992,44 @@ class DocumentQuerySet:
         force: bool = False,
         debug: bool = False,
     ) -> bool:
+        """
+        Create or update the Document table structure in the database.
+
+        This method ensures that the Document table exists in the database with the
+        correct schema. It can also optionally create or update the associated Point table.
+
+        Parameters
+        ----------
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        touch_point : bool, default True
+            If True, also create or update the associated Point table.
+        drop : bool, default False
+            If True, drop existing tables before creating new ones.
+        force : bool, default False
+            If True, force the drop operation when `drop` is True.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        bool
+            True if the table was created or updated, False if it already existed and
+            was not modified.
+
+        Notes
+        -----
+        - This method installs necessary DuckDB extensions.
+        - It creates indexes on specified fields for better query performance.
+        - If the table already exists and `drop` is False, the method returns without changes.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        drop : Method to drop the Document table.
+        Point.objects.touch : Method to create or update the Point table.
+        """  # noqa: E501
+
         time_start = time.perf_counter() if debug else None
 
         # Install JSON and VSS extensions
@@ -1054,6 +1092,44 @@ class DocumentQuerySet:
         with_embedding: bool = False,
         debug: bool = False,
     ) -> Optional["Document"]:
+        """
+        Retrieve a single Document object from the database by its document_id.
+
+        This method fetches a Document from the database based on the provided document_id.
+
+        Parameters
+        ----------
+        document_id : Text
+            The unique identifier of the document to retrieve.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        with_embedding : bool, default False
+            If True, include the embedding data in the retrieved Document.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        Optional["Document"]
+            The retrieved Document object, or None if not found.
+
+        Raises
+        ------
+        NotFound
+            If the document with the specified document_id is not found in the database.
+
+        Notes
+        -----
+        - This method constructs and executes a SELECT SQL query to fetch the document.
+        - The metadata field is parsed from JSON to a Python dictionary.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        list : Method to retrieve multiple Document objects.
+        create : Method to create a new Document object.
+        """  # noqa: E501
+
         time_start = time.perf_counter() if debug else None
 
         columns = list(self.model.model_json_schema()["properties"].keys())
@@ -1096,6 +1172,38 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> "Document":
+        """
+        Create a new Document object in the database.
+
+        This method inserts a new Document into the database. It can accept either
+        a Document object or a dictionary representing the document.
+
+        Parameters
+        ----------
+        document : Union["Document", Dict]
+            The Document object or dictionary representing the document to be created.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        Document
+            The created Document object.
+
+        Notes
+        -----
+        - This method internally uses the `bulk_create` method to insert the document.
+        - If a dictionary is provided, it is first validated and converted to a Document object.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        bulk_create : Method to create multiple Document objects at once.
+        update : Method to update an existing Document object.
+        """  # noqa: E501
+
         docs = self.bulk_create([document], conn=conn, debug=debug)
         return docs[0]
 
@@ -1108,6 +1216,39 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> List["Document"]:
+        """
+        Create multiple Document objects in the database at once.
+
+        This method inserts multiple Document objects into the database in a single operation.
+        It can accept a sequence of Document objects, dictionaries, or a mix of both.
+
+        Parameters
+        ----------
+        documents : Union[Sequence["Document"], Sequence[Dict], Sequence[Union["Document", Dict]]]
+            A sequence of Document objects or dictionaries representing the documents to be created.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        List["Document"]
+            A list of the created Document objects.
+
+        Notes
+        -----
+        - This method validates and converts any dictionary inputs to Document objects.
+        - It uses a single INSERT SQL statement to create all documents efficiently.
+        - The method strips each document before insertion.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        create : Method to create a single Document object.
+        update : Method to update an existing Document object.
+        """  # noqa: E501
+
         time_start = time.perf_counter() if debug else None
 
         documents = [
@@ -1159,6 +1300,54 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> "Document":
+        """
+        Update an existing Document object in the database.
+
+        This method updates the specified fields of a Document in the database.
+        It can update the name, content, and/or metadata of the document.
+
+        Parameters
+        ----------
+        document_id : Text
+            The unique identifier of the document to update.
+        name : Optional[Text], default None
+            The new name for the document. If None, the name is not updated.
+        content : Optional[Text], default None
+            The new content for the document. If None, the content is not updated.
+        metadata : Optional[Dict], default None
+            A dictionary of metadata to update. If None, the metadata is not updated.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        Document
+            The updated Document object.
+
+        Raises
+        ------
+        ValueError
+            If none of name, content, or metadata are provided for update.
+            If the new name is already used by another document.
+        NotFound
+            If the document with the specified document_id is not found in the database.
+
+        Notes
+        -----
+        - This method first checks if the document exists and if the new name (if provided) is unique.
+        - It constructs and executes an UPDATE SQL query to modify the document.
+        - The method updates the 'updated_at' timestamp automatically.
+        - For metadata updates, it uses JSON merge patch to update only the specified fields.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        retrieve : Method to retrieve a Document object.
+        create : Method to create a new Document object.
+        """  # noqa: E501
+
         if not any([name, content, metadata]):
             raise ValueError("At least one of the parameters must be provided.")
 
@@ -1228,6 +1417,40 @@ class DocumentQuerySet:
         with_points: bool = True,
         debug: bool = False,
     ) -> None:
+        """
+        Remove a Document object and optionally its associated Points from the database.
+
+        This method deletes a Document from the database based on the provided document_id.
+        It can also remove the associated Point objects if specified.
+
+        Parameters
+        ----------
+        document_id : Text
+            The unique identifier of the document to remove.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        with_points : bool, default True
+            If True, also remove the associated Point objects for this document.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        - If `with_points` is True, it first removes all associated Point objects.
+        - The method uses a DELETE SQL query to remove the document from the database.
+        - If the document doesn't exist, the method completes without raising an error.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        Point.objects.remove_outdated : Method to remove associated Point objects.
+        update : Method to update an existing Document object.
+        """  # noqa: E501
+
         time_start = time.perf_counter() if debug else None
 
         # Remove points of the document
@@ -1268,6 +1491,44 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> OpenaiPage["Document"]:
+        """
+        Retrieve a paginated list of documents from the database.
+
+        This method fetches a list of documents, supporting pagination and ordering.
+
+        Parameters
+        ----------
+        after : Optional[Text], default None
+            The document_id to start fetching from (exclusive) when ordering ascending.
+        before : Optional[Text], default None
+            The document_id to start fetching from (exclusive) when ordering descending.
+        limit : int, default 20
+            The maximum number of documents to return.
+        order : Literal["asc", "desc"], default "asc"
+            The order in which to return the documents.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        OpenaiPage["Document"]
+            A paginated object containing the list of documents and pagination metadata.
+
+        Notes
+        -----
+        - The method uses SQL queries to fetch documents from the database.
+        - It supports forward and backward pagination using 'after' and 'before' parameters.
+        - The returned OpenaiPage object includes information about whether there are more results.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        OpenaiPage : The pagination object used to return results.
+        count : Method to count the number of documents in the database.
+        """  # noqa: E501
+
         time_start = time.perf_counter() if debug else None
 
         columns = list(self.model.model_json_schema()["properties"].keys())
@@ -1330,6 +1591,40 @@ class DocumentQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> int:
+        """
+        Count the number of documents in the database, optionally filtered by criteria.
+
+        This method returns the count of documents, which can be filtered by document_id
+        or content_md5.
+
+        Parameters
+        ----------
+        document_id : Optional[Text], default None
+            If provided, count only documents with this specific document_id.
+        content_md5 : Optional[Text], default None
+            If provided, count only documents with this specific content_md5.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        int
+            The number of documents matching the specified criteria.
+
+        Notes
+        -----
+        - The method uses a SQL COUNT query to determine the number of documents.
+        - Filtering can be done using document_id, content_md5, or both.
+        - If no filters are provided, it returns the total count of documents in the table.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        list : Method to retrieve a list of documents.
+        """  # noqa: E501
+
         time_start = time.perf_counter() if debug else None
 
         query = f"SELECT COUNT(*) FROM {self.model.TABLE_NAME}\n"
@@ -1370,6 +1665,44 @@ class DocumentQuerySet:
         drop_points: bool = True,
         debug: bool = False,
     ) -> None:
+        """
+        Drop the document table and optionally the associated points table from the database.
+
+        This method removes the document table from the database. It can also remove
+        the associated points table if specified.
+
+        Parameters
+        ----------
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        force : bool, default False
+            If True, forces the drop operation. This is required to prevent accidental
+            data loss.
+        drop_points : bool, default True
+            If True, also drops the associated points table.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If `force` is False, to prevent accidental table drops.
+
+        Notes
+        -----
+        - This operation is irreversible and will result in data loss.
+        - The method uses SQL templates to generate the DROP TABLE statements.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        touch : Method to create or update the table structure.
+        """  # noqa: E501
+
         if not force:
             raise ValueError("Use force=True to drop table.")
 
@@ -1406,7 +1739,44 @@ class DocumentQuerySet:
         batch_size: int = 500,
         debug: bool = False,
     ) -> List[Tuple["Point", ...]]:
-        """"""
+        """
+        Convert a sequence of Document objects to their corresponding Point objects.
+
+        This method processes a sequence of Document objects and generates Point
+        objects for each document, optionally creating embeddings for these points.
+
+        Parameters
+        ----------
+        documents : Sequence["Document"]
+            A sequence of Document objects to be converted to points.
+        openai_client : Optional["OpenAI"], optional
+            An OpenAI client instance for generating embeddings. If None, embeddings
+            will not be generated.
+        batch_size : int, default 500
+            The number of points to process in each batch when creating embeddings.
+        debug : bool, default False
+            If True, enable debug output for additional information during processing.
+
+        Returns
+        -------
+        List[Tuple["Point", ...]]
+            A list where each element is a tuple of Point objects corresponding to
+            a single Document.
+
+        Notes
+        -----
+        - Each Document is converted to one or more Point objects.
+        - If an OpenAI client is provided, embeddings are generated for the points
+        in batches.
+        - The method uses caching for efficient embedding creation.
+        - This method does not persist the points to the database; it only creates
+        the Point objects in memory.
+
+        See Also
+        --------
+        Document.to_points : Method used to convert a single Document to Points.
+        embeddings_create_with_cache : Utility function for creating embeddings with caching.
+        """  # noqa: E501
 
         output_doc_points: List[Tuple["Point", ...]] = []
         points_with_doc_cards: List[Tuple["Point", Text]] = []
@@ -1450,7 +1820,52 @@ class DocumentQuerySet:
         force: bool = False,
         debug: bool = False,
     ) -> List[Tuple["Point", ...]]:
-        """"""
+        """
+        Synchronize points for a sequence of documents in the database.
+
+        This method ensures that the points associated with the given documents
+        are up-to-date in the database. It creates new points, updates existing ones,
+        and removes outdated points as necessary.
+
+        Parameters
+        ----------
+        documents : Sequence["Document"]
+            A sequence of Document objects to synchronize points for.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        openai_client : OpenAI
+            An OpenAI client instance for generating embeddings.
+        with_embeddings : bool, default False
+            If True, include embeddings in the synchronized points.
+        force : bool, default False
+            If True, force synchronization even if points are already up-to-date.
+        debug : bool, default False
+            If True, print debug information including SQL queries and execution times.
+
+        Returns
+        -------
+        List[Tuple["Point", ...]]
+            A list where each element is a tuple of Point objects corresponding to
+            a single Document.
+
+        Raises
+        ------
+        ValueError
+            If the number of documents exceeds 500 or if no points are created for a document.
+
+        Notes
+        -----
+        - The method efficiently handles batch processing of documents.
+        - It checks for existing points, creates new ones, and removes outdated points.
+        - Embeddings are generated using the provided OpenAI client if with_embeddings is True.
+        - The method ensures that all points are consistent with their corresponding documents.
+
+        See Also
+        --------
+        documents_to_points : Method used to convert Documents to Points.
+        Point.objects.bulk_create : Method used for bulk creation of Points.
+        Point.objects.remove_many : Method used for removing outdated Points.
+        """  # noqa: E501
 
         time_start = time.perf_counter() if debug else None
 
@@ -1572,6 +1987,55 @@ class DocumentQuerySet:
         with_documents: bool = False,
         debug: bool = False,
     ) -> "SearchResult":
+        """
+        Perform a semantic search on the documents using the given query.
+
+        This method conducts a vector search on the document points and optionally
+        reranks the results using a separate reranking model.
+
+        Parameters
+        ----------
+        query : Text | List[float]
+            The search query. Can be either a text string or a pre-computed
+            embedding vector.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        openai_client : OpenAI, optional
+            The OpenAI client to use for generating embeddings if the query
+            is a text string.
+        rerank_client : OpenAI, optional
+            The OpenAI client to use for reranking results. If provided,
+            results will be reranked using this client's rerank method.
+        top_k : int, default 100
+            The number of top results to return.
+        with_embedding : bool, default False
+            If True, include the embedding vectors in the returned results.
+        with_documents : bool, default False
+            If True, include the full document objects in the returned results.
+        debug : bool, default False
+            If True, print debug information including SQL queries and
+            execution times.
+
+        Returns
+        -------
+        SearchResult
+            An object containing the search results, including matched points,
+            optionally full documents, and metadata about the search operation.
+
+        Notes
+        -----
+        - If the query is a text string, it will be converted to an embedding
+        vector using the openai_client.
+        - The method first performs a vector search and then optionally reranks
+        the results if a rerank_client is provided.
+        - Execution time is measured and included in the returned SearchResult.
+
+        See Also
+        --------
+        search_vector : Method to perform vector search without text-to-embedding
+                        conversion or reranking.
+        """
+
         from languru.documents.document import SearchResult
 
         time_start = time.perf_counter() if debug else None
@@ -1700,6 +2164,51 @@ class DocumentQuerySet:
         with_documents: bool = False,
         debug: bool = False,
     ) -> Tuple[List["PointWithScore"], Optional[List["Document"]]]:
+        """
+        Perform a vector search on the document points using a given embedding vector.
+
+        This method executes a similarity search in the vector space of document
+        points, returning the most similar points and optionally the corresponding
+        documents.
+
+        Parameters
+        ----------
+        vector : List[float]
+            The query vector to search against. Should have the same dimensionality
+            as the stored point embeddings.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        top_k : int, default 100
+            The number of top results to return.
+        with_embedding : bool, default False
+            If True, include the embedding vectors in the returned point results.
+        with_documents : bool, default False
+            If True, include the full document objects corresponding to the
+            matched points.
+        debug : bool, default False
+            If True, print debug information including SQL queries and
+            execution times.
+
+        Returns
+        -------
+        Tuple[List[PointWithScore], Optional[List[Document]]]
+            A tuple containing two elements:
+            1. A list of PointWithScore objects representing the matched points
+            and their similarity scores.
+            2. If with_documents is True, a list of Document objects corresponding
+            to the matched points; otherwise, None.
+
+        Notes
+        -----
+        - The method uses cosine similarity for vector comparison.
+        - Results are sorted by descending similarity score.
+        - Execution time is measured if debug is True.
+
+        See Also
+        --------
+        search : Higher-level method that handles text queries and reranking.
+        """
+
         from languru.documents.document import PointWithScore
 
         time_start = time.perf_counter() if debug else None
