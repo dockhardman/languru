@@ -1,5 +1,6 @@
 import json
 import time
+from itertools import chain
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
@@ -10,6 +11,7 @@ from typing import (
     Literal,
     Optional,
     Sequence,
+    Set,
     Text,
     Tuple,
     Type,
@@ -76,8 +78,8 @@ sql_stmt_remove_outdated_points = dedent(
 ).strip()
 sql_stmt_get_by_doc_ids = dedent(
     """
-    SELECT {{ columns_expr }} FROM {{ table_name }} WHERE document_id IN (?)
-    """
+    SELECT {{ columns_expr }} FROM {{ table_name }} WHERE document_id IN ( {{ placeholders }} )
+    """  # noqa: E501
 ).strip()
 
 
@@ -516,6 +518,55 @@ class PointQuerySet:
                 f"Deleted outdated points of document: '{document_id}' in "
                 + f"{time_elapsed:.6f} ms"
             )
+        return None
+
+    def remove_many(
+        self,
+        point_ids: Optional[List[Text]] = None,
+        *,
+        document_ids: Optional[List[Text]] = None,
+        content_md5s: Optional[List[Text]] = None,
+        conn: "duckdb.DuckDBPyConnection",
+        debug: bool = False,
+    ) -> None:
+        if not any([point_ids, document_ids, content_md5s]):
+            return None
+
+        time_start = time.perf_counter() if debug else None
+
+        query = f"DELETE FROM {self.model.TABLE_NAME}\n"
+        where_clauses: List[Text] = []
+        parameters: List[Text] = []
+
+        if point_ids is not None:
+            _placeholders = ", ".join(["?" for _ in point_ids])
+            where_clauses.append(f"point_id IN ( {_placeholders} )")
+            parameters.extend(point_ids)
+        if document_ids is not None:
+            _placeholders = ", ".join(["?" for _ in document_ids])
+            where_clauses.append(f"document_id IN ( {_placeholders} )")
+            parameters.extend(document_ids)
+        if content_md5s is not None:
+            _placeholders = ", ".join(["?" for _ in content_md5s])
+            where_clauses.append(f"content_md5 IN ( {_placeholders} )")
+            parameters.extend(content_md5s)
+
+        if where_clauses:
+            query += "WHERE " + " OR ".join(where_clauses) + "\n"
+
+        if debug:
+            console.print(
+                "\nRemoving points with SQL:\n"
+                + f"{DISPLAY_SQL_QUERY.format(sql=query)}\n"
+                + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
+            )
+
+        conn.execute(query, parameters)
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Deleted points in {time_elapsed:.6f} ms")
         return None
 
 
@@ -994,13 +1045,22 @@ class DocumentQuerySet:
     ) -> List[Tuple["Point", ...]]:
         """"""
 
-        docs_ids_map: Dict[Text, "Document"] = {}
-        existing_up_to_date_points: Dict[Text, List["Point"]] = {}
-        existing_outdated_points: Dict[Text, List["Point"]] = {}
-        for doc in documents:
-            docs_ids_map[doc.document_id] = doc
-            existing_up_to_date_points[doc.document_id] = []
-            existing_outdated_points[doc.document_id] = []
+        time_start = time.perf_counter() if debug else None
+
+        if not documents:
+            return []
+        if len(documents) > 500:
+            raise ValueError("Batch sync documents is limited to 500 documents now.")
+
+        out: List[Tuple["Point", ...]] = [()] * len(documents)
+
+        docs_ids_to_idx_map: Dict[Text, int] = {}
+        up_to_date_doc_ids: Set[Text] = set()
+        existing_outdated_points: Dict[int, List["Point"]] = {}
+        for idx, doc in enumerate(documents):
+            doc.strip()
+            docs_ids_to_idx_map[doc.document_id] = idx
+            existing_outdated_points[idx] = []
 
         # Collect get point query
         point_columns = list(
@@ -1013,6 +1073,7 @@ class DocumentQuerySet:
         query_by_doc_ids = query_by_doc_ids_template.render(
             table_name=self.model.POINT_TYPE.TABLE_NAME,
             columns_expr=point_columns_expr,
+            placeholders=", ".join(["?" for _ in documents]),
         )
         params_by_doc_ids = [doc.document_id for doc in documents]
         if debug:
@@ -1031,14 +1092,62 @@ class DocumentQuerySet:
             .to_dict(orient="records")
         ):
             _pt = self.model.POINT_TYPE.model_validate(item)
+            _doc_idx = docs_ids_to_idx_map[_pt.document_id]
             if force is True:
-                existing_outdated_points[_pt.document_id].append(_pt)
-            elif _pt.content_md5 != docs_ids_map[_pt.document_id].content_md5:
-                existing_outdated_points[_pt.document_id].append(_pt)
+                existing_outdated_points[_doc_idx].append(_pt)
+            elif _pt.content_md5 != documents[_doc_idx].content_md5:
+                existing_outdated_points[_doc_idx].append(_pt)
             else:
-                existing_up_to_date_points[_pt.document_id].append(_pt)
+                up_to_date_doc_ids.add(_pt.document_id)
 
-        # TODO:
+        # Create missing points
+        required_created_points_docs = [
+            doc for doc in documents if doc.document_id not in up_to_date_doc_ids
+        ]
+        if required_created_points_docs:
+            created_points = self.documents_to_points(
+                required_created_points_docs, openai_client=openai_client, debug=debug
+            )
+            for _doc, _pts in zip(required_created_points_docs, created_points):
+                out[docs_ids_to_idx_map[_doc.document_id]] = tuple(_pts)
+            self.model.POINT_TYPE.objects.bulk_create(
+                list(chain.from_iterable(created_points)),
+                conn=conn,
+                debug=debug,
+            )
+
+        # Remove outdated points
+        self.model.POINT_TYPE.objects.remove_many(
+            point_ids=list(
+                chain.from_iterable(
+                    pt.point_id
+                    for pts in existing_outdated_points.values()
+                    for pt in pts
+                )
+            ),
+            conn=conn,
+            debug=debug,
+        )
+
+        # Validate output
+        for idx, (_doc, _pts) in enumerate(zip(documents, out)):
+            if len(_pts) == 0:
+                raise ValueError(f"No points created for documents[{idx}]")
+            for _pt in _pts:
+                if (
+                    _pt.document_id != _doc.document_id
+                    or _pt.content_md5 != _doc.content_md5
+                ):
+                    raise ValueError(
+                        "Document ID or Content MD5 does not match: "
+                        + f"{_doc=}, {_pts=}"
+                    )
+
+        if time_start is not None:
+            time_end = time.perf_counter()
+            time_elapsed = (time_end - time_start) * 1000
+            console.print(f"Synced points in {time_elapsed:.2f} ms")
+        return out
 
     def search(
         self,
