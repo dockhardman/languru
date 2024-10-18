@@ -767,10 +767,21 @@ class DocumentQuerySet:
         document_id: Text,
         *,
         conn: "duckdb.DuckDBPyConnection",
+        with_points: bool = True,
         debug: bool = False,
     ) -> None:
         time_start = time.perf_counter() if debug else None
 
+        # Remove points of the document
+        if with_points:
+            self.model.POINT_TYPE.objects.remove_outdated(
+                document_id=document_id,
+                content_md5="SHOULD_NOT_MATCHED",
+                conn=conn,
+                debug=debug,
+            )
+
+        # Prepare delete query
         query = f"DELETE FROM {self.model.TABLE_NAME} WHERE document_id = ?"
         parameters = [document_id]
         if debug:
@@ -780,6 +791,7 @@ class DocumentQuerySet:
                 + f"{DISPLAY_SQL_PARAMS.format(params=parameters)}\n"
             )
 
+        # Delete document
         conn.execute(query, parameters)
 
         if time_start is not None:
