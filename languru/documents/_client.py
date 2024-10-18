@@ -122,6 +122,46 @@ class PointQuerySet:
         force: bool = False,
         debug: bool = False,
     ) -> bool:
+        """
+        Create or update the database table for storing Point objects.
+
+        This method ensures that the necessary table structure exists in the database
+        for storing Point objects. It can also drop and recreate the table if needed.
+
+        Parameters
+        ----------
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        drop : bool, optional
+            If True, drop the existing table before creating a new one.
+            Default is False.
+        force : bool, optional
+            If True, force the operation even if it might result in data loss.
+            This is required when dropping tables. Default is False.
+        debug : bool, optional
+            If True, print debug information including SQL queries.
+            Default is False.
+
+        Returns
+        -------
+        bool
+            True if the table was successfully created or already exists,
+            False otherwise.
+
+        Notes
+        -----
+        - This method installs necessary extensions (JSON and VSS) before
+        creating the table.
+        - The table structure is based on the Point model's JSON schema.
+        - An HNSW index is created on the embedding column for efficient
+        similarity search.
+
+        See Also
+        --------
+        drop : Method to drop the table.
+        model_json_schema : Method to get the JSON schema of the Point model.
+        """
+
         time_start = time.perf_counter() if debug else None
 
         # Install JSON and VSS extensions
@@ -186,6 +226,46 @@ class PointQuerySet:
         debug: bool = False,
         with_embedding: bool = False,
     ) -> "Point":
+        """
+        Retrieve a single Point object from the database by its ID.
+
+        This method fetches a Point object from the database using its unique
+        point_id. It can optionally include or exclude the embedding data.
+
+        Parameters
+        ----------
+        point_id : Text
+            The unique identifier of the Point to retrieve.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, optional
+            If True, print debug information including SQL queries.
+            Default is False.
+        with_embedding : bool, optional
+            If True, include the embedding data in the retrieved Point.
+            Default is False.
+
+        Returns
+        -------
+        Point
+            The retrieved Point object.
+
+        Raises
+        ------
+        NotFound
+            If no Point with the given point_id is found in the database.
+
+        Notes
+        -----
+        - The method constructs a SQL query based on the Point model's schema.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        create : Method to create a new Point.
+        update : Method to update an existing Point.
+        """
+
         time_start = time.perf_counter() if debug else None
 
         # Get columns
@@ -224,6 +304,38 @@ class PointQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> "Point":
+        """
+        Create a single Point object in the database.
+
+        This method creates a new Point object in the database. It can accept
+        either a Point object or a dictionary representing a Point.
+
+        Parameters
+        ----------
+        point : Union["Point", Dict]
+            The Point object or dictionary representing the Point to be created.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, optional
+            If True, print debug information including SQL queries.
+            Default is False.
+
+        Returns
+        -------
+        Point
+            The created Point object.
+
+        Notes
+        -----
+        - This method internally calls the `bulk_create` method with a single point.
+        - If a dictionary is provided, it will be validated against the Point model.
+
+        See Also
+        --------
+        bulk_create : Method to create multiple Point objects at once.
+        retrieve : Method to retrieve a Point object from the database.
+        """
+
         points = self.bulk_create(points=[point], conn=conn, debug=debug)
         return points[0]
 
@@ -236,6 +348,45 @@ class PointQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> List["Point"]:
+        """
+        Create multiple Point objects in the database.
+
+        This method creates multiple Point objects in the database in a single operation.
+        It can accept a sequence of Point objects, dictionaries, or a mix of both.
+
+        Parameters
+        ----------
+        points : Union[Sequence["Point"], Sequence[Dict], Sequence[Union["Point", Dict]]]
+            A sequence of Point objects or dictionaries representing Points to be created.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, optional
+            If True, print debug information including SQL queries.
+            Default is False.
+
+        Returns
+        -------
+        List["Point"]
+            A list of created Point objects.
+
+        Raises
+        ------
+        ValueError
+            If any of the points are not embedded.
+
+        Notes
+        -----
+        - This method validates all input points against the Point model.
+        - It ensures that all points are embedded before insertion.
+        - The method uses a single SQL INSERT statement for efficiency.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        create : Method to create a single Point object.
+        touch : Method to ensure the Point table exists.
+        """  # noqa: E501
+
         time_start = time.perf_counter() if debug else None
 
         if not points:
@@ -288,6 +439,37 @@ class PointQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> None:
+        """
+        Remove a single Point object from the database by its ID.
+
+        This method deletes a Point object from the database using its unique point_id.
+
+        Parameters
+        ----------
+        point_id : Text
+            The unique identifier of the Point to be removed.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, optional
+            If True, print debug information including SQL queries.
+            Default is False.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        - This method constructs and executes a DELETE SQL query.
+        - Execution time is measured and printed if debug is True.
+        - The method does not raise an exception if the point_id does not exist.
+
+        See Also
+        --------
+        remove_many : Method to remove multiple Point objects at once.
+        retrieve : Method to retrieve a Point object from the database.
+        """
+
         time_start = time.perf_counter() if debug else None
 
         query = f"DELETE FROM {self.model.TABLE_NAME} WHERE point_id = ?"
@@ -320,6 +502,52 @@ class PointQuerySet:
         with_embedding: bool = False,
         debug: bool = False,
     ) -> OpenaiPage["Point"]:
+        """
+        List Point objects from the database with optional filtering and pagination.
+
+        This method retrieves a list of Point objects from the database, with options
+        for filtering by document_id or content_md5, pagination, and ordering.
+
+        Parameters
+        ----------
+        document_id : Optional[Text], optional
+            Filter points by document_id. Default is None.
+        content_md5 : Optional[Text], optional
+            Filter points by content_md5. Default is None.
+        after : Optional[Text], optional
+            Retrieve points after this point_id (for pagination). Default is None.
+        before : Optional[Text], optional
+            Retrieve points before this point_id (for pagination). Default is None.
+        limit : int, optional
+            Maximum number of points to retrieve. Default is 20.
+        order : Literal["asc", "desc"], optional
+            Order of retrieval ("asc" for ascending, "desc" for descending).
+            Default is "asc".
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        with_embedding : bool, optional
+            If True, include embedding data in the retrieved Points. Default is False.
+        debug : bool, optional
+            If True, print debug information including SQL queries. Default is False.
+
+        Returns
+        -------
+        OpenaiPage["Point"]
+            An OpenaiPage object containing the list of Point objects and pagination info.
+
+        Notes
+        -----
+        - This method constructs and executes a SELECT SQL query with various conditions.
+        - It supports pagination using the 'after' and 'before' parameters.
+        - The method fetches one extra record to determine if there are more results.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        retrieve : Method to retrieve a single Point object.
+        gen : Method to generate Point objects as an iterator.
+        """  # noqa: E501
+
         time_start = time.perf_counter() if debug else None
 
         columns = list(self.model.model_json_schema()["properties"].keys())
@@ -394,6 +622,52 @@ class PointQuerySet:
         with_embedding: bool = False,
         debug: bool = False,
     ) -> Generator["Point", None, None]:
+        """
+        Generate Point objects from the database with optional filtering and pagination.
+
+        This method yields Point objects from the database, with options for filtering
+        by document_id or content_md5, pagination, and ordering. It uses the `list` method
+        internally to fetch points in batches.
+
+        Parameters
+        ----------
+        document_id : Optional[Text], optional
+            Filter points by document_id. Default is None.
+        content_md5 : Optional[Text], optional
+            Filter points by content_md5. Default is None.
+        after : Optional[Text], optional
+            Retrieve points after this point_id (for pagination). Default is None.
+        before : Optional[Text], optional
+            Retrieve points before this point_id (for pagination). Default is None.
+        limit : int, optional
+            Maximum number of points to retrieve per batch. Default is 20.
+        order : Literal["asc", "desc"], optional
+            Order of retrieval ("asc" for ascending, "desc" for descending).
+            Default is "asc".
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        with_embedding : bool, optional
+            If True, include embedding data in the retrieved Points. Default is False.
+        debug : bool, optional
+            If True, print debug information including SQL queries. Default is False.
+
+        Yields
+        ------
+        Point
+            Point objects retrieved from the database.
+
+        Notes
+        -----
+        - This method uses the `list` method internally to fetch points in batches.
+        - It continues to yield points until all matching points have been retrieved.
+        - The method automatically handles pagination by updating the 'after' parameter.
+
+        See Also
+        --------
+        list : Method to retrieve a list of Point objects.
+        retrieve : Method to retrieve a single Point object.
+        """  # noqa: E501
+
         has_more = True
         after = None
         while has_more:
@@ -422,6 +696,39 @@ class PointQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> int:
+        """
+        Count the number of Point objects in the database, optionally filtered.
+
+        This method counts the number of Point objects in the database, with optional
+        filtering by document_id or content_md5.
+
+        Parameters
+        ----------
+        document_id : Optional[Text], optional
+            Filter points by document_id. Default is None.
+        content_md5 : Optional[Text], optional
+            Filter points by content_md5. Default is None.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, optional
+            If True, print debug information including SQL queries. Default is False.
+
+        Returns
+        -------
+        int
+            The number of Point objects matching the specified criteria.
+
+        Notes
+        -----
+        - This method constructs and executes a COUNT SQL query.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        list : Method to retrieve a list of Point objects.
+        retrieve : Method to retrieve a single Point object.
+        """
+
         time_start = time.perf_counter() if debug else None
 
         query = f"SELECT COUNT(*) FROM {self.model.TABLE_NAME}\n"
@@ -461,6 +768,40 @@ class PointQuerySet:
         force: bool = False,
         debug: bool = False,
     ) -> None:
+        """
+        Drop the Point table from the database.
+
+        This method drops the Point table from the database, removing all stored Point objects.
+
+        Parameters
+        ----------
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        force : bool, optional
+            If True, force the drop operation. This is required to prevent accidental data loss.
+            Default is False.
+        debug : bool, optional
+            If True, print debug information including SQL queries. Default is False.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If force is False, to prevent accidental table drops.
+
+        Notes
+        -----
+        - This method uses a SQL DROP TABLE statement to remove the table.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        touch : Method to create or update the Point table.
+        """  # noqa: E501
+
         if not force:
             raise ValueError("Use force=True to drop table.")
 
@@ -493,7 +834,38 @@ class PointQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> None:
-        """Remove outdated points (not matching content_md5) for a document."""
+        """
+        Remove outdated points (not matching content_md5) for a document.
+
+        This method removes Point objects associated with a specific document_id
+        that do not match the provided content_md5. This is useful for cleaning up
+        outdated points when a document has been updated.
+
+        Parameters
+        ----------
+        document_id : Text
+            The ID of the document whose outdated points should be removed.
+        content_md5 : Text
+            The current content_md5 of the document. Points not matching this will be removed.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, optional
+            If True, print debug information including SQL queries. Default is False.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        - This method uses a SQL DELETE statement to remove outdated points.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        remove : Method to remove a single Point object.
+        remove_many : Method to remove multiple Point objects.
+        """  # noqa: E501
 
         time_start = time.perf_counter() if debug else None
 
@@ -529,6 +901,41 @@ class PointQuerySet:
         conn: "duckdb.DuckDBPyConnection",
         debug: bool = False,
     ) -> None:
+        """
+        Remove multiple Point objects from the database based on various criteria.
+
+        This method removes Point objects from the database that match the specified
+        point_ids, document_ids, or content_md5s.
+
+        Parameters
+        ----------
+        point_ids : Optional[List[Text]], optional
+            List of point IDs to remove. Default is None.
+        document_ids : Optional[List[Text]], optional
+            List of document IDs whose points should be removed. Default is None.
+        content_md5s : Optional[List[Text]], optional
+            List of content_md5 values whose points should be removed. Default is None.
+        conn : duckdb.DuckDBPyConnection
+            The DuckDB connection object to use for database operations.
+        debug : bool, optional
+            If True, print debug information including SQL queries. Default is False.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        - This method constructs and executes a DELETE SQL query with multiple conditions.
+        - At least one of point_ids, document_ids, or content_md5s must be provided.
+        - Execution time is measured and printed if debug is True.
+
+        See Also
+        --------
+        remove : Method to remove a single Point object.
+        remove_outdated : Method to remove outdated points for a specific document.
+        """  # noqa: E501
+
         if not any([point_ids, document_ids, content_md5s]):
             return None
 
