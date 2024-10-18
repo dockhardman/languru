@@ -66,6 +66,7 @@ sql_stmt_vector_search_with_documents = dedent(
     SELECT p.*, d.*
     FROM vector_search p
     JOIN {{ document_table_name }} d ON p.document_id = d.document_id
+    ORDER BY p.relevance_score DESC
     """
 ).strip()
 sql_stmt_remove_outdated_points = dedent(
