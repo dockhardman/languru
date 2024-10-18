@@ -160,6 +160,53 @@ class Document(BaseModel):
         with_document_card: bool = False,
         debug: bool = False,
     ) -> Union[List["Point"], List[Tuple["Point", Text]]]:
+        """
+        Convert the document into a list of Point objects, optionally with embeddings.
+
+        This method creates Point objects from the document, which can be used for
+        vector search and other operations. It can also generate embeddings for the
+        document content if an OpenAI client is provided.
+
+        Parameters
+        ----------
+        openai_client : Optional[OpenAI], optional
+            An instance of the OpenAI client to use for generating embeddings.
+            If not provided, embeddings will not be generated unless passed explicitly.
+        embeddings : Optional[List[List[float]]], optional
+            Pre-computed embeddings for the document. If provided, these will be used
+            instead of generating new embeddings.
+        with_document_card : bool, default False
+            If True, returns a tuple of (Point, document_card) for each point.
+            If False, returns only the Point objects.
+        debug : bool, default False
+            If True, enables debug mode for additional logging or verbose output.
+
+        Returns
+        -------
+        Union[List[Point], List[Tuple[Point, Text]]]
+            A list of Point objects if with_document_card is False,
+            or a list of tuples (Point, document_card) if with_document_card is True.
+
+        Raises
+        ------
+        ValueError
+            If the number of provided embeddings does not match the number of document cards.
+
+        Notes
+        -----
+        - The method first strips the document content.
+        - If embeddings are not provided and an OpenAI client is given, it generates
+        embeddings using the specified embedding model.
+        - The method uses the POINT_TYPE class variable to determine the Point class to use.
+        - The embedding model and dimensions are determined by class variables
+        EMBEDDING_MODEL and EMBEDDING_DIMENSIONS.
+
+        See Also
+        --------
+        Point : The class used to create point objects.
+        embeddings_create_with_cache : Function used to generate embeddings with caching.
+        """  # noqa: E501
+
         self.strip()
 
         out = []
@@ -204,6 +251,36 @@ class Document(BaseModel):
     def has_points(
         self, *, conn: "duckdb.DuckDBPyConnection", debug: bool = False
     ) -> bool:
+        """
+        Check if the document has any associated points in the database.
+
+        This method queries the database to determine if there are any Point objects
+        associated with the current document.
+
+        Parameters
+        ----------
+        conn : duckdb.DuckDBPyConnection
+            A connection to the DuckDB database.
+        debug : bool, default False
+            If True, enables debug mode for additional logging or verbose output.
+
+        Returns
+        -------
+        bool
+            True if the document has at least one associated point, False otherwise.
+
+        Notes
+        -----
+        - This method uses the POINT_TYPE class variable to determine which Point
+        class to use for the query.
+        - The query is performed using the `count` method of the Point objects manager.
+
+        See Also
+        --------
+        Point : The class representing points in the database.
+        PointQuerySet : The query set used for database operations on Point objects.
+        """
+
         return (
             self.POINT_TYPE.objects.count(
                 document_id=self.document_id, conn=conn, debug=debug
@@ -214,6 +291,38 @@ class Document(BaseModel):
     def are_points_current(
         self, conn: "duckdb.DuckDBPyConnection", *, debug: bool = False
     ) -> bool:
+        """
+        Check if all points associated with the document are up-to-date.
+
+        This method verifies that all Point objects associated with the document
+        have the same content_md5 as the current document, indicating that they
+        are synchronized with the latest version of the document.
+
+        Parameters
+        ----------
+        conn : duckdb.DuckDBPyConnection
+            A connection to the DuckDB database.
+        debug : bool, default False
+            If True, enables debug mode for additional logging or verbose output.
+
+        Returns
+        -------
+        bool
+            True if all associated points are up-to-date, False otherwise.
+
+        Notes
+        -----
+        - The method uses pagination to handle potentially large numbers of points.
+        - It returns False immediately if no points are found for the document.
+        - The check is performed by comparing the content_md5 of each point with
+        the current document's content_md5.
+
+        See Also
+        --------
+        Point : The class representing points in the database.
+        PointQuerySet : The query set used for database operations on Point objects.
+        """
+
         after = None
         has_more = True
         while has_more:
@@ -245,6 +354,49 @@ class Document(BaseModel):
         force: bool = False,
         debug: bool = False,
     ) -> Tuple["Point", ...]:
+        """
+        Synchronize the document's points in the database.
+
+        This method ensures that the points associated with the document in the
+        database are up-to-date. It can create new points, update existing ones,
+        and optionally generate embeddings.
+
+        Parameters
+        ----------
+        conn : duckdb.DuckDBPyConnection
+            A connection to the DuckDB database.
+        openai_client : OpenAI
+            An instance of the OpenAI client to use for generating embeddings.
+        with_embeddings : bool, default False
+            If True, generates embeddings for the points.
+        force : bool, default False
+            If True, forces synchronization even if points are already up-to-date.
+        debug : bool, default False
+            If True, enables debug mode for additional logging or verbose output.
+
+        Returns
+        -------
+        Tuple[Point, ...]
+            A tuple containing the synchronized Point objects.
+
+        Raises
+        ------
+        ValueError
+            If no points are created during the synchronization process.
+
+        Notes
+        -----
+        - This method uses the `documents_sync_points` method of the document's
+        query set to perform the synchronization.
+        - The method is designed to work with a single document, but internally
+        uses a method that can handle multiple documents.
+
+        See Also
+        --------
+        DocumentQuerySet.documents_sync_points : Method used for synchronizing points.
+        Point : The class representing points in the database.
+        """
+
         docs_pts = self.__class__.objects.documents_sync_points(
             [self],
             conn=conn,
@@ -259,13 +411,95 @@ class Document(BaseModel):
         return docs_pts[0]
 
     def to_document_cards(self, *args, **kwargs) -> List[Text]:
+        """
+        Convert the document content into a list of document cards.
+
+        This method prepares the document content for embedding or other processing
+        by converting it into a list of text strings (cards).
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        List[Text]
+            A list containing a single string, which is the stripped content of the document.
+
+        Notes
+        -----
+        - In the base implementation, this method simply returns a list with one item:
+        the stripped content of the document.
+        - Subclasses may override this method to implement more complex document
+        card creation logic.
+        """  # noqa: E501
+
         return [self.content.strip()]
 
     @classmethod
     def to_query_cards(cls, query: Text, *args, **kwargs) -> List[Text]:
+        """
+        Convert a query string into a list of query cards.
+
+        This class method prepares a query string for embedding or other processing
+        by converting it into a list of text strings (cards).
+
+        Parameters
+        ----------
+        query : Text
+            The query string to be converted into cards.
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        List[Text]
+            A list containing a single string, which is the stripped query.
+
+        Notes
+        -----
+        - In the base implementation, this method simply returns a list with one item:
+        the stripped query string.
+        - Subclasses may override this method to implement more complex query
+        card creation logic.
+        """
+
         return [query.strip()]
 
     def strip(self, *, copy: bool = False) -> "Document":
+        """
+        Strip whitespace from the document's content and update the content_md5.
+
+        This method removes leading and trailing whitespace from the document's content.
+        If the content changes, it updates the content_md5 and the updated_at timestamp.
+
+        Parameters
+        ----------
+        copy : bool, default False
+            If True, creates a deep copy of the document before modifying it.
+            If False, modifies the document in-place.
+
+        Returns
+        -------
+        Document
+            The document with stripped content, either the original (modified in-place)
+            or a new copy.
+
+        Notes
+        -----
+        - This method uses the `hash_content` class method to generate the new MD5 hash.
+        - If the content_md5 changes, the updated_at timestamp is set to the current time.
+
+        See Also
+        --------
+        Document.hash_content : Class method used to generate the MD5 hash of the content.
+        """  # noqa: E501
+
         _doc = self.model_copy(deep=True) if copy else self
         _doc.content = _doc.content.strip()
         new_md5 = self.hash_content(_doc.content)
